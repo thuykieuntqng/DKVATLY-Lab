@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Chuyển Động Ném Ngang - Vật Lý Tương Tác</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải Font Inter & JetBrains Mono cho số liệu -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tải FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Tùy chỉnh thanh trượt (Range Slider) */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 2px 5px rgba(37, 99, 235, 0.4);
+            transition: transform 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #1d4ed8;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+        /* Thanh cuộn tùy chỉnh cho bảng điều khiển */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-4 py-3 shadow-sm sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-200">
+                    <i class="fa-solid fa-basketball text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Mô Phỏng Chuyển Động Ném Ngang</h1>
+                    <p class="text-xs text-slate-500">Thí nghiệm Vật Lý tương tác trực quan (Bỏ qua sức cản không khí)</p>
+                </div>
+            </div>
+
+            <!-- Các nút điều khiển chính -->
+            <div class="flex items-center gap-2">
+                <button id="btn-launch" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Bắt đầu / Ném</span>
+                </button>
+                <button id="btn-pause" disabled class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:pointer-events-none active:scale-95 text-white font-semibold text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-pause"></i>
+                    <span id="btn-pause-text">Tạm dừng</span>
+                </button>
+                <button id="btn-reset" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-700 font-semibold text-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Đặt lại</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- Cột Trái: Khu vực Canvas Mô Phỏng & Thông Số Thời Gian Thực (8 cột trên màn hình lớn) -->
+        <div class="lg:col-span-8 flex flex-col gap-4">
+            
+            <!-- Khung chứa Canvas -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <!-- Thanh công cụ trên Canvas -->
+                <div class="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none font-medium text-slate-700">
+                            <input type="checkbox" id="chk-vectors" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer">
+                            <span>Hiển thị Vector vận tốc</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none font-medium text-slate-700">
+                            <input type="checkbox" id="chk-compare" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer">
+                            <span>Lưu vết quỹ đạo</span>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-clear-trails" class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 font-medium transition cursor-pointer">
+                            <i class="fa-solid fa-eraser mr-1"></i>Xóa vết cũ (<span id="trail-count">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chú thích màu Vector -->
+                <div id="vector-legend" class="bg-white/90 border-b border-slate-100 px-4 py-1.5 flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                    <span class="font-semibold text-slate-700">Chú thích Vector:</span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-1 bg-blue-600 inline-block rounded"></span>
+                        <span>Thành phần ngang <b class="font-mono text-blue-700">v<sub>x</sub></b></span>
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-1 bg-red-600 inline-block rounded"></span>
+                        <span>Thành phần dọc <b class="font-mono text-red-700">v<sub>y</sub></b></span>
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-1 bg-emerald-600 inline-block rounded"></span>
+                        <span>Vận tốc tổng hợp <b class="font-mono text-emerald-700">v</b></span>
+                    </span>
+                </div>
+
+                <!-- Vùng vẽ Canvas tương tác -->
+                <div id="canvas-wrapper" class="relative w-full h-[360px] sm:h-[440px] bg-gradient-to-b from-sky-50 to-white select-none">
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Nhãn góc tọa độ / Trạng thái -->
+                    <div id="status-badge" class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800/80 text-white backdrop-blur-sm shadow">
+                        Sẵn sàng phóng
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Thông Số Thời Gian Thực (Real-time Telemetry) -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-blue-600"></i>
+                        Thông Số Đo Lường Thời Gian Thực
+                    </h2>
+                    <span class="text-xs text-slate-400 font-mono">Đơn vị chuẩn SI</span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <!-- Thời gian t -->
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div class="text-xs text-slate-500 mb-1">Thời gian bay (t)</div>
+                        <div class="text-lg sm:text-xl font-bold font-mono text-slate-900">
+                            <span id="val-t">0.00</span> <span class="text-xs font-normal text-slate-500">s</span>
+                        </div>
+                    </div>
+
+                    <!-- Tọa độ ngang x -->
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div class="text-xs text-slate-500 mb-1">Tầm xa hiện tại (x)</div>
+                        <div class="text-lg sm:text-xl font-bold font-mono text-blue-600">
+                            <span id="val-x">0.00</span> <span class="text-xs font-normal text-slate-500">m</span>
+                        </div>
+                    </div>
+
+                    <!-- Độ cao hiện tại y -->
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div class="text-xs text-slate-500 mb-1">Độ cao hiện tại (y)</div>
+                        <div class="text-lg sm:text-xl font-bold font-mono text-indigo-600">
+                            <span id="val-y">45.00</span> <span class="text-xs font-normal text-slate-500">m</span>
+                        </div>
+                    </div>
+
+                    <!-- Góc nghiêng vận tốc -->
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div class="text-xs text-slate-500 mb-1">Góc hợp phương ngang (α)</div>
+                        <div class="text-lg sm:text-xl font-bold font-mono text-purple-600">
+                            <span id="val-angle">0.0</span> <span class="text-xs font-normal text-slate-500">°</span>
+                        </div>
+                    </div>
+
+                    <!-- Vận tốc vx -->
+                    <div class="bg-blue-50/60 rounded-xl p-3 border border-blue-100">
+                        <div class="text-xs text-blue-700 font-medium mb-1">Vận tốc ngang (v<sub>x</sub>)</div>
+                        <div class="text-lg font-bold font-mono text-blue-800">
+                            <span id="val-vx">15.00</span> <span class="text-xs font-normal">m/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Vận tốc vy -->
+                    <div class="bg-red-50/60 rounded-xl p-3 border border-red-100">
+                        <div class="text-xs text-red-700 font-medium mb-1">Vận tốc thẳng đứng (v<sub>y</sub>)</div>
+                        <div class="text-lg font-bold font-mono text-red-800">
+                            <span id="val-vy">0.00</span> <span class="text-xs font-normal">m/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Vận tốc tổng hợp v -->
+                    <div class="col-span-2 bg-emerald-50/70 rounded-xl p-3 border border-emerald-200 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-emerald-700 font-medium mb-1">Độ lớn vận tốc tổng hợp (v)</div>
+                            <div class="text-xl font-bold font-mono text-emerald-800">
+                                <span id="val-v">15.00</span> <span class="text-xs font-normal">m/s</span>
+                            </div>
+                        </div>
+                        <div class="text-right text-xs text-emerald-700 font-mono">
+                            v = √(v<sub>x</sub>² + v<sub>y</sub>²)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Công Thức Vật Lý Tóm Tắt -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-square-root-variable text-indigo-600"></i>
+                    Hệ Thống Công Thức Vật Lý Chuyển Động Ném Ngang
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div class="font-semibold text-slate-800 mb-1.5">1. Phương trình tọa độ</div>
+                        <p class="font-mono text-slate-600 mb-1">• Theo Ox: <span class="text-blue-700 font-semibold">x = v₀ · t</span></p>
+                        <p class="font-mono text-slate-600">• Theo Oy: <span class="text-indigo-700 font-semibold">y = h - ½·g·t²</span></p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div class="font-semibold text-slate-800 mb-1.5">2. Phương trình quỹ đạo</div>
+                        <p class="font-mono text-slate-700 bg-white px-2 py-1 rounded border border-slate-200 inline-block mb-1">
+                            y = h - (g / 2v₀²) · x²
+                        </p>
+                        <p class="text-slate-500">Quỹ đạo là một nhánh Parabol.</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div class="font-semibold text-slate-800 mb-1.5">3. Vận tốc & Tầm xa</div>
+                        <p class="font-mono text-slate-600 mb-1">• v<sub>x</sub> = v₀ ; v<sub>y</sub> = g · t</p>
+                        <p class="font-mono text-slate-600">• Tầm xa: <span class="text-emerald-700 font-semibold">L = v₀ · √(2h/g)</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột Phải: Bảng Điều Khiển Thông Số & Kết Quả Lý Thuyết (4 cột) -->
+        <div class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Bảng Điều Khiển Thông Số Đầu Vào -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col gap-5">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-2.5 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-blue-600"></i>
+                    Thiết Lập Thông Số Ban Đầu
+                </h2>
+
+                <!-- 1. Độ cao ban đầu h -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label for="input-h" class="text-sm font-semibold text-slate-700">Độ cao ban đầu (h)</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="input-h" min="5" max="100" step="1" value="45" class="w-16 px-2 py-1 text-right font-mono text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <span class="text-xs font-medium text-slate-500">m</span>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-h" min="5" max="100" step="1" value="45" class="w-full">
+                    <div class="flex justify-between text-[11px] text-slate-400 font-mono mt-1">
+                        <span>5m</span>
+                        <span>50m</span>
+                        <span>100m</span>
+                    </div>
+                </div>
+
+                <!-- 2. Vận tốc ban đầu v0 -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label for="input-v0" class="text-sm font-semibold text-slate-700">Vận tốc ném ngang (v₀)</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="input-v0" min="1" max="50" step="0.5" value="15" class="w-16 px-2 py-1 text-right font-mono text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <span class="text-xs font-medium text-slate-500">m/s</span>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-v0" min="1" max="50" step="0.5" value="15" class="w-full">
+                    <div class="flex justify-between text-[11px] text-slate-400 font-mono mt-1">
+                        <span>1 m/s</span>
+                        <span>25 m/s</span>
+                        <span>50 m/s</span>
+                    </div>
+                </div>
+
+                <!-- 3. Gia tốc trọng trường g -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label for="input-g" class="text-sm font-semibold text-slate-700">Gia tốc trọng trường (g)</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="input-g" min="0.5" max="30" step="0.01" value="9.81" class="w-20 px-2 py-1 text-right font-mono text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <span class="text-xs font-medium text-slate-500">m/s²</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Nút chọn nhanh hành tinh -->
+                    <div class="grid grid-cols-3 gap-1.5 mt-2">
+                        <button type="button" data-g="9.81" class="planet-btn active px-2 py-1.5 rounded-lg text-xs font-medium border border-blue-600 bg-blue-600 text-white transition cursor-pointer flex flex-col items-center">
+                            <span>🌍 Trái Đất</span>
+                            <span class="font-mono text-[10px] opacity-90">9.81</span>
+                        </button>
+                        <button type="button" data-g="1.62" class="planet-btn px-2 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer flex flex-col items-center">
+                            <span>🌕 Mặt Trăng</span>
+                            <span class="font-mono text-[10px] text-slate-500">1.62</span>
+                        </button>
+                        <button type="button" data-g="3.71" class="planet-btn px-2 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer flex flex-col items-center">
+                            <span>🔴 Sao Hỏa</span>
+                            <span class="font-mono text-[10px] text-slate-500">3.71</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Tốc độ phát (Slow Motion) -->
+                <div class="pt-2 border-t border-slate-100">
+                    <label class="text-sm font-semibold text-slate-700 block mb-2">Tốc độ mô phỏng (Slow Motion)</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" data-speed="0.25" class="speed-btn py-1.5 rounded-xl text-xs font-mono font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer">
+                            0.25x
+                        </button>
+                        <button type="button" data-speed="0.5" class="speed-btn py-1.5 rounded-xl text-xs font-mono font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer">
+                            0.5x
+                        </button>
+                        <button type="button" data-speed="1" class="speed-btn active py-1.5 rounded-xl text-xs font-mono font-semibold border border-blue-600 bg-blue-600 text-white transition cursor-pointer">
+                            1.0x (Chuẩn)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Kết Quả Tính Toán Lý Thuyết -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-4 shadow-md">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-sky-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-calculator"></i>
+                    Dự Báo Kết Quả Lý Thuyết
+                </h2>
+                <p class="text-xs text-slate-300 mb-3">Tính toán chính xác tại thời điểm vật chạm mặt đất (y = 0):</p>
+
+                <div class="space-y-2.5">
+                    <div class="bg-white/10 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-300">Thời gian chạm đất (t<sub>max</sub>)</div>
+                            <div class="text-[11px] font-mono text-sky-300">t<sub>max</sub> = √(2h / g)</div>
+                        </div>
+                        <div class="text-lg font-bold font-mono text-white">
+                            <span id="theo-tmax">3.03</span> <span class="text-xs font-normal text-slate-300">s</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/10 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-300">Tầm xa cực đại (L)</div>
+                            <div class="text-[11px] font-mono text-sky-300">L = v₀ · t<sub>max</sub></div>
+                        </div>
+                        <div class="text-lg font-bold font-mono text-amber-300">
+                            <span id="theo-range">45.43</span> <span class="text-xs font-normal text-slate-300">m</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/10 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-300">Vận tốc chạm đất (v<sub>chạm</sub>)</div>
+                            <div class="text-[11px] font-mono text-sky-300">v = √(v₀² + 2gh)</div>
+                        </div>
+                        <div class="text-lg font-bold font-mono text-emerald-300">
+                            <span id="theo-vfinal">33.28</span> <span class="text-xs font-normal text-slate-300">m/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        /**
+         * ỨNG DỤNG MÔ PHỎNG CHUYỂN ĐỘNG NÉM NGANG
+         * Tác giả: Gemini AI
+         * Mô tả: Mô phỏng vật lý chính xác theo thời gian thực với hệ trục tọa độ tự động co giãn (Auto-scaling),
+         * hiển thị vector thành phần, lưu vết so sánh và hiệu ứng va chạm.
+         */
+
+        // --- 1. KHỞI TẠO BIẾN TRẠNG THÁI VẬT LÝ & GIAO DIỆN ---
+        const state = {
+            h: 45,              // Độ cao ban đầu (m)
+            v0: 15,             // Vận tốc ném ngang (m/s)
+            g: 9.81,            // Gia tốc trọng trường (m/s^2)
+            timeScale: 1.0,     // Tốc độ phát (0.25x, 0.5x, 1x)
+            
+            // Trạng thái mô phỏng
+            isRunning: false,
+            isPaused: false,
+            isLanded: false,
+            t: 0,               // Thời gian hiện tại (s)
+            x: 0,               // Tọa độ x hiện tại (m)
+            y: 45,              // Độ cao y hiện tại (m)
+            vx: 15,             // Vận tốc ngang hiện tại (m/s)
+            vy: 0,              // Vận tốc thẳng đứng hiện tại (m/s)
+            
+            // Tùy chọn hiển thị
+            showVectors: true,
+            compareTrails: true,
+            
+            // Lưu trữ quỹ đạo hiện tại & lịch sử các lần ném trước
+            currentPath: [],
+            savedTrails: [],    // Mảng chứa các object { points: [], h, v0, g, range, tmax, color }
+            impactRipple: 0     // Hiệu ứng vòng tròn lan tỏa khi chạm đất (0 -> 1)
+        };
+
+        // Bảng màu cho các vết quỹ đạo lưu lại để dễ phân biệt
+        const TRAIL_COLORS = [
+            '#8b5cf6', // Tím
+            '#ec4899', // Hồng
+            '#f59e0b', // Cam
+            '#10b981', // Xanh ngọc
+            '#06b6d4', // Xanh lơ
+            '#6366f1'  // Chàm
+        ];
+
+        // --- 2. THAM CHIẾU CÁC PHẦN TỬ DOM ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        // Inputs & Sliders
+        const sliderH = document.getElementById('slider-h');
+        const inputH = document.getElementById('input-h');
+        const sliderV0 = document.getElementById('slider-v0');
+        const inputV0 = document.getElementById('input-v0');
+        const inputG = document.getElementById('input-g');
+        const planetBtns = document.querySelectorAll('.planet-btn');
+        const speedBtns = document.querySelectorAll('.speed-btn');
+
+        // Action Buttons & Checkboxes
+        const btnLaunch = document.getElementById('btn-launch');
+        const btnPause = document.getElementById('btn-pause');
+        const btnPauseText = document.getElementById('btn-pause-text');
+        const btnReset = document.getElementById('btn-reset');
+        const chkVectors = document.getElementById('chk-vectors');
+        const chkCompare = document.getElementById('chk-compare');
+        const btnClearTrails = document.getElementById('btn-clear-trails');
+        const trailCountSpan = document.getElementById('trail-count');
+        const vectorLegend = document.getElementById('vector-legend');
+        const statusBadge = document.getElementById('status-badge');
+
+        // Telemetry Displays
+        const valT = document.getElementById('val-t');
+        const valX = document.getElementById('val-x');
+        const valY = document.getElementById('val-y');
+        const valVx = document.getElementById('val-vx');
+        const valVy = document.getElementById('val-vy');
+        const valV = document.getElementById('val-v');
+        const valAngle = document.getElementById('val-angle');
+
+        // Theoretical Displays
+        const theoTmax = document.getElementById('theo-tmax');
+        const theoRange = document.getElementById('theo-range');
+        const theoVfinal = document.getElementById('theo-vfinal');
+
+        // --- 3. CÁC HÀM TÍNH TOÁN VẬT LÝ ---
+        function getTheoreticalValues() {
+            const tmax = Math.sqrt((2 * state.h) / state.g);
+            const range = state.v0 * tmax;
+            const vyFinal = state.g * tmax;
+            const vFinal = Math.sqrt(state.v0 * state.v0 + vyFinal * vyFinal);
+            return { tmax, range, vFinal };
+        }
+
+        function updateTheoreticalUI() {
+            const { tmax, range, vFinal } = getTheoreticalValues();
+            theoTmax.textContent = tmax.toFixed(2);
+            theoRange.textContent = range.toFixed(2);
+            theoVfinal.textContent = vFinal.toFixed(2);
+        }
+
+        function updateTelemetryUI() {
+            const vMag = Math.sqrt(state.vx * state.vx + state.vy * state.vy);
+            // Góc hợp bởi vector vận tốc và phương ngang (độ)
+            const angleRad = Math.atan2(state.vy, state.vx);
+            const angleDeg = (angleRad * 180) / Math.PI;
+
+            valT.textContent = state.t.toFixed(2);
+            valX.textContent = state.x.toFixed(2);
+            valY.textContent = Math.max(0, state.y).toFixed(2);
+            valVx.textContent = state.vx.toFixed(2);
+            valVy.textContent = state.vy.toFixed(2);
+            valV.textContent = vMag.toFixed(2);
+            valAngle.textContent = angleDeg.toFixed(1);
+        }
+
+        // --- 4. QUẢN LÝ TRẠNG THÁI ĐIỀU KHIỂN ---
+        function resetSimulationState() {
+            state.isRunning = false;
+            state.isPaused = false;
+            state.isLanded = false;
+            state.t = 0;
+            state.x = 0;
+            state.y = state.h;
+            state.vx = state.v0;
+            state.vy = 0;
+            state.currentPath = [{ x: 0, y: state.h }];
+            state.impactRipple = 0;
+
+            btnLaunch.disabled = false;
+            btnLaunch.innerHTML = '<i class="fa-solid fa-play"></i><span>Bắt đầu / Ném</span>';
+            btnPause.disabled = true;
+            btnPauseText.textContent = 'Tạm dừng';
+            btnPause.querySelector('i').className = 'fa-solid fa-pause';
+
+            statusBadge.textContent = 'Sẵn sàng phóng';
+            statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800/80 text-white backdrop-blur-sm shadow';
+
+            updateTheoreticalUI();
+            updateTelemetryUI();
+            drawScene();
+        }
+
+        function launchProjectile() {
+            // Nếu đang ở trạng thái đã chạm đất, lưu quỹ đạo cũ (nếu bật chế độ so sánh) trước khi ném mới
+            if (state.isLanded) {
+                if (state.compareTrails && state.currentPath.length > 1) {
+                    saveCurrentTrail();
+                }
+                resetSimulationState();
+            }
+
+            state.isRunning = true;
+            state.isPaused = false;
+            state.isLanded = false;
+
+            btnLaunch.disabled = true;
+            btnPause.disabled = false;
+            statusBadge.textContent = 'Đang bay...';
+            statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-blue-600 text-white shadow animate-pulse';
+        }
+
+        function togglePause() {
+            if (!state.isRunning || state.isLanded) return;
+            state.isPaused = !state.isPaused;
+            if (state.isPaused) {
+                btnPauseText.textContent = 'Tiếp tục';
+                btnPause.querySelector('i').className = 'fa-solid fa-play';
+                statusBadge.textContent = 'Đang tạm dừng';
+                statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500 text-white shadow';
+            } else {
+                btnPauseText.textContent = 'Tạm dừng';
+                btnPause.querySelector('i').className = 'fa-solid fa-pause';
+                statusBadge.textContent = 'Đang bay...';
+                statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-blue-600 text-white shadow';
+            }
+        }
+
+        function saveCurrentTrail() {
+            const { tmax, range } = getTheoreticalValues();
+            const color = TRAIL_COLORS[state.savedTrails.length % TRAIL_COLORS.length];
+            state.savedTrails.push({
+                points: [...state.currentPath],
+                h: state.h,
+                v0: state.v0,
+                g: state.g,
+                range: range,
+                tmax: tmax,
+                color: color
+            });
+            trailCountSpan.textContent = state.savedTrails.length;
+        }
+
+        // --- 5. HỆ THỐNG RENDER CANVAS & TỰ ĐỘNG CO GIÃN TỈ LỆ ---
+        function resizeCanvas() {
+            const rect = canvasWrapper.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawScene();
+        }
+
+        /**
+         * Tính toán tỉ lệ chuyển đổi từ mét (m) sang pixel (px)
+         * Đảm bảo toàn bộ quỹ đạo (kể cả các vết cũ) luôn nằm gọn trong khung nhìn
+         */
+        function getViewportTransform() {
+            const width = canvasWrapper.clientWidth;
+            const height = canvasWrapper.clientHeight;
+
+            // Lề (padding) cho trục tọa độ và nhãn
+            const padLeft = 58;
+            const padRight = 45;
+            const padTop = 45;
+            const padBottom = 42;
+
+            const plotWidth = Math.max(100, width - padLeft - padRight);
+            const plotHeight = Math.max(100, height - padTop - padBottom);
+
+            // Tìm giá trị X và Y lớn nhất cần hiển thị
+            const { range } = getTheoreticalValues();
+            let maxX = Math.max(range * 1.15, 30);
+            let maxY = Math.max(state.h * 1.2, 20);
+
+            // Nếu đang bật lưu vết, mở rộng khung nhìn để chứa các quỹ đạo cũ
+            if (state.compareTrails && state.savedTrails.length > 0) {
+                state.savedTrails.forEach(trail => {
+                    if (trail.range * 1.15 > maxX) maxX = trail.range * 1.15;
+                    if (trail.h * 1.2 > maxY) maxY = trail.h * 1.2;
+                });
+            }
+
+            // Tính tỉ lệ pixel/mét đồng nhất theo cả 2 trục hoặc độc lập tối ưu không gian
+            // Sử dụng tỉ lệ đồng nhất (isotropic) để góc vector và hình dạng parabol không bị méo!
+            const scaleX = plotWidth / maxX;
+            const scaleY = plotHeight / maxY;
+            const scale = Math.min(scaleX, scaleY);
+
+            const originX = padLeft;
+            const originY = height - padBottom;
+
+            return {
+                width,
+                height,
+                originX,
+                originY,
+                scale,
+                maxX: plotWidth / scale,
+                maxY: plotHeight / scale
+            };
+        }
+
+        // Chuyển đổi tọa độ thực (m) sang tọa độ Canvas (px)
+        function toCanvasX(xMeters, vp) {
+            return vp.originX + xMeters * vp.scale;
+        }
+        function toCanvasY(yMeters, vp) {
+            return vp.originY - yMeters * vp.scale;
+        }
+
+        // Vẽ mũi tên Vector đẹp mắt
+        function drawArrow(fromX, fromY, toX, toY, color, label, lineWidth = 2.5) {
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len < 4) return; // Bỏ qua nếu vector quá ngắn
+
+            const angle = Math.atan2(dy, dx);
+            const headLen = Math.min(10, len * 0.35);
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+
+            // Thân mũi tên
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            // Đầu mũi tên
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            // Nhãn tên vector
+            if (label) {
+                ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                const offsetX = Math.cos(angle) * 14;
+                const offsetY = Math.sin(angle) * 14;
+                ctx.fillText(label, toX + offsetX - 6, toY + offsetY + 4);
+            }
+            ctx.restore();
+        }
+
+        // Hàm vẽ toàn bộ khung cảnh
+        function drawScene() {
+            const vp = getViewportTransform();
+            ctx.clearRect(0, 0, vp.width, vp.height);
+
+            // 1. Vẽ lưới tọa độ và chia vạch mét (Grid & Axes)
+            drawGridAndAxes(vp);
+
+            // 2. Vẽ mặt đất (Ground)
+            ctx.fillStyle = '#dcfce7'; // Xanh cỏ nhạt
+            ctx.fillRect(0, vp.originY, vp.width, vp.height - vp.originY);
+            ctx.strokeStyle = '#16a34a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, vp.originY);
+            ctx.lineTo(vp.width, vp.originY);
+            ctx.stroke();
+
+            // 3. Vẽ tòa tháp / bệ phóng có chiều cao h
+            drawTower(vp);
+
+            // 4. Vẽ các vết quỹ đạo cũ (nếu bật Compare Trails)
+            if (state.compareTrails && state.savedTrails.length > 0) {
+                state.savedTrails.forEach((trail, idx) => {
+                    drawTrailPath(trail.points, trail.color, 2, [5, 5], vp);
+                    // Vẽ điểm rơi của vết cũ
+                    const lastPt = trail.points[trail.points.length - 1];
+                    if (lastPt) {
+                        const lx = toCanvasX(lastPt.x, vp);
+                        const ly = toCanvasY(0, vp);
+                        ctx.fillStyle = trail.color;
+                        ctx.beginPath();
+                        ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Nhãn thông số tóm tắt tại điểm rơi cũ
+                        ctx.font = '11px "JetBrains Mono", monospace';
+                        ctx.fillText(`#${idx + 1}: L=${trail.range.toFixed(1)}m`, lx - 25, ly + 15);
+                    }
+                });
+            }
+
+            // 5. Vẽ quỹ đạo parabol nét đứt của lần ném hiện tại
+            if (state.currentPath.length > 1) {
+                drawTrailPath(state.currentPath, '#2563eb', 2.5, [6, 4], vp);
+            }
+
+            // 6. Vẽ hiệu ứng va chạm và điểm rơi khi chạm đất
+            if (state.isLanded) {
+                const landX = toCanvasX(state.x, vp);
+                const landY = toCanvasY(0, vp);
+
+                // Vòng tròn sóng va chạm
+                if (state.impactRipple < 1) {
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(239, 68, 68, ${1 - state.impactRipple})`;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(landX, landY, 6 + state.impactRipple * 28, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Cờ / Điểm đánh dấu tầm xa L
+                ctx.fillStyle = '#dc2626';
+                ctx.beginPath();
+                ctx.arc(landX, landY, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Đường gióng khoảng cách tầm xa L
+                ctx.save();
+                ctx.strokeStyle = '#d97706';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(vp.originX, landY + 22);
+                ctx.lineTo(landX, landY + 22);
+                ctx.stroke();
+                ctx.restore();
+
+                // Nhãn tầm xa L
+                ctx.fillStyle = '#b45309';
+                ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                const rangeText = `L = ${state.x.toFixed(2)} m`;
+                const textWidth = ctx.measureText(rangeText).width;
+                ctx.fillText(rangeText, (vp.originX + landX) / 2 - textWidth / 2, landY + 36);
+            }
+
+            // 7. Vẽ vật thể chuyển động (Quả bóng)
+            const ballX = toCanvasX(state.x, vp);
+            const ballY = toCanvasY(state.y, vp);
+            const ballRadius = 9;
+
+            // Đổ bóng nhẹ cho quả bóng
+            ctx.save();
+            ctx.shadowColor = 'rgba(15, 23, 42, 0.25)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 3;
+
+            const ballGrad = ctx.createRadialGradient(ballX - 3, ballY - 3, 2, ballX, ballY, ballRadius);
+            ballGrad.addColorStop(0, '#60a5fa');
+            ballGrad.addColorStop(0.7, '#2563eb');
+            ballGrad.addColorStop(1, '#1e3a8a');
+
+            ctx.fillStyle = ballGrad;
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Viền trắng nổi bật cho quả bóng
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // 8. Vẽ các Vector vận tốc ngay trên vật thể (nếu được bật)
+            if (state.showVectors) {
+                // Tỉ lệ độ dài vector (px trên mỗi m/s) để hiển thị rõ ràng
+                const vScale = 2.4;
+                const vxPx = state.vx * vScale;
+                const vyPx = state.vy * vScale; // Lưu ý: trên canvas chiều dương y hướng xuống
+
+                // Vẽ đường gióng hình bình hành nét đứt nếu có cả vx và vy
+                if (state.vy > 0.5) {
+                    ctx.save();
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(ballX + vxPx, ballY);
+                    ctx.lineTo(ballX + vxPx, ballY + vyPx);
+                    ctx.lineTo(ballX, ballY + vyPx);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Vector thành phần ngang vx (Màu xanh dương)
+                drawArrow(ballX, ballY, ballX + vxPx, ballY, '#2563eb', 'vx', 2.5);
+
+                // Vector thành phần thẳng đứng vy (Màu đỏ)
+                if (state.vy > 0.2) {
+                    drawArrow(ballX, ballY, ballX, ballY + vyPx, '#dc2626', 'vy', 2.5);
+                }
+
+                // Vector vận tốc tổng hợp v (Màu xanh lá)
+                if (state.vy > 0.2) {
+                    drawArrow(ballX, ballY, ballX + vxPx, ballY + vyPx, '#059669', 'v', 3);
+                }
+            }
+        }
+
+        // Vẽ lưới tọa độ và chia vạch mét tự động theo bước nhảy đẹp (5m, 10m, 20m...)
+        function drawGridAndAxes(vp) {
+            // Tính bước chia vạch tối ưu (khoảng 6-10 vạch mỗi trục)
+            const rawStep = Math.max(vp.maxX, vp.maxY) / 8;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            const residual = rawStep / magnitude;
+            let step = magnitude;
+            if (residual > 5) step = 10 * magnitude;
+            else if (residual > 2) step = 5 * magnitude;
+            else if (residual > 1) step = 2 * magnitude;
+
+            ctx.save();
+            ctx.font = '11px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#64748b';
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+
+            // Vạch đứng (trục X)
+            for (let x = 0; x <= vp.maxX; x += step) {
+                const px = toCanvasX(x, vp);
+                ctx.beginPath();
+                ctx.moveTo(px, 15);
+                ctx.lineTo(px, vp.originY);
+                ctx.stroke();
+
+                if (x > 0) {
+                    ctx.fillText(`${Math.round(x)}m`, px - 10, vp.originY + 15);
+                }
+            }
+
+            // Vạch ngang (trục Y)
+            for (let y = 0; y <= vp.maxY; y += step) {
+                const py = toCanvasY(y, vp);
+                ctx.beginPath();
+                ctx.moveTo(vp.originX, py);
+                ctx.lineTo(vp.width - 15, py);
+                ctx.stroke();
+
+                if (y > 0) {
+                    const label = `${Math.round(y)}m`;
+                    const w = ctx.measureText(label).width;
+                    ctx.fillText(label, vp.originX - w - 8, py + 4);
+                }
+            }
+
+            // Trục tọa độ chính Ox, Oy đậm nét
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            // Oy
+            ctx.moveTo(vp.originX, 15);
+            ctx.lineTo(vp.originX, vp.originY);
+            // Ox
+            ctx.lineTo(vp.width - 15, vp.originY);
+            ctx.stroke();
+
+            // Nhãn gốc tọa độ O
+            ctx.fillStyle = '#334155';
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.fillText('O(0,0)', vp.originX - 38, vp.originY + 15);
+            ctx.fillText('y (m)', vp.originX - 42, 24);
+            ctx.fillText('x (m)', vp.width - 38, vp.originY - 6);
+
+            ctx.restore();
+        }
+
+        // Vẽ tòa tháp / bệ phóng tại x = 0, cao h
+        function drawTower(vp) {
+            const topY = toCanvasY(state.h, vp);
+            const bottomY = vp.originY;
+            const towerWidth = 28;
+            const towerLeft = vp.originX - towerWidth;
+
+            ctx.save();
+            // Thân tháp
+            const grad = ctx.createLinearGradient(towerLeft, topY, vp.originX, bottomY);
+            grad.addColorStop(0, '#64748b');
+            grad.addColorStop(1, '#334155');
+            ctx.fillStyle = grad;
+            ctx.fillRect(towerLeft, topY, towerWidth, bottomY - topY);
+
+            // Viền tháp
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(towerLeft, topY, towerWidth, bottomY - topY);
+
+            // Bệ phóng ngang trên đỉnh tháp
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(towerLeft - 3, topY - 4, towerWidth + 8, 6);
+
+            // Các ô cửa sổ trang trí trên thân tháp
+            ctx.fillStyle = '#bae6fd';
+            for (let wy = topY + 14; wy < bottomY - 18; wy += 22) {
+                ctx.fillRect(towerLeft + 9, wy, 10, 10);
+            }
+
+            // Nhãn độ cao h bên cạnh tháp
+            ctx.fillStyle = '#1d4ed8';
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.fillText(`h=${state.h}m`, towerLeft - 14, topY - 10);
+            ctx.restore();
+        }
+
+        // Vẽ đường quỹ đạo từ mảng các điểm {x, y}
+        function drawTrailPath(points, color, lineWidth, dashArray, vp) {
+            if (points.length < 2) return;
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.setLineDash(dashArray);
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(points[0].x, vp), toCanvasY(points[0].y, vp));
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(toCanvasX(points[i].x, vp), toCanvasY(points[i].y, vp));
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // --- 6. VÒNG LẶP ANIMATION THỜI GIAN THỰC ---
+        let lastTimestamp = null;
+
+        function animate(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const rawDt = (timestamp - lastTimestamp) / 1000; // giây
+            lastTimestamp = timestamp;
+
+            // Giới hạn dt tối đa 0.05s để tránh nhảy bước khi chuyển tab
+            const dt = Math.min(rawDt, 0.05) * state.timeScale;
+
+            if (state.isRunning && !state.isPaused && !state.isLanded) {
+                state.t += dt;
+
+                // Phương trình chuyển động ném ngang:
+                // x = v0 * t
+                // y = h - 0.5 * g * t^2
+                // vx = v0
+                // vy = g * t
+                state.x = state.v0 * state.t;
+                state.y = state.h - 0.5 * state.g * state.t * state.t;
+                state.vx = state.v0;
+                state.vy = state.g * state.t;
+
+                // Kiểm tra chạm đất (y <= 0)
+                if (state.y <= 0) {
+                    const { tmax, range } = getTheoreticalValues();
+                    state.t = tmax;
+                    state.x = range;
+                    state.y = 0;
+                    state.vy = state.g * tmax;
+                    state.isLanded = true;
+                    state.isRunning = false;
+
+                    // Cập nhật UI nút bấm
+                    btnLaunch.disabled = false;
+                    btnLaunch.innerHTML = '<i class="fa-solid fa-rotate-left"></i><span>Ném lại</span>';
+                    btnPause.disabled = true;
+
+                    statusBadge.textContent = `Đã chạm đất! Tầm xa L = ${range.toFixed(2)}m`;
+                    statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow';
+                }
+
+                state.currentPath.push({ x: state.x, y: state.y });
+                updateTelemetryUI();
+            }
+
+            // Cập nhật hiệu ứng sóng va chạm sau khi chạm đất
+            if (state.isLanded && state.impactRipple < 1) {
+                state.impactRipple += rawDt * 1.8;
+                if (state.impactRipple > 1) state.impactRipple = 1;
+            }
+
+            drawScene();
+            requestAnimationFrame(animate);
+        }
+
+        // --- 7. GẮN SỰ KIỆN TƯƠNG TÁC NGƯỜI DÙNG ---
+        function syncParamH(val) {
+            const clamped = Math.max(5, Math.min(100, parseFloat(val) || 45));
+            state.h = clamped;
+            sliderH.value = clamped;
+            inputH.value = clamped;
+            resetSimulationState();
+        }
+
+        function syncParamV0(val) {
+            const clamped = Math.max(1, Math.min(50, parseFloat(val) || 15));
+            state.v0 = clamped;
+            sliderV0.value = clamped;
+            inputV0.value = clamped;
+            resetSimulationState();
+        }
+
+        function syncParamG(val) {
+            const clamped = Math.max(0.5, Math.min(30, parseFloat(val) || 9.81));
+            state.g = clamped;
+            inputG.value = clamped;
+
+            // Cập nhật trạng thái active cho nút hành tinh
+            planetBtns.forEach(btn => {
+                const btnG = parseFloat(btn.dataset.g);
+                if (Math.abs(btnG - clamped) < 0.01) {
+                    btn.className = 'planet-btn active px-2 py-1.5 rounded-lg text-xs font-medium border border-blue-600 bg-blue-600 text-white transition cursor-pointer flex flex-col items-center';
+                    btn.querySelector('span:last-child').className = 'font-mono text-[10px] opacity-90';
+                } else {
+                    btn.className = 'planet-btn px-2 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer flex flex-col items-center';
+                    btn.querySelector('span:last-child').className = 'font-mono text-[10px] text-slate-500';
+                }
+            });
+
+            resetSimulationState();
+        }
+
+        sliderH.addEventListener('input', e => syncParamH(e.target.value));
+        inputH.addEventListener('change', e => syncParamH(e.target.value));
+
+        sliderV0.addEventListener('input', e => syncParamV0(e.target.value));
+        inputV0.addEventListener('change', e => syncParamV0(e.target.value));
+
+        inputG.addEventListener('change', e => syncParamG(e.target.value));
+        planetBtns.forEach(btn => {
+            btn.addEventListener('click', () => syncParamG(btn.dataset.g));
+        });
+
+        speedBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.timeScale = parseFloat(btn.dataset.speed);
+                speedBtns.forEach(b => {
+                    b.className = 'speed-btn py-1.5 rounded-xl text-xs font-mono font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer';
+                });
+                btn.className = 'speed-btn active py-1.5 rounded-xl text-xs font-mono font-semibold border border-blue-600 bg-blue-600 text-white transition cursor-pointer';
+            });
+        });
+
+        btnLaunch.addEventListener('click', launchProjectile);
+        btnPause.addEventListener('click', togglePause);
+        btnReset.addEventListener('click', resetSimulationState);
+
+        chkVectors.addEventListener('change', e => {
+            state.showVectors = e.target.checked;
+            vectorLegend.style.display = state.showVectors ? 'flex' : 'none';
+            drawScene();
+        });
+
+        chkCompare.addEventListener('change', e => {
+            state.compareTrails = e.target.checked;
+            drawScene();
+        });
+
+        btnClearTrails.addEventListener('click', () => {
+            state.savedTrails = [];
+            trailCountSpan.textContent = '0';
+            drawScene();
+        });
+
+        // Khởi chạy ứng dụng khi tải xong trang
+        window.addEventListener('resize', resizeCanvas);
+        window.onload = function() {
+            resizeCanvas();
+            resetSimulationState();
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Định Luật I Nhiệt Động Lực Học & Động Cơ Nhiệt - Vật Lý 12 (KNTT)</title>
+    <!-- Tải Tailwind CSS, Font chữ Inter & JetBrains Mono, Icon Phosphor -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .font-mono-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Thanh trượt tùy chỉnh */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 999px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            border: 2px solid #0f172a;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #7dd3fc;
+        }
+        .led-panel {
+            background: linear-gradient(180deg, #090d16 0%, #0f172a 100%);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.85);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+
+    <!-- Thanh tiêu đề & điều hướng 2 chuyên đề chính SGK Vật lí 12 (KNTT) -->
+    <header class="border-b border-slate-800/80 bg-slate-900/85 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 via-rose-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                    <i class="ph-bold ph-engine text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">Nhiệt Động Lực Học & Động Cơ Nhiệt</h1>
+                    <p class="text-xs text-slate-400">Mô phỏng SGK Vật lí 12 — Kết nối tri thức với cuộc sống</p>
+                </div>
+            </div>
+
+            <!-- 2 Tab chính -->
+            <nav class="flex p-1 bg-slate-950/90 border border-slate-800 rounded-xl w-full lg:w-auto justify-between gap-1.5" role="tablist">
+                <button id="tab-first-law" onclick="switchMode('first-law')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-sky-500 text-slate-950 shadow-md">
+                    1. Nội năng & Định luật I NĐLH (ΔU = A + Q)
+                </button>
+                <button id="tab-heat-engine" onclick="switchMode('heat-engine')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                    2. Nguyên tắc Động cơ nhiệt & Hiệu suất (H)
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Khu vực nội dung chính -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+
+        <!-- ===================================================================== -->
+        <!-- CHẾ ĐỘ 1: THÍ NGHIỆM NỘI NĂNG & ĐỊNH LUẬT I NHIỆT ĐỘNG LỰC HỌC        -->
+        <!-- ===================================================================== -->
+        <div id="view-first-law" class="flex flex-col gap-5">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                
+                <!-- CỘT TRÁI (7 cột): Khung mô phỏng Xi-lanh, Pít-tông, Phân tử khí & Đèn cồn -->
+                <section class="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-2xl">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span id="fl-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                            <h2 class="text-sm sm:text-base font-bold text-sky-300">Thí nghiệm: Làm biến đổi nội năng của khối khí trong xi-lanh</h2>
+                        </div>
+                        <span id="fl-process-badge" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                            Trạng thái cân bằng
+                        </span>
+                    </div>
+
+                    <!-- Canvas Xi-lanh + Pít-tông + Phân tử khí -->
+                    <div class="relative w-full h-[350px] sm:h-[390px] bg-slate-950/95 border border-slate-800 rounded-xl overflow-hidden">
+                        <canvas id="firstLawCanvas" class="w-full h-full block"></canvas>
+
+                        <!-- Thanh thao tác thí nghiệm trực tiếp ngay dưới Canvas -->
+                        <div class="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 z-10">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <!-- Bật/tắt đèn cồn truyền nhiệt -->
+                                <button id="btn-burner" onclick="toggleBurner()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition active:scale-95">
+                                    <i class="ph-fill ph-fire text-base"></i>
+                                    <span id="text-burner">Đốt đèn cồn (+Q)</span>
+                                </button>
+
+                                <!-- Đẩy pít-tông nén khí (Nhận công A > 0) -->
+                                <button onmousedown="startPistonAction('compress')" onmouseup="stopPistonAction()" onmouseleave="stopPistonAction()" ontouchstart="startPistonAction('compress')" ontouchend="stopPistonAction()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition active:scale-95 select-none">
+                                    <i class="ph-bold ph-arrow-line-down text-base"></i>
+                                    <span>Nén pít-tông (+A)</span>
+                                </button>
+
+                                <!-- Kéo / Cho khí giãn nở (Thực hiện công A < 0) -->
+                                <button onmousedown="startPistonAction('expand')" onmouseup="stopPistonAction()" onmouseleave="stopPistonAction()" ontouchstart="startPistonAction('expand')" ontouchend="stopPistonAction()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs sm:text-sm shadow-lg transition active:scale-95 select-none">
+                                    <i class="ph-bold ph-arrow-line-up text-base"></i>
+                                    <span>Giãn nở (-A)</span>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <!-- Khóa chốt pít-tông (Đẳng tích) -->
+                                <button id="btn-lock-piston" onclick="togglePistonLock()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs sm:text-sm transition active:scale-95" title="Cố định thể tích (Quá trình đẳng tích)">
+                                    <i id="icon-lock" class="ph-bold ph-lock-open text-base text-emerald-400"></i>
+                                    <span id="text-lock" class="hidden sm:inline">Pít-tông tự do</span>
+                                </button>
+
+                                <button onclick="resetFirstLaw()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium text-xs sm:text-sm transition active:scale-95" title="Đặt lại trạng thái ban đầu">
+                                    <i class="ph-bold ph-arrow-counter-clockwise text-base"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Đồng hồ đo thông số trạng thái khí (T, p, V, U) -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="led-panel border border-slate-800 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold flex items-center justify-between">
+                                <span>Nhiệt độ (T)</span>
+                                <i class="ph-bold ph-thermometer text-rose-400"></i>
+                            </span>
+                            <span id="fl-temp" class="text-lg sm:text-xl font-bold font-mono-code text-rose-400 mt-1">300 K</span>
+                            <span id="fl-temp-c" class="text-[11px] font-mono-code text-slate-400">27.0 °C</span>
+                        </div>
+
+                        <div class="led-panel border border-slate-800 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold flex items-center justify-between">
+                                <span>Áp suất (p)</span>
+                                <i class="ph-bold ph-gauge text-amber-400"></i>
+                            </span>
+                            <span id="fl-pressure" class="text-lg sm:text-xl font-bold font-mono-code text-amber-400 mt-1">100.0 kPa</span>
+                            <span class="text-[11px] font-mono-code text-slate-400">~ 1.00 atm</span>
+                        </div>
+
+                        <div class="led-panel border border-slate-800 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold flex items-center justify-between">
+                                <span>Thể tích (V)</span>
+                                <i class="ph-bold ph-cylinder text-sky-400"></i>
+                            </span>
+                            <span id="fl-volume" class="text-lg sm:text-xl font-bold font-mono-code text-sky-400 mt-1">2.00 L</span>
+                            <span class="text-[11px] font-mono-code text-slate-400">0.0020 m³</span>
+                        </div>
+
+                        <div class="led-panel border border-slate-800 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold flex items-center justify-between">
+                                <span>Nội năng (U)</span>
+                                <i class="ph-bold ph-atom text-emerald-400"></i>
+                            </span>
+                            <span id="fl-internal-u" class="text-lg sm:text-xl font-bold font-mono-code text-emerald-400 mt-1">300 J</span>
+                            <span class="text-[11px] font-mono-code text-slate-400">U = W_đ + W_t</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CỘT PHẢI (5 cột): Bảng cân bằng năng lượng ΔU = A + Q & 4 Trường hợp quy ước dấu SGK -->
+                <section class="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4 shadow-2xl">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-100">Định luật I Nhiệt động lực học</h3>
+                            <span class="px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/40 font-mono-code font-bold text-sky-300 text-xs sm:text-sm">
+                                ΔU = A + Q
+                            </span>
+                        </div>
+
+                        <!-- 3 Thẻ hiển thị trực tiếp giá trị tích lũy A, Q, ΔU -->
+                        <div class="grid grid-cols-3 gap-2.5 mt-3.5">
+                            <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 text-center">
+                                <span class="text-[11px] text-slate-400 block font-semibold">Công (A)</span>
+                                <span id="fl-val-a" class="text-base sm:text-lg font-bold font-mono-code text-sky-400 mt-1 block">0 J</span>
+                                <span id="fl-sign-a" class="text-[10px] text-slate-400 mt-0.5 block">A = 0</span>
+                            </div>
+
+                            <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 text-center">
+                                <span class="text-[11px] text-slate-400 block font-semibold">Nhiệt lượng (Q)</span>
+                                <span id="fl-val-q" class="text-base sm:text-lg font-bold font-mono-code text-amber-400 mt-1 block">0 J</span>
+                                <span id="fl-sign-q" class="text-[10px] text-slate-400 mt-0.5 block">Q = 0</span>
+                            </div>
+
+                            <div class="bg-slate-950/90 border border-emerald-500/30 rounded-xl p-3 text-center">
+                                <span class="text-[11px] text-slate-400 block font-semibold">Biến thiên (ΔU)</span>
+                                <span id="fl-val-du" class="text-base sm:text-lg font-bold font-mono-code text-emerald-400 mt-1 block">0 J</span>
+                                <span id="fl-sign-du" class="text-[10px] text-emerald-300 mt-0.5 block">U không đổi</span>
+                            </div>
+                        </div>
+
+                        <!-- Quy ước dấu theo SGK Vật lí 12 (KNTT) -->
+                        <div class="mt-4 bg-slate-950/75 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2 text-xs">
+                            <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                                <i class="ph-bold ph-signpost text-sky-400"></i>
+                                Quy ước dấu (SGK Kết nối tri thức):
+                            </span>
+                            <div class="grid grid-cols-2 gap-2 pt-1">
+                                <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800/80">
+                                    <span class="text-amber-400 font-mono-code font-bold">Q &gt; 0:</span> <span class="text-slate-300">Vật nhận nhiệt lượng</span><br>
+                                    <span class="text-cyan-400 font-mono-code font-bold">Q &lt; 0:</span> <span class="text-slate-300">Vật truyền nhiệt lượng</span>
+                                </div>
+                                <div class="p-2 rounded-lg bg-slate-900/90 border border-slate-800/80">
+                                    <span class="text-sky-400 font-mono-code font-bold">A &gt; 0:</span> <span class="text-slate-300">Vật nhận công (bị nén)</span><br>
+                                    <span class="text-indigo-400 font-mono-code font-bold">A &lt; 0:</span> <span class="text-slate-300">Vật thực hiện công (giãn)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Nút kịch bản thí nghiệm nhanh theo SGK -->
+                    <div class="flex flex-col gap-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Chạy nhanh 4 kịch bản thí nghiệm SGK:</span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="runFirstLawPreset('heat-isochoric')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-amber-500/20 hover:border-amber-500/50 border border-slate-700 text-left transition">
+                                <span class="text-xs font-bold text-amber-300 block">1. Đun nóng đẳng tích</span>
+                                <span class="text-[11px] text-slate-400 font-mono-code">A = 0, Q &gt; 0 ⇒ ΔU = Q</span>
+                            </button>
+
+                            <button onclick="runFirstLawPreset('heat-isobaric')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-emerald-500/20 hover:border-emerald-500/50 border border-slate-700 text-left transition">
+                                <span class="text-xs font-bold text-emerald-300 block">2. Đun nóng & đẩy pít-tông</span>
+                                <span class="text-[11px] text-slate-400 font-mono-code">Q &gt; 0, A &lt; 0 ⇒ ΔU = A+Q</span>
+                            </button>
+
+                            <button onclick="runFirstLawPreset('adiabatic-compress')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-sky-500/20 hover:border-sky-500/50 border border-slate-700 text-left transition">
+                                <span class="text-xs font-bold text-sky-300 block">3. Nén nhanh (Bơm xe đạp)</span>
+                                <span class="text-[11px] text-slate-400 font-mono-code">Q ≈ 0, A &gt; 0 ⇒ ΔU = A</span>
+                            </button>
+
+                            <button onclick="runFirstLawPreset('cool-lose-heat')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-cyan-500/20 hover:border-cyan-500/50 border border-slate-700 text-left transition">
+                                <span class="text-xs font-bold text-cyan-300 block">4. Làm lạnh khối khí</span>
+                                <span class="text-[11px] text-slate-400 font-mono-code">A = 0, Q &lt; 0 ⇒ ΔU &lt; 0</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- CHẾ ĐỘ 2: ĐỘNG CƠ NHIỆT & HIỆU SUẤT ĐỘNG CƠ NHIỆT (SGK VẬT LÍ 12)     -->
+        <!-- ===================================================================== -->
+        <div id="view-heat-engine" class="hidden flex-col gap-5">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                
+                <!-- CỘT TRÁI (7 cột): Sơ đồ dòng năng lượng & Xi-lanh động cơ nhiệt chu trình -->
+                <section class="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-2xl">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span id="he-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <h2 class="text-sm sm:text-base font-bold text-amber-300">Nguyên tắc hoạt động của Động cơ nhiệt</h2>
+                        </div>
+                        <span id="he-stroke-badge" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-amber-300 border border-slate-700">
+                            Kì 1: Nhận nhiệt Q₁ từ nguồn nóng
+                        </span>
+                    </div>
+
+                    <!-- Canvas mô phỏng kết hợp: Sơ đồ 3 bộ phận động cơ nhiệt + Xi-lanh hoạt động theo chu trình -->
+                    <div class="relative w-full h-[360px] sm:h-[400px] bg-slate-950/95 border border-slate-800 rounded-xl overflow-hidden">
+                        <canvas id="heatEngineCanvas" class="w-full h-full block"></canvas>
+
+                        <!-- Nút điều khiển chạy / tạm dừng động cơ -->
+                        <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
+                            <div class="flex items-center gap-2">
+                                <button id="btn-he-play" onclick="toggleEngineRun()" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition active:scale-95">
+                                    <i id="icon-he-play" class="ph-fill ph-pause text-base"></i>
+                                    <span id="text-he-play">Tạm dừng</span>
+                                </button>
+                                <button onclick="resetEngineStats()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs sm:text-sm transition active:scale-95" title="Đặt lại bộ đếm chu trình">
+                                    <i class="ph-bold ph-arrow-counter-clockwise text-base"></i>
+                                    <span class="hidden sm:inline">Đặt lại số liệu</span>
+                                </button>
+                            </div>
+
+                            <div class="bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-mono-code text-slate-300">
+                                Số chu trình: <span id="he-cycles" class="font-bold text-sky-400">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Đồng hồ đo năng lượng & hiệu suất động cơ nhiệt -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="led-panel border border-slate-800 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Nhiệt nhận (Q₁)</span>
+                            <span id="he-q1-display" class="text-lg sm:text-xl font-bold font-mono-code text-rose-400 mt-1">1000 J</span>
+                            <span class="text-[10px] text-slate-400">Từ nguồn nóng T₁</span>
+                        </div>
+
+                        <div class="led-panel border border-slate-800 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Công sinh ra (A)</span>
+                            <span id="he-work-display" class="text-lg sm:text-xl font-bold font-mono-code text-emerald-400 mt-1">400 J</span>
+                            <span class="text-[10px] text-slate-400">A = Q₁ - Q₂</span>
+                        </div>
+
+                        <div class="led-panel border border-slate-800 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Nhiệt tỏa ra (Q₂)</span>
+                            <span id="he-q2-display" class="text-lg sm:text-xl font-bold font-mono-code text-sky-400 mt-1">600 J</span>
+                            <span class="text-[10px] text-slate-400">Cho nguồn lạnh T₂</span>
+                        </div>
+
+                        <div class="led-panel border border-amber-500/40 rounded-xl p-3 flex flex-col">
+                            <span class="text-[11px] uppercase tracking-wider text-amber-300 font-semibold">Hiệu suất (H)</span>
+                            <span id="he-eff-display" class="text-lg sm:text-xl font-bold font-mono-code text-amber-400 mt-1">40.0%</span>
+                            <span id="he-max-eff-display" class="text-[10px] font-mono-code text-slate-400">H_max = 62.5%</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CỘT PHẢI (5 cột): Bảng điều khiển thông số nguồn nóng/lạnh & Giản đồ p-V chu trình -->
+                <section class="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4 shadow-2xl">
+                    <!-- Giản đồ chu trình p - V -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-100">Giản đồ chu trình hoạt động (p – V)</h3>
+                            <span class="text-xs font-mono-code text-emerald-400">Diện tích = Công A</span>
+                        </div>
+                        <div class="w-full h-[185px] bg-slate-950/90 border border-slate-800 rounded-xl overflow-hidden">
+                            <canvas id="pvCycleCanvas" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Các thanh trượt điều chỉnh thông số động cơ nhiệt -->
+                    <div class="bg-slate-950/75 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-3.5">
+                        <!-- Nhiệt độ nguồn nóng T1 -->
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between items-center">
+                                <label for="slider-t1" class="text-xs font-medium text-slate-300">Nhiệt độ nguồn nóng (T₁)</label>
+                                <span id="val-t1" class="text-xs font-mono-code font-bold text-rose-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">800 K (527°C)</span>
+                            </div>
+                            <input id="slider-t1" type="range" min="450" max="1500" step="50" value="800" oninput="updateEngineControls()">
+                        </div>
+
+                        <!-- Nhiệt độ nguồn lạnh T2 -->
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between items-center">
+                                <label for="slider-t2" class="text-xs font-medium text-slate-300">Nhiệt độ nguồn lạnh (T₂)</label>
+                                <span id="val-t2" class="text-xs font-mono-code font-bold text-sky-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">300 K (27°C)</span>
+                            </div>
+                            <input id="slider-t2" type="range" min="250" max="400" step="10" value="300" oninput="updateEngineControls()">
+                        </div>
+
+                        <!-- Tỉ lệ tận dụng nhiệt (so với chu trình Carnot lý tưởng) -->
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between items-center">
+                                <label for="slider-quality" class="text-xs font-medium text-slate-300">Mức độ hoàn thiện kĩ thuật (H / H_max)</label>
+                                <span id="val-quality" class="text-xs font-mono-code font-bold text-emerald-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">64%</span>
+                            </div>
+                            <input id="slider-quality" type="range" min="20" max="100" step="2" value="64" oninput="updateEngineControls()">
+                        </div>
+
+                        <!-- Tốc độ vòng quay động cơ -->
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between items-center">
+                                <label for="slider-he-speed" class="text-xs font-medium text-slate-300">Tốc độ chu trình động cơ</label>
+                                <span id="val-he-speed" class="text-xs font-mono-code font-bold text-amber-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">1.0x</span>
+                            </div>
+                            <input id="slider-he-speed" type="range" min="0.2" max="2.5" step="0.1" value="1.0" oninput="updateEngineControls()">
+                        </div>
+                    </div>
+
+                    <!-- Công thức hiệu suất SGK Vật lí 12 -->
+                    <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
+                        <div>
+                            <span class="text-slate-400 block">Hiệu suất thực tế:</span>
+                            <span class="font-mono-code font-bold text-amber-300 text-sm">H = A / Q₁ = (Q₁ - Q₂) / Q₁</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-400 block">Hiệu suất tối đa (Carnot):</span>
+                            <span class="font-mono-code font-bold text-sky-300 text-sm">H_max = (T₁ - T₂) / T₁</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // =========================================================================
+        // QUẢN LÝ CHẾ ĐỘ CHUNG & CANVAS
+        // =========================================================================
+        let activeMode = 'first-law'; // 'first-law' | 'heat-engine'
+
+        const firstLawCanvas = document.getElementById('firstLawCanvas');
+        const flCtx = firstLawCanvas.getContext('2d');
+
+        const heatEngineCanvas = document.getElementById('heatEngineCanvas');
+        const heCtx = heatEngineCanvas.getContext('2d');
+
+        const pvCycleCanvas = document.getElementById('pvCycleCanvas');
+        const pvCtx = pvCycleCanvas.getContext('2d');
+
+        function resizeAllCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            [firstLawCanvas, heatEngineCanvas, pvCycleCanvas].forEach(c => {
+                if (!c || !c.parentElement) return;
+                const rect = c.parentElement.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    c.width = rect.width * dpr;
+                    c.height = rect.height * dpr;
+                    c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+            });
+        }
+        window.addEventListener('resize', resizeAllCanvases);
+
+        function switchMode(mode) {
+            activeMode = mode;
+            const tab1 = document.getElementById('tab-first-law');
+            const tab2 = document.getElementById('tab-heat-engine');
+            const view1 = document.getElementById('view-first-law');
+            const view2 = document.getElementById('view-heat-engine');
+
+            if (mode === 'first-law') {
+                tab1.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-sky-500 text-slate-950 shadow-md';
+                tab2.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white';
+                view1.classList.remove('hidden');
+                view1.classList.add('flex');
+                view2.classList.add('hidden');
+                view2.classList.remove('flex');
+            } else {
+                tab2.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-amber-500 text-slate-950 shadow-md';
+                tab1.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white';
+                view2.classList.remove('hidden');
+                view2.classList.add('flex');
+                view1.classList.add('hidden');
+                view1.classList.remove('flex');
+            }
+            resizeAllCanvases();
+        }
+
+        // Hàm tiện ích vẽ mũi tên trực quan
+        function drawArrow(ctx, x1, y1, x2, y2, color, width = 3) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.hypot(dx, dy);
+            if (len < 3) return;
+            const headLen = Math.min(12, len * 0.4);
+            const angle = Math.atan2(dy, dx);
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // =========================================================================
+        // PHẦN 1: LOGIC & MÔ PHỎNG ĐỊNH LUẬT I NHIỆT ĐỘNG LỰC HỌC (ΔU = A + Q)
+        // =========================================================================
+        const flState = {
+            volume: 2.00,         // Thể tích V (Lít), miền [0.80, 3.40]
+            temp: 300.0,          // Nhiệt độ tuyệt đối T (K)
+            initialU: 300.0,      // Nội năng ban đầu U0 (J) - tỉ lệ 1 J/K cho trực quan
+            accumulatedA: 0.0,    // Tổng công A đã nhận/thực hiện (J)
+            accumulatedQ: 0.0,    // Tổng nhiệt lượng Q đã nhận/truyền (J)
+            burnerOn: false,      // Đèn cồn đang bật (+Q)
+            coolingOn: false,     // Làm lạnh (-Q)
+            pistonLocked: false,  // Chốt khóa pít-tông
+            pistonAction: null,   // 'compress' | 'expand' | null
+            presetTimer: 0,       // Thời gian chạy kịch bản tự động
+            particles: [],        // 45 phân tử khí chuyển động nhiệt
+            flamePhase: 0
+        };
+
+        // Khởi tạo các phân tử khí bên trong xi-lanh
+        function initGasParticles() {
+            flState.particles = [];
+            for (let i = 0; i < 45; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                flState.particles.push({
+                    nx: Math.random(), // Tọa độ chuẩn hóa [0, 1] trong lòng xi-lanh
+                    ny: Math.random(),
+                    vx: Math.cos(angle),
+                    vy: Math.sin(angle)
+                });
+            }
+        }
+
+        function toggleBurner() {
+            flState.burnerOn = !flState.burnerOn;
+            if (flState.burnerOn) flState.coolingOn = false;
+            updateBurnerButtonUI();
+        }
+
+        function updateBurnerButtonUI() {
+            const btn = document.getElementById('btn-burner');
+            const text = document.getElementById('text-burner');
+            if (flState.burnerOn) {
+                btn.className = 'flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs sm:text-sm shadow-lg transition active:scale-95';
+                text.textContent = 'Tắt đèn cồn';
+            } else {
+                btn.className = 'flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition active:scale-95';
+                text.textContent = 'Đốt đèn cồn (+Q)';
+            }
+        }
+
+        function startPistonAction(action) {
+            if (flState.pistonLocked) return;
+            flState.pistonAction = action;
+        }
+
+        function stopPistonAction() {
+            flState.pistonAction = null;
+        }
+
+        function togglePistonLock() {
+            flState.pistonLocked = !flState.pistonLocked;
+            if (flState.pistonLocked) flState.pistonAction = null;
+            const icon = document.getElementById('icon-lock');
+            const text = document.getElementById('text-lock');
+            if (flState.pistonLocked) {
+                icon.className = 'ph-bold ph-lock text-base text-amber-400';
+                text.textContent = 'Đã khóa chốt';
+            } else {
+                icon.className = 'ph-bold ph-lock-open text-base text-emerald-400';
+                text.textContent = 'Pít-tông tự do';
+            }
+        }
+
+        function resetFirstLaw() {
+            flState.volume = 2.00;
+            flState.temp = 300.0;
+            flState.accumulatedA = 0.0;
+            flState.accumulatedQ = 0.0;
+            flState.burnerOn = false;
+            flState.coolingOn = false;
+            flState.pistonLocked = false;
+            flState.pistonAction = null;
+            flState.presetTimer = 0;
+            updateBurnerButtonUI();
+            document.getElementById('icon-lock').className = 'ph-bold ph-lock-open text-base text-emerald-400';
+            document.getElementById('text-lock').textContent = 'Pít-tông tự do';
+            updateFirstLawUI();
+        }
+
+        // Chạy nhanh 4 kịch bản thí nghiệm tiêu biểu trong SGK
+        function runFirstLawPreset(preset) {
+            resetFirstLaw();
+            flState.presetTimer = 2.4; // Chạy trong 2.4 giây
+            if (preset === 'heat-isochoric') {
+                flState.pistonLocked = true;
+                flState.burnerOn = true;
+                document.getElementById('icon-lock').className = 'ph-bold ph-lock text-base text-amber-400';
+                document.getElementById('text-lock').textContent = 'Đã khóa chốt';
+                updateBurnerButtonUI();
+            } else if (preset === 'heat-isobaric') {
+                flState.pistonLocked = false;
+                flState.burnerOn = true;
+                updateBurnerButtonUI();
+            } else if (preset === 'adiabatic-compress') {
+                flState.pistonLocked = false;
+                flState.pistonAction = 'compress';
+            } else if (preset === 'cool-lose-heat') {
+                flState.pistonLocked = true;
+                flState.coolingOn = true;
+                document.getElementById('icon-lock').className = 'ph-bold ph-lock text-base text-amber-400';
+                document.getElementById('text-lock').textContent = 'Đã khóa chốt';
+            }
+        }
+
+        // Cập nhật vật lý nhiệt động lực học cho khối khí
+        function stepFirstLawPhysics(dt) {
+            if (flState.presetTimer > 0) {
+                flState.presetTimer -= dt;
+                if (flState.presetTimer <= 0) {
+                    flState.burnerOn = false;
+                    flState.coolingOn = false;
+                    flState.pistonAction = null;
+                    updateBurnerButtonUI();
+                }
+            }
+
+            let dQ = 0;
+            let dA = 0;
+
+            // 1. Truyền nhiệt từ đèn cồn (+Q) hoặc làm lạnh (-Q)
+            if (flState.burnerOn && flState.temp < 850) {
+                dQ = 75 * dt; // +75 J/s
+            } else if (flState.coolingOn && flState.temp > 150) {
+                dQ = -65 * dt; // -65 J/s
+            }
+
+            // 2. Thực hiện công lên khí hoặc khí giãn nở sinh công
+            const pressureKPa = (100 * (flState.temp / 300) * (2.00 / flState.volume));
+            if (!flState.pistonLocked) {
+                if (flState.pistonAction === 'compress' && flState.volume > 0.85) {
+                    const dV = -0.45 * dt; // Giảm thể tích
+                    flState.volume = Math.max(0.85, flState.volume + dV);
+                    // Khí nhận công A > 0
+                    dA = -pressureKPa * dV * 0.9;
+                } else if (flState.pistonAction === 'expand' && flState.volume < 3.30) {
+                    const dV = 0.45 * dt; // Tăng thể tích
+                    flState.volume = Math.min(3.30, flState.volume + dV);
+                    // Khí thực hiện công A < 0
+                    dA = -pressureKPa * dV * 0.9;
+                } else if (flState.burnerOn && pressureKPa > 105 && flState.volume < 3.30) {
+                    // Khi đun nóng với pít-tông tự do, áp suất tăng đẩy pít-tông đi lên (khí sinh công A < 0)
+                    const dV = 0.28 * dt;
+                    flState.volume = Math.min(3.30, flState.volume + dV);
+                    dA = -100 * dV * 0.85;
+                } else if (flState.coolingOn && pressureKPa < 95 && flState.volume > 0.90) {
+                    // Khi làm lạnh với pít-tông tự do, khí co lại nhận công từ khí quyển (A > 0)
+                    const dV = -0.25 * dt;
+                    flState.volume = Math.max(0.90, flState.volume + dV);
+                    dA = -100 * dV * 0.85;
+                }
+            }
+
+            // Định luật I Nhiệt động lực học: ΔU = A + Q
+            const dU = dA + dQ;
+            flState.accumulatedA += dA;
+            flState.accumulatedQ += dQ;
+            flState.temp = Math.max(120, Math.min(900, flState.temp + dU));
+            flState.flamePhase += dt * 14;
+
+            // Cập nhật chuyển động hỗn loạn của các phân tử khí (vận tốc tỉ lệ với sqrt(T))
+            const speedScale = Math.sqrt(flState.temp / 300) * 0.65 * dt;
+            flState.particles.forEach(p => {
+                p.nx += p.vx * speedScale;
+                p.ny += p.vy * speedScale;
+                if (p.nx < 0.03) { p.nx = 0.03; p.vx = Math.abs(p.vx); }
+                if (p.nx > 0.97) { p.nx = 0.97; p.vx = -Math.abs(p.vx); }
+                if (p.ny < 0.04) { p.ny = 0.04; p.vy = Math.abs(p.vy); }
+                if (p.ny > 0.96) { p.ny = 0.96; p.vy = -Math.abs(p.vy); }
+            });
+
+            updateFirstLawUI();
+        }
+
+        function updateFirstLawUI() {
+            const pKPa = 100 * (flState.temp / 300) * (2.00 / flState.volume);
+            const currentU = flState.initialU + (flState.temp - 300);
+            const deltaU = flState.accumulatedA + flState.accumulatedQ;
+
+            document.getElementById('fl-temp').textContent = `${Math.round(flState.temp)} K`;
+            document.getElementById('fl-temp-c').textContent = `${(flState.temp - 273.15).toFixed(1)} °C`;
+            document.getElementById('fl-pressure').textContent = `${pKPa.toFixed(1)} kPa`;
+            document.getElementById('fl-volume').textContent = `${flState.volume.toFixed(2)} L`;
+            document.getElementById('fl-internal-u').textContent = `${Math.round(currentU)} J`;
+
+            const A = Math.round(flState.accumulatedA);
+            const Q = Math.round(flState.accumulatedQ);
+            const dU = Math.round(deltaU);
+
+            document.getElementById('fl-val-a').textContent = `${A > 0 ? '+' : ''}${A} J`;
+            document.getElementById('fl-val-q').textContent = `${Q > 0 ? '+' : ''}${Q} J`;
+            document.getElementById('fl-val-du').textContent = `${dU > 0 ? '+' : ''}${dU} J`;
+
+            document.getElementById('fl-sign-a').textContent = A > 0 ? 'A > 0 (Nhận công)' : (A < 0 ? 'A < 0 (Sinh công)' : 'A = 0');
+            document.getElementById('fl-sign-q').textContent = Q > 0 ? 'Q > 0 (Nhận nhiệt)' : (Q < 0 ? 'Q < 0 (Truyền nhiệt)' : 'Q = 0');
+            document.getElementById('fl-sign-du').textContent = dU > 0 ? 'Nội năng tăng' : (dU < 0 ? 'Nội năng giảm' : 'U không đổi');
+
+            let statusText = 'Trạng thái cân bằng';
+            if (flState.burnerOn && flState.pistonLocked) statusText = 'Đun nóng đẳng tích (Q > 0, A = 0)';
+            else if (flState.burnerOn && !flState.pistonLocked) statusText = 'Đun nóng & giãn nở (Q > 0, A < 0)';
+            else if (flState.pistonAction === 'compress') statusText = 'Nén pít-tông (Nhận công A > 0)';
+            else if (flState.pistonAction === 'expand') statusText = 'Khí giãn nở (Thực hiện công A < 0)';
+            else if (flState.coolingOn) statusText = 'Tỏa nhiệt ra môi trường (Q < 0)';
+            document.getElementById('fl-process-badge').textContent = statusText;
+        }
+
+        // Vẽ mô phỏng Xi-lanh, Pít-tông, Phân tử khí và Mũi tên năng lượng
+        function drawFirstLawCanvas() {
+            const w = firstLawCanvas.parentElement.clientWidth;
+            const h = firstLawCanvas.parentElement.clientHeight;
+            flCtx.clearRect(0, 0, w, h);
+
+            const cylW = 170;
+            const cylMaxH = 215;
+            const cylX = w * 0.48 - cylW / 2;
+            const cylBottomY = h - 98;
+            const cylTopY = cylBottomY - cylMaxH;
+
+            // Tính vị trí đáy pít-tông dựa trên thể tích V [0.80, 3.40]
+            const volRatio = (flState.volume - 0.5) / 3.1;
+            const gasH = Math.max(45, Math.min(cylMaxH - 18, cylMaxH * volRatio));
+            const pistonBottomY = cylBottomY - gasH;
+
+            // Màu nền khối khí thay đổi theo nhiệt độ T
+            const heatRatio = Math.max(0, Math.min(1, (flState.temp - 200) / 550));
+            const r = Math.round(30 + heatRatio * 210);
+            const g = Math.round(140 - heatRatio * 70);
+            const b = Math.round(240 - heatRatio * 180);
+
+            flCtx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.22)`;
+            flCtx.fillRect(cylX + 4, pistonBottomY, cylW - 8, gasH);
+
+            // Vẽ các phân tử khí chuyển động bên trong khoang xi-lanh
+            flState.particles.forEach(p => {
+                const px = cylX + 10 + p.nx * (cylW - 20);
+                const py = pistonBottomY + 8 + p.ny * (gasH - 16);
+                flCtx.fillStyle = `rgb(${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)})`;
+                flCtx.beginPath();
+                flCtx.arc(px, py, 3.5, 0, Math.PI * 2);
+                flCtx.fill();
+            });
+
+            // Thành xi-lanh thủy tinh chịu nhiệt
+            flCtx.strokeStyle = '#94a3b8';
+            flCtx.lineWidth = 4;
+            flCtx.beginPath();
+            flCtx.moveTo(cylX, cylTopY);
+            flCtx.lineTo(cylX, cylBottomY);
+            flCtx.lineTo(cylX + cylW, cylBottomY);
+            flCtx.lineTo(cylX + cylW, cylTopY);
+            flCtx.stroke();
+
+            // Vẽ Pít-tông & Cán pít-tông
+            const pistonThick = 18;
+            flCtx.fillStyle = '#475569';
+            flCtx.fillRect(cylX + 3, pistonBottomY - pistonThick, cylW - 6, pistonThick);
+            flCtx.strokeStyle = '#cbd5e1';
+            flCtx.lineWidth = 1.5;
+            flCtx.strokeRect(cylX + 3, pistonBottomY - pistonThick, cylW - 6, pistonThick);
+
+            // Cán pít-tông hướng lên trên
+            flCtx.fillStyle = '#64748b';
+            flCtx.fillRect(cylX + cylW / 2 - 8, cylTopY - 36, 16, pistonBottomY - pistonThick - (cylTopY - 36));
+
+            // Nếu khóa chốt pít-tông, vẽ 2 chốt chặn màu vàng
+            if (flState.pistonLocked) {
+                flCtx.fillStyle = '#f59e0b';
+                flCtx.fillRect(cylX - 8, pistonBottomY - pistonThick - 6, 14, 6);
+                flCtx.fillRect(cylX + cylW - 6, pistonBottomY - pistonThick - 6, 14, 6);
+            }
+
+            // Vẽ Đèn cồn (hoặc khay nước đá làm lạnh) bên dưới đáy xi-lanh
+            const burnerX = cylX + cylW / 2;
+            const burnerY = cylBottomY + 34;
+
+            // Thân đèn cồn
+            flCtx.fillStyle = '#1e293b';
+            flCtx.strokeStyle = '#64748b';
+            flCtx.lineWidth = 1.5;
+            flCtx.beginPath();
+            flCtx.roundRect(burnerX - 28, burnerY, 56, 22, 6);
+            flCtx.fill();
+            flCtx.stroke();
+
+            if (flState.burnerOn) {
+                // Ngọn lửa đèn cồn bập bùng
+                const flicker = Math.sin(flState.flamePhase) * 3;
+                flCtx.save();
+                flCtx.shadowColor = '#f97316';
+                flCtx.shadowBlur = 16;
+                flCtx.fillStyle = '#f97316';
+                flCtx.beginPath();
+                flCtx.moveTo(burnerX - 12, burnerY);
+                flCtx.quadraticCurveTo(burnerX - 14, burnerY - 22, burnerX + flicker, burnerY - 32);
+                flCtx.quadraticCurveTo(burnerX + 14, burnerY - 22, burnerX + 12, burnerY);
+                flCtx.fill();
+
+                flCtx.fillStyle = '#fde047';
+                flCtx.beginPath();
+                flCtx.moveTo(burnerX - 6, burnerY);
+                flCtx.quadraticCurveTo(burnerX - 6, burnerY - 13, burnerX + flicker * 0.5, burnerY - 20);
+                flCtx.quadraticCurveTo(burnerX + 6, burnerY - 13, burnerX + 6, burnerY);
+                flCtx.fill();
+                flCtx.restore();
+
+                // Mũi tên chỉ chiều nhiệt lượng Q đi vào hệ (Q > 0)
+                drawArrow(flCtx, cylX + cylW + 28, cylBottomY - 10, cylX + cylW + 6, cylBottomY - 32, '#fbbf24', 3.5);
+                flCtx.fillStyle = '#fde047';
+                flCtx.font = 'bold 12px "JetBrains Mono", monospace';
+                flCtx.textAlign = 'left';
+                flCtx.fillText('Q > 0 (Nhận nhiệt)', cylX + cylW + 34, cylBottomY - 12);
+            } else if (flState.coolingOn) {
+                // Mũi tên nhiệt lượng Q tỏa ra ngoài (Q < 0)
+                drawArrow(flCtx, cylX + cylW + 6, cylBottomY - 32, cylX + cylW + 28, cylBottomY - 10, '#38bdf8', 3.5);
+                flCtx.fillStyle = '#7dd3fc';
+                flCtx.font = 'bold 12px "JetBrains Mono", monospace';
+                flCtx.textAlign = 'left';
+                flCtx.fillText('Q < 0 (Tỏa nhiệt)', cylX + cylW + 34, cylBottomY - 12);
+            }
+
+            // Vẽ mũi tên biểu diễn Công A tại pít-tông
+            if (flState.pistonAction === 'compress') {
+                drawArrow(flCtx, cylX - 24, pistonBottomY - 45, cylX - 24, pistonBottomY - 5, '#38bdf8', 3.5);
+                flCtx.fillStyle = '#7dd3fc';
+                flCtx.font = 'bold 12px "JetBrains Mono", monospace';
+                flCtx.textAlign = 'right';
+                flCtx.fillText('A > 0 (Nhận công)', cylX - 32, pistonBottomY - 22);
+            } else if (flState.pistonAction === 'expand' || (flState.burnerOn && !flState.pistonLocked)) {
+                drawArrow(flCtx, cylX - 24, pistonBottomY - 5, cylX - 24, pistonBottomY - 45, '#818cf8', 3.5);
+                flCtx.fillStyle = '#a5b4fc';
+                flCtx.font = 'bold 12px "JetBrains Mono", monospace';
+                flCtx.textAlign = 'right';
+                flCtx.fillText('A < 0 (Sinh công)', cylX - 32, pistonBottomY - 22);
+            }
+        }
+
+        // =========================================================================
+        // PHẦN 2: LOGIC & MÔ PHỎNG ĐỘNG CƠ NHIỆT & HIỆU SUẤT (H)
+        // =========================================================================
+        const heState = {
+            isRunning: true,
+            phase: 0,           // Góc pha chu trình [0, 2π]
+            cyclesCount: 0,     // Số chu trình đã hoàn thành
+            t1: 800,            // Nhiệt độ nguồn nóng T1 (K)
+            t2: 300,            // Nhiệt độ nguồn lạnh T2 (K)
+            quality: 0.64,      // Tỉ lệ H / H_max
+            speed: 1.0,
+            q1PerCycle: 1000,   // Nhiệt lượng nhận mỗi chu trình (J)
+            flowParticles: []   // Các hạt năng lượng chạy từ Nguồn nóng -> Tác nhân -> Công / Nguồn lạnh
+        };
+
+        function updateEngineControls() {
+            heState.t1 = parseFloat(document.getElementById('slider-t1').value);
+            heState.t2 = parseFloat(document.getElementById('slider-t2').value);
+            heState.quality = parseFloat(document.getElementById('slider-quality').value) / 100;
+            heState.speed = parseFloat(document.getElementById('slider-he-speed').value);
+
+            document.getElementById('val-t1').textContent = `${heState.t1} K (${heState.t1 - 273}°C)`;
+            document.getElementById('val-t2').textContent = `${heState.t2} K (${heState.t2 - 273}°C)`;
+            document.getElementById('val-quality').textContent = `${Math.round(heState.quality * 100)}%`;
+            document.getElementById('val-he-speed').textContent = `${heState.speed.toFixed(1)}x`;
+
+            // Tính hiệu suất tối đa Carnot: H_max = (T1 - T2) / T1
+            const hMax = Math.max(0.05, (heState.t1 - heState.t2) / heState.t1);
+            const hActual = hMax * heState.quality;
+
+            const q1 = heState.q1PerCycle;
+            const workA = Math.round(q1 * hActual);
+            const q2 = q1 - workA;
+
+            document.getElementById('he-q1-display').textContent = `${q1} J`;
+            document.getElementById('he-work-display').textContent = `${workA} J`;
+            document.getElementById('he-q2-display').textContent = `${q2} J`;
+            document.getElementById('he-eff-display').textContent = `${(hActual * 100).toFixed(1)}%`;
+            document.getElementById('he-max-eff-display').textContent = `H_max = ${(hMax * 100).toFixed(1)}%`;
+        }
+
+        function toggleEngineRun() {
+            heState.isRunning = !heState.isRunning;
+            const btn = document.getElementById('btn-he-play');
+            const icon = document.getElementById('icon-he-play');
+            const text = document.getElementById('text-he-play');
+            const dot = document.getElementById('he-status-dot');
+
+            if (heState.isRunning) {
+                btn.className = 'flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition active:scale-95';
+                icon.className = 'ph-fill ph-pause text-base';
+                text.textContent = 'Tạm dừng';
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+            } else {
+                btn.className = 'flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition active:scale-95';
+                icon.className = 'ph-fill ph-play text-base';
+                text.textContent = 'Tiếp tục';
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+            }
+        }
+
+        function resetEngineStats() {
+            heState.phase = 0;
+            heState.cyclesCount = 0;
+            heState.flowParticles = [];
+            document.getElementById('he-cycles').textContent = '0';
+        }
+
+        function stepHeatEngine(dt) {
+            if (!heState.isRunning) return;
+
+            const prevPhase = heState.phase;
+            heState.phase = (heState.phase + dt * 2.4 * heState.speed) % (Math.PI * 2);
+            if (heState.phase < prevPhase) {
+                heState.cyclesCount++;
+                document.getElementById('he-cycles').textContent = heState.cyclesCount;
+            }
+
+            // Cập nhật nhãn 4 giai đoạn của chu trình động cơ nhiệt
+            const badge = document.getElementById('he-stroke-badge');
+            if (heState.phase < Math.PI * 0.5) {
+                badge.textContent = 'Giai đoạn 1→2: Tác nhân nhận nhiệt Q₁ từ nguồn nóng T₁';
+            } else if (heState.phase < Math.PI) {
+                badge.textContent = 'Giai đoạn 2→3: Giãn nở sinh công cơ học A đẩy pít-tông';
+            } else if (heState.phase < Math.PI * 1.5) {
+                badge.textContent = 'Giai đoạn 3→4: Nhả nhiệt lượng Q₂ cho nguồn lạnh T₂';
+            } else {
+                badge.textContent = 'Giai đoạn 4→1: Nén khí khép kín chu trình ban đầu';
+            }
+
+            // Tạo hạt dòng năng lượng chảy liên tục
+            if (Math.random() < 0.35 * heState.speed) {
+                heState.flowParticles.push({ stage: 'q1', t: 0 });
+            }
+
+            const hMax = Math.max(0.05, (heState.t1 - heState.t2) / heState.t1);
+            const hActual = hMax * heState.quality;
+
+            for (let i = heState.flowParticles.length - 1; i >= 0; i--) {
+                const p = heState.flowParticles[i];
+                p.t += dt * 1.3 * heState.speed;
+                if (p.t >= 1) {
+                    if (p.stage === 'q1') {
+                        // Phân tách năng lượng theo hiệu suất H: tỉ lệ H sinh công A, tỉ lệ (1-H) tỏa ra Q2
+                        p.stage = (Math.random() < hActual) ? 'work' : 'q2';
+                        p.t = 0;
+                    } else {
+                        heState.flowParticles.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        // Vẽ sơ đồ nguyên tắc Động cơ nhiệt (Trái) & Xi-lanh quay trục khuỷu (Phải)
+        function drawHeatEngineCanvas() {
+            const w = heatEngineCanvas.parentElement.clientWidth;
+            const h = heatEngineCanvas.parentElement.clientHeight;
+            heCtx.clearRect(0, 0, w, h);
+
+            // --- NỬA TRÁI: SƠ ĐỒ NGUYÊN TẮC 3 BỘ PHẬN ĐỘNG CƠ NHIỆT ---
+            const diagX = w * 0.30;
+            const hotY = 48;
+            const engineY = h * 0.44;
+            const coldY = h - 78;
+
+            const hMax = Math.max(0.05, (heState.t1 - heState.t2) / heState.t1);
+            const hActual = hMax * heState.quality;
+
+            // 1. Nguồn nóng (T1)
+            heCtx.fillStyle = 'rgba(244, 63, 94, 0.22)';
+            heCtx.strokeStyle = '#f43f5e';
+            heCtx.lineWidth = 2;
+            heCtx.beginPath();
+            heCtx.roundRect(diagX - 80, hotY - 24, 160, 44, 10);
+            heCtx.fill();
+            heCtx.stroke();
+            heCtx.fillStyle = '#fda4af';
+            heCtx.font = 'bold 12px Inter, sans-serif';
+            heCtx.textAlign = 'center';
+            heCtx.fillText(`NGUỒN NÓNG (T₁ = ${heState.t1} K)`, diagX, hotY + 2);
+
+            // 2. Bộ phận phát động (Tác nhân)
+            heCtx.fillStyle = '#1e293b';
+            heCtx.strokeStyle = '#fbbf24';
+            heCtx.lineWidth = 2.5;
+            heCtx.beginPath();
+            heCtx.arc(diagX, engineY, 36, 0, Math.PI * 2);
+            heCtx.fill();
+            heCtx.stroke();
+            heCtx.fillStyle = '#fde047';
+            heCtx.font = 'bold 11px Inter, sans-serif';
+            heCtx.fillText('TÁC NHÂN', diagX, engineY - 3);
+            heCtx.fillStyle = '#94a3b8';
+            heCtx.font = '10px "JetBrains Mono", monospace';
+            heCtx.fillText('(Sinh công)', diagX, engineY + 11);
+
+            // 3. Nguồn lạnh (T2)
+            heCtx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+            heCtx.strokeStyle = '#38bdf8';
+            heCtx.lineWidth = 2;
+            heCtx.beginPath();
+            heCtx.roundRect(diagX - 80, coldY - 22, 160, 44, 10);
+            heCtx.fill();
+            heCtx.stroke();
+            heCtx.fillStyle = '#7dd3fc';
+            heCtx.font = 'bold 12px Inter, sans-serif';
+            heCtx.fillText(`NGUỒN LẠNH (T₂ = ${heState.t2} K)`, diagX, coldY + 4);
+
+            // Đường ống dòng nhiệt Q1 (từ Nguồn nóng -> Tác nhân)
+            const q1Width = 10;
+            heCtx.fillStyle = 'rgba(244, 63, 94, 0.25)';
+            heCtx.fillRect(diagX - q1Width / 2, hotY + 20, q1Width, engineY - 36 - (hotY + 20));
+            drawArrow(heCtx, diagX, hotY + 24, diagX, engineY - 40, '#f43f5e', 3);
+            heCtx.fillStyle = '#fda4af';
+            heCtx.font = 'bold 11px "JetBrains Mono", monospace';
+            heCtx.textAlign = 'right';
+            heCtx.fillText('Q₁', diagX - 14, (hotY + engineY) / 2);
+
+            // Đường ống dòng công cơ học A (từ Tác nhân -> sang phải)
+            const workEndX = diagX + 108;
+            drawArrow(heCtx, diagX + 36, engineY, workEndX, engineY, '#34d399', Math.max(2.5, hActual * 9));
+            heCtx.fillStyle = '#6ee7b7';
+            heCtx.textAlign = 'center';
+            heCtx.fillText(`A = ${(hActual * 100).toFixed(0)}% Q₁`, diagX + 76, engineY - 12);
+
+            // Đường ống dòng nhiệt tỏa Q2 (từ Tác nhân -> Nguồn lạnh)
+            const q2Width = Math.max(3, (1 - hActual) * 10);
+            heCtx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+            heCtx.fillRect(diagX - q2Width / 2, engineY + 36, q2Width, coldY - 22 - (engineY + 36));
+            drawArrow(heCtx, diagX, engineY + 40, diagX, coldY - 26, '#38bdf8', 3);
+            heCtx.fillStyle = '#7dd3fc';
+            heCtx.textAlign = 'right';
+            heCtx.fillText('Q₂', diagX - 14, (engineY + coldY) / 2 + 4);
+
+            // Vẽ các hạt năng lượng di chuyển dọc theo các nhánh Q1, A, Q2
+            heState.flowParticles.forEach(p => {
+                let px = diagX;
+                let py = engineY;
+                let color = '#f43f5e';
+                if (p.stage === 'q1') {
+                    py = (hotY + 22) + p.t * (engineY - 36 - (hotY + 22));
+                    color = '#fb7185';
+                } else if (p.stage === 'work') {
+                    px = (diagX + 36) + p.t * (workEndX - (diagX + 36));
+                    color = '#34d399';
+                } else if (p.stage === 'q2') {
+                    py = (engineY + 36) + p.t * (coldY - 24 - (engineY + 36));
+                    color = '#38bdf8';
+                }
+                heCtx.fillStyle = color;
+                heCtx.beginPath();
+                heCtx.arc(px, py, 3.8, 0, Math.PI * 2);
+                heCtx.fill();
+            });
+
+            // --- NỬA PHẢI: XI-LANH & TRỤC KHUỶU ĐỘNG CƠ NHIỆT CHUYỂN ĐỘNG ---
+            const mechX = w * 0.76;
+            const cylTop = 44;
+            const cylH = 125;
+            const cylW = 90;
+            const crankCenterY = cylTop + cylH + 78;
+            const crankRadius = 26;
+
+            // Góc quay trục khuỷu
+            const theta = heState.phase;
+            const pinX = mechX + crankRadius * Math.sin(theta);
+            const pinY = crankCenterY - crankRadius * Math.cos(theta);
+            const pistonY = cylTop + 55 - 24 * Math.cos(theta);
+
+            // Màu buồng đốt thay đổi theo giai đoạn nhận nhiệt / giãn nở / nhả nhiệt
+            const isHotPhase = theta < Math.PI;
+            heCtx.fillStyle = isHotPhase ? 'rgba(249, 115, 22, 0.32)' : 'rgba(56, 189, 248, 0.22)';
+            heCtx.fillRect(mechX - cylW / 2 + 3, cylTop + 3, cylW - 6, pistonY - cylTop - 3);
+
+            // Vỏ xi-lanh
+            heCtx.strokeStyle = '#94a3b8';
+            heCtx.lineWidth = 3;
+            heCtx.beginPath();
+            heCtx.moveTo(mechX - cylW / 2, cylTop + cylH);
+            heCtx.lineTo(mechX - cylW / 2, cylTop);
+            heCtx.lineTo(mechX + cylW / 2, cylTop);
+            heCtx.lineTo(mechX + cylW / 2, cylTop + cylH);
+            heCtx.stroke();
+
+            // Pít-tông
+            heCtx.fillStyle = '#475569';
+            heCtx.fillRect(mechX - cylW / 2 + 3, pistonY, cylW - 6, 18);
+            heCtx.strokeStyle = '#e2e8f0';
+            heCtx.lineWidth = 1.5;
+            heCtx.strokeRect(mechX - cylW / 2 + 3, pistonY, cylW - 6, 18);
+
+            // Bánh đà trục khuỷu
+            heCtx.strokeStyle = '#475569';
+            heCtx.lineWidth = 4;
+            heCtx.beginPath();
+            heCtx.arc(mechX, crankCenterY, crankRadius + 8, 0, Math.PI * 2);
+            heCtx.stroke();
+
+            // Tay biên nối pít-tông với trục khuỷu
+            heCtx.strokeStyle = '#cbd5e1';
+            heCtx.lineWidth = 4;
+            heCtx.beginPath();
+            heCtx.moveTo(mechX, pistonY + 12);
+            heCtx.lineTo(pinX, pinY);
+            heCtx.stroke();
+
+            // Tâm trục khuỷu & chốt tay biên
+            heCtx.fillStyle = '#fbbf24';
+            heCtx.beginPath();
+            heCtx.arc(mechX, crankCenterY, 5, 0, Math.PI * 2);
+            heCtx.arc(pinX, pinY, 4.5, 0, Math.PI * 2);
+            heCtx.fill();
+        }
+
+        // Vẽ giản đồ chu trình p - V khép kín bên phải
+        function drawPVCycleCanvas() {
+            const w = pvCycleCanvas.parentElement.clientWidth;
+            const h = pvCycleCanvas.parentElement.clientHeight;
+            pvCtx.clearRect(0, 0, w, h);
+
+            const padL = 42;
+            const padR = 20;
+            const padT = 16;
+            const padB = 28;
+            const plotW = w - padL - padR;
+            const plotH = h - padT - padB;
+
+            // Trục tọa độ p - V
+            pvCtx.strokeStyle = '#64748b';
+            pvCtx.lineWidth = 1.5;
+            pvCtx.beginPath();
+            pvCtx.moveTo(padL, padT);
+            pvCtx.lineTo(padL, padT + plotH);
+            pvCtx.lineTo(padL + plotW, padT + plotH);
+            pvCtx.stroke();
+
+            pvCtx.fillStyle = '#cbd5e1';
+            pvCtx.font = 'bold 11px "JetBrains Mono", monospace';
+            pvCtx.textAlign = 'right';
+            pvCtx.fillText('p', padL - 8, padT + 10);
+            pvCtx.fillText('V', padL + plotW, padT + plotH + 18);
+
+            // Tính toán 4 đỉnh chu trình Carnot / động cơ nhiệt tỉ lệ theo T1, T2 và quality
+            const hMax = Math.max(0.05, (heState.t1 - heState.t2) / heState.t1);
+            const scaleHeight = Math.min(1, hMax * heState.quality * 1.45);
+
+            const p1 = { x: padL + plotW * 0.20, y: padT + plotH * (0.42 - scaleHeight * 0.28) };
+            const p2 = { x: padL + plotW * 0.56, y: padT + plotH * (0.52 - scaleHeight * 0.24) };
+            const p3 = { x: padL + plotW * 0.84, y: padT + plotH * 0.82 };
+            const p4 = { x: padL + plotW * 0.42, y: padT + plotH * 0.72 };
+
+            // Tô vùng diện tích bên trong chu trình (biểu diễn Công sinh ra A)
+            pvCtx.fillStyle = 'rgba(52, 211, 153, 0.18)';
+            pvCtx.beginPath();
+            pvCtx.moveTo(p1.x, p1.y);
+            pvCtx.quadraticCurveTo((p1.x + p2.x) / 2, p1.y + 8, p2.x, p2.y);
+            pvCtx.quadraticCurveTo((p2.x + p3.x) / 2 - 4, (p2.y + p3.y) / 2 + 8, p3.x, p3.y);
+            pvCtx.quadraticCurveTo((p3.x + p4.x) / 2, p3.y - 4, p4.x, p4.y);
+            pvCtx.quadraticCurveTo((p4.x + p1.x) / 2 + 4, (p4.y + p1.y) / 2 + 8, p1.x, p1.y);
+            pvCtx.fill();
+
+            // Vẽ 4 đường quá trình của chu trình
+            pvCtx.lineWidth = 2.5;
+            // 1 -> 2: Nhận nhiệt Q1 (đỏ)
+            pvCtx.strokeStyle = '#f43f5e';
+            pvCtx.beginPath();
+            pvCtx.moveTo(p1.x, p1.y);
+            pvCtx.quadraticCurveTo((p1.x + p2.x) / 2, p1.y + 8, p2.x, p2.y);
+            pvCtx.stroke();
+
+            // 2 -> 3: Giãn nở sinh công (xanh lá)
+            pvCtx.strokeStyle = '#34d399';
+            pvCtx.beginPath();
+            pvCtx.moveTo(p2.x, p2.y);
+            pvCtx.quadraticCurveTo((p2.x + p3.x) / 2 - 4, (p2.y + p3.y) / 2 + 8, p3.x, p3.y);
+            pvCtx.stroke();
+
+            // 3 -> 4: Nhả nhiệt Q2 (xanh dương)
+            pvCtx.strokeStyle = '#38bdf8';
+            pvCtx.beginPath();
+            pvCtx.moveTo(p3.x, p3.y);
+            pvCtx.quadraticCurveTo((p3.x + p4.x) / 2, p3.y - 4, p4.x, p4.y);
+            pvCtx.stroke();
+
+            // 4 -> 1: Nén khí khép kín chu trình (tím)
+            pvCtx.strokeStyle = '#a78bfa';
+            pvCtx.beginPath();
+            pvCtx.moveTo(p4.x, p4.y);
+            pvCtx.quadraticCurveTo((p4.x + p1.x) / 2 + 4, (p4.y + p1.y) / 2 + 8, p1.x, p1.y);
+            pvCtx.stroke();
+
+            // Nhãn Công A ở giữa chu trình
+            pvCtx.fillStyle = '#6ee7b7';
+            pvCtx.font = 'bold 11px "JetBrains Mono", monospace';
+            pvCtx.textAlign = 'center';
+            pvCtx.fillText('Công A', (p1.x + p3.x) / 2, (p1.y + p3.y) / 2 + 6);
+
+            // Chấm trạng thái chạy dọc theo 4 nhánh của chu trình
+            const normPhase = heState.phase / (Math.PI * 2); // [0, 1)
+            let curPt = { x: p1.x, y: p1.y };
+            if (normPhase < 0.25) {
+                const t = normPhase / 0.25;
+                curPt = { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t };
+            } else if (normPhase < 0.50) {
+                const t = (normPhase - 0.25) / 0.25;
+                curPt = { x: p2.x + (p3.x - p2.x) * t, y: p2.y + (p3.y - p2.y) * t };
+            } else if (normPhase < 0.75) {
+                const t = (normPhase - 0.50) / 0.25;
+                curPt = { x: p3.x + (p4.x - p3.x) * t, y: p3.y + (p4.y - p3.y) * t };
+            } else {
+                const t = (normPhase - 0.75) / 0.25;
+                curPt = { x: p4.x + (p1.x - p4.x) * t, y: p4.y + (p1.y - p4.y) * t };
+            }
+
+            pvCtx.fillStyle = '#fbbf24';
+            pvCtx.beginPath();
+            pvCtx.arc(curPt.x, curPt.y, 5, 0, Math.PI * 2);
+            pvCtx.fill();
+            pvCtx.strokeStyle = '#ffffff';
+            pvCtx.lineWidth = 1.5;
+            pvCtx.stroke();
+        }
+
+        // =========================================================================
+        // VÒNG LẶP CHÍNH
+        // =========================================================================
+        let lastTime = 0;
+        function mainLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+            lastTime = timestamp;
+
+            if (activeMode === 'first-law') {
+                stepFirstLawPhysics(dt);
+                drawFirstLawCanvas();
+            } else {
+                stepHeatEngine(dt);
+                drawHeatEngineCanvas();
+                drawPVCycleCanvas();
+            }
+
+            requestAnimationFrame(mainLoop);
+        }
+
+        window.onload = function () {
+            initGasParticles();
+            resizeAllCanvases();
+            updateFirstLawUI();
+            updateEngineControls();
+            requestAnimationFrame(mainLoop);
+        };
+    </script>
+</body>
+</html>

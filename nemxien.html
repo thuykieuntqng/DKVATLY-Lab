@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Chuyển Động Ném Xiên - Vật Lý Tương Tác</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải Font Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tải FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Tùy chỉnh thanh trượt (Range Slider) phong cách Cyber-Physics */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #22d3ee;
+            border: 2px solid #090d16;
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.75);
+            transition: transform 0.12s ease, background-color 0.12s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #67e8f9;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 999px;
+        }
+        canvas {
+            touch-action: none;
+        }
+
+        /* =====================================================================
+           CHẾ ĐỘ TRÌNH CHIẾU TOÀN MÀN HÌNH (FIT-TO-SCREEN 100VH - KHÔNG CUỘN)
+           ===================================================================== */
+        body.is-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+            box-sizing: border-box;
+            background-color: #060913;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.is-fullscreen #app-header {
+            padding: 6px 14px;
+            flex-shrink: 0;
+        }
+        body.is-fullscreen #app-header .header-subtitle {
+            display: none;
+        }
+        body.is-fullscreen #app-header .header-logo {
+            width: 32px;
+            height: 32px;
+        }
+
+        body.is-fullscreen #app-main {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-width: 100% !important;
+            width: 100%;
+            padding: 8px 12px;
+            gap: 10px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.95fr) minmax(330px, 1fr);
+            overflow: hidden;
+        }
+
+        body.is-fullscreen #left-col {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+        body.is-fullscreen #canvas-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        body.is-fullscreen #canvas-toolbar {
+            padding: 5px 12px;
+        }
+        body.is-fullscreen #vector-legend {
+            padding: 3px 14px;
+        }
+        body.is-fullscreen #canvas-wrapper {
+            flex: 1 1 auto;
+            height: auto !important;
+            min-height: 150px;
+        }
+
+        body.is-fullscreen #telemetry-card {
+            flex-shrink: 0;
+            padding: 8px 12px;
+        }
+        body.is-fullscreen #telemetry-card .section-header {
+            margin-bottom: 6px;
+        }
+        body.is-fullscreen #telemetry-grid {
+            gap: 6px;
+        }
+        body.is-fullscreen #telemetry-grid > div {
+            padding: 5px 10px;
+        }
+        body.is-fullscreen #telemetry-grid .tele-label {
+            font-size: 11px;
+            margin-bottom: 1px;
+        }
+        body.is-fullscreen #telemetry-grid .tele-value {
+            font-size: 0.95rem;
+            line-height: 1.2;
+        }
+
+        body.is-fullscreen #formula-card {
+            flex-shrink: 0;
+            padding: 7px 12px;
+        }
+        body.is-fullscreen #formula-card .section-header {
+            display: none;
+        }
+        body.is-fullscreen #formula-grid {
+            gap: 8px;
+        }
+        body.is-fullscreen #formula-grid > div {
+            padding: 5px 10px;
+        }
+        body.is-fullscreen #formula-grid .formula-desc {
+            display: none;
+        }
+
+        body.is-fullscreen #right-col {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+        body.is-fullscreen #controls-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 8px 12px;
+            gap: 6px;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+        body.is-fullscreen #controls-card .controls-header {
+            padding-bottom: 4px;
+        }
+        body.is-fullscreen #controls-card .slider-scale {
+            display: none;
+        }
+        body.is-fullscreen #controls-card .control-row {
+            margin-bottom: 2px;
+        }
+        body.is-fullscreen #controls-card .planet-btn {
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }
+        body.is-fullscreen #controls-card #speed-section {
+            padding-top: 5px;
+        }
+        body.is-fullscreen #theory-card {
+            flex-shrink: 0;
+            padding: 8px 12px;
+        }
+        body.is-fullscreen #theory-card .theory-sub {
+            display: none;
+        }
+        body.is-fullscreen #theory-list {
+            gap: 5px;
+        }
+        body.is-fullscreen #theory-list > div {
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body class="bg-[#060913] text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+
+    <!-- Thông báo nhanh (Toast) khi bật chế độ trình chiếu toàn màn hình -->
+    <div id="fs-toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none opacity-0 transition-all duration-300 translate-y-2">
+        <div class="bg-slate-900/95 text-slate-100 border border-cyan-400/50 px-4 py-2 rounded-full shadow-[0_0_25px_rgba(34,211,238,0.25)] backdrop-blur-md flex items-center gap-2 text-xs font-medium">
+            <i class="fa-solid fa-display text-cyan-400"></i>
+            <span>Đã tối ưu bố cục trình chiếu 1 màn hình — Nhấn <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-[11px] font-mono text-amber-300">ESC</kbd> hoặc <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-[11px] font-mono text-amber-300">F</kbd> để thoát</span>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header id="app-header" class="bg-slate-900/90 border-b border-slate-800/90 px-4 py-3 shadow-lg backdrop-blur-md sticky top-0 z-20">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="header-logo w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-500 to-fuchsia-500 p-[2px] shadow-[0_0_16px_rgba(34,211,238,0.3)]">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i class="fa-solid fa-bullseye text-cyan-400 text-lg"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-xl font-bold text-white leading-tight flex items-center gap-2">
+                        Mô Phỏng Chuyển Động Ném Xiên
+                        <span class="hidden sm:inline-block text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Ballistics Lab</span>
+                    </h1>
+                    <p class="header-subtitle text-xs text-slate-400">Thí nghiệm Vật Lý tương tác trực quan: Quỹ đạo Parabol • Độ cao cực đại • Tầm xa (Bỏ qua lực cản không khí)</p>
+                </div>
+            </div>
+
+            <!-- Các nút điều khiển chính & Nút Toàn màn hình -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button id="btn-launch" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(34,211,238,0.35)] transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Bắt đầu / Ném</span>
+                </button>
+                <button id="btn-pause" disabled class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-35 disabled:pointer-events-none active:scale-95 text-slate-950 font-bold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-pause"></i>
+                    <span id="btn-pause-text">Tạm dừng</span>
+                </button>
+                <button id="btn-reset" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-200 font-semibold text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-rotate-right text-cyan-400"></i>
+                    <span>Đặt lại</span>
+                </button>
+                <button type="button" id="btn-fullscreen" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-100 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer" title="Trình chiếu toàn màn hình vừa khít 1 khung hình (Phím tắt: F)">
+                    <i class="fa-solid fa-expand text-fuchsia-400" id="icon-fullscreen"></i>
+                    <span id="text-fullscreen">Toàn màn hình</span>
+                    <kbd class="hidden md:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-950 text-slate-400 rounded border border-slate-700">F</kbd>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main id="app-main" class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- Cột Trái: Khu vực Canvas Mô Phỏng & Thông Số Thời Gian Thực (8 cột) -->
+        <div id="left-col" class="lg:col-span-8 flex flex-col gap-4">
+            
+            <!-- Khung chứa Canvas -->
+            <div id="canvas-card" class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col">
+                <!-- Thanh công cụ trên Canvas -->
+                <div id="canvas-toolbar" class="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none font-medium text-slate-300 hover:text-white">
+                            <input type="checkbox" id="chk-vectors" checked class="w-4 h-4 rounded accent-cyan-400 cursor-pointer">
+                            <span>Hiển thị Vector vận tốc</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none font-medium text-slate-300 hover:text-white">
+                            <input type="checkbox" id="chk-apex" checked class="w-4 h-4 rounded accent-fuchsia-400 cursor-pointer">
+                            <span>Đánh dấu đỉnh H<sub>max</sub></span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none font-medium text-slate-300 hover:text-white">
+                            <input type="checkbox" id="chk-compare" checked class="w-4 h-4 rounded accent-amber-400 cursor-pointer">
+                            <span>Lưu vết quỹ đạo</span>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-clear-trails" class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 font-medium transition cursor-pointer">
+                            <i class="fa-solid fa-eraser mr-1 text-rose-400"></i>Xóa vết cũ (<span id="trail-count" class="text-amber-300 font-mono">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chú thích màu Vector -->
+                <div id="vector-legend" class="bg-slate-950/70 border-b border-slate-800/80 px-4 py-1.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <span class="font-semibold text-slate-400">Chú thích Vector:</span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 bg-cyan-400 inline-block rounded shadow-[0_0_6px_#22d3ee]"></span>
+                            <span>Thành phần ngang <b class="font-mono text-cyan-300">v<sub>x</sub></b></span>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 bg-rose-500 inline-block rounded shadow-[0_0_6px_#f43f5e]"></span>
+                            <span>Thành phần thẳng đứng <b class="font-mono text-rose-400">v<sub>y</sub></b></span>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 bg-lime-400 inline-block rounded shadow-[0_0_6px_#a3e635]"></span>
+                            <span>Vận tốc tổng hợp <b class="font-mono text-lime-300">v</b></span>
+                        </span>
+                    </div>
+                    <span class="text-cyan-400/90 italic hidden sm:inline">
+                        <i class="fa-solid fa-hand-pointer mr-1"></i>Kéo đầu nòng pháo trên khung hình để chỉnh góc ném α
+                    </span>
+                </div>
+
+                <!-- Vùng vẽ Canvas tương tác -->
+                <div id="canvas-wrapper" class="relative w-full h-[370px] sm:h-[440px] bg-gradient-to-b from-[#070b19] via-[#0b1226] to-[#080d1d] select-none">
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Nhãn góc tọa độ / Trạng thái -->
+                    <div id="status-badge" class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/90 border border-slate-700 text-cyan-300 backdrop-blur-sm shadow-lg">
+                        Sẵn sàng phóng (α = 45°)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Thông Số Thời Gian Thực (Real-time Telemetry) -->
+            <div id="telemetry-card" class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-lg">
+                <div class="section-header flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-cyan-400"></i>
+                        Thông Số Đo Lường Thời Gian Thực
+                    </h2>
+                    <span class="text-xs text-slate-500 font-mono">Đơn vị chuẩn SI</span>
+                </div>
+
+                <div id="telemetry-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <!-- Thời gian t -->
+                    <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800">
+                        <div class="tele-label text-xs text-slate-400 mb-1">Thời gian bay (t)</div>
+                        <div class="tele-value text-lg sm:text-xl font-bold font-mono text-white">
+                            <span id="val-t">0.00</span> <span class="text-xs font-normal text-slate-500">s</span>
+                        </div>
+                    </div>
+
+                    <!-- Tọa độ ngang x -->
+                    <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800">
+                        <div class="tele-label text-xs text-slate-400 mb-1">Tầm xa hiện tại (x)</div>
+                        <div class="tele-value text-lg sm:text-xl font-bold font-mono text-cyan-400">
+                            <span id="val-x">0.00</span> <span class="text-xs font-normal text-slate-500">m</span>
+                        </div>
+                    </div>
+
+                    <!-- Độ cao hiện tại y -->
+                    <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800">
+                        <div class="tele-label text-xs text-slate-400 mb-1">Độ cao hiện tại (y)</div>
+                        <div class="tele-value text-lg sm:text-xl font-bold font-mono text-amber-400">
+                            <span id="val-y">0.00</span> <span class="text-xs font-normal text-slate-500">m</span>
+                        </div>
+                    </div>
+
+                    <!-- Góc nghiêng vận tốc tức thời -->
+                    <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800">
+                        <div class="tele-label text-xs text-slate-400 mb-1">Góc vector v (θ)</div>
+                        <div class="tele-value text-lg sm:text-xl font-bold font-mono text-fuchsia-400">
+                            <span id="val-angle">+45.0</span> <span class="text-xs font-normal text-slate-500">°</span>
+                        </div>
+                    </div>
+
+                    <!-- Vận tốc vx -->
+                    <div class="bg-cyan-950/35 rounded-xl p-3 border border-cyan-500/25">
+                        <div class="tele-label text-xs text-cyan-300 font-medium mb-1">Vận tốc ngang (v<sub>x</sub> = v₀cosα)</div>
+                        <div class="tele-value text-lg font-bold font-mono text-cyan-300">
+                            <span id="val-vx">17.68</span> <span class="text-xs font-normal text-cyan-400/70">m/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Vận tốc vy -->
+                    <div class="bg-rose-950/35 rounded-xl p-3 border border-rose-500/25">
+                        <div class="tele-label text-xs text-rose-300 font-medium mb-1">Vận tốc đứng (v<sub>y</sub> = v₀sinα - gt)</div>
+                        <div class="tele-value text-lg font-bold font-mono text-rose-300">
+                            <span id="val-vy">+17.68</span> <span class="text-xs font-normal text-rose-400/70">m/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Vận tốc tổng hợp v -->
+                    <div class="col-span-2 bg-lime-950/30 rounded-xl p-3 border border-lime-500/30 flex items-center justify-between">
+                        <div>
+                            <div class="tele-label text-xs text-lime-300 font-medium mb-1">Độ lớn vận tốc tổng hợp (v)</div>
+                            <div class="tele-value text-xl font-bold font-mono text-lime-300">
+                                <span id="val-v">25.00</span> <span class="text-xs font-normal text-lime-400/70">m/s</span>
+                            </div>
+                        </div>
+                        <div class="text-right text-xs text-lime-400/90 font-mono">
+                            v = √(v<sub>x</sub>² + v<sub>y</sub>²)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Công Thức Vật Lý Tóm Tắt -->
+            <div id="formula-card" class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-lg">
+                <h2 class="section-header text-sm font-bold uppercase tracking-wider text-slate-200 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-square-root-variable text-fuchsia-400"></i>
+                    Hệ Thống Công Thức Vật Lý Chuyển Động Ném Xiên
+                </h2>
+                <div id="formula-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                        <div class="font-semibold text-slate-200 mb-1">1. Phương trình tọa độ</div>
+                        <p class="font-mono text-slate-400 mb-0.5">• Ox: <span class="text-cyan-400 font-semibold">x = (v₀·cosα)·t</span></p>
+                        <p class="font-mono text-slate-400">• Oy: <span class="text-amber-400 font-semibold">y = h₀ + (v₀·sinα)·t - ½gt²</span></p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                        <div class="font-semibold text-slate-200 mb-1">2. Phương trình quỹ đạo</div>
+                        <p class="font-mono text-slate-200 bg-slate-900 px-2 py-0.5 rounded border border-slate-700 inline-block mb-1">
+                            y = h₀ + x·tanα - <span class="text-cyan-400">g·x² / (2v₀²cos²α)</span>
+                        </p>
+                        <p class="formula-desc text-slate-500">Quỹ đạo là một đường Parabol.</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                        <div class="font-semibold text-slate-200 mb-1">3. Đỉnh cao & Tầm xa (h₀ = 0)</div>
+                        <p class="font-mono text-slate-400 mb-0.5">• H<sub>max</sub> = <span class="text-fuchsia-400 font-semibold">(v₀²·sin²α) / 2g</span></p>
+                        <p class="font-mono text-slate-400">• L = <span class="text-lime-400 font-semibold">(v₀²·sin2α) / g</span> (Đạt max tại α = 45°)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột Phải: Bảng Điều Khiển Thông Số & Kết Quả Lý Thuyết (4 cột) -->
+        <div id="right-col" class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Bảng Điều Khiển Thông Số Đầu Vào -->
+            <div id="controls-card" class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-4">
+                <h2 class="controls-header text-sm font-bold uppercase tracking-wider text-slate-200 border-b border-slate-800 pb-2.5 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-cyan-400"></i>
+                    Thiết Lập Thông Số Ban Đầu
+                </h2>
+
+                <!-- 1. Góc ném xiên α -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="input-alpha" class="text-xs sm:text-sm font-semibold text-slate-300">Góc ném nghiêng (α)</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="input-alpha" min="0" max="90" step="1" value="45" class="w-16 px-2 py-0.5 text-right font-mono text-sm font-bold text-fuchsia-300 bg-fuchsia-950/50 border border-fuchsia-500/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-400">
+                            <span class="text-xs font-medium text-slate-400">độ (°)</span>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-alpha" min="0" max="90" step="1" value="45" class="w-full">
+                    <!-- Chọn nhanh góc đặc biệt -->
+                    <div class="grid grid-cols-4 gap-1.5 mt-1.5">
+                        <button type="button" data-alpha="30" class="angle-preset-btn py-1 rounded-lg text-[11px] font-mono font-semibold border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-300 transition cursor-pointer">30°</button>
+                        <button type="button" data-alpha="45" class="angle-preset-btn active py-1 rounded-lg text-[11px] font-mono font-semibold border border-fuchsia-400 bg-fuchsia-500/25 text-fuchsia-200 shadow-[0_0_10px_rgba(217,70,239,0.2)] transition cursor-pointer">45° (Max L)</button>
+                        <button type="button" data-alpha="60" class="angle-preset-btn py-1 rounded-lg text-[11px] font-mono font-semibold border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-300 transition cursor-pointer">60°</button>
+                        <button type="button" data-alpha="75" class="angle-preset-btn py-1 rounded-lg text-[11px] font-mono font-semibold border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-300 transition cursor-pointer">75°</button>
+                    </div>
+                </div>
+
+                <!-- 2. Vận tốc ban đầu v0 -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="input-v0" class="text-xs sm:text-sm font-semibold text-slate-300">Vận tốc ban đầu (v₀)</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="input-v0" min="5" max="60" step="0.5" value="25" class="w-16 px-2 py-0.5 text-right font-mono text-sm font-bold text-cyan-300 bg-cyan-950/50 border border-cyan-500/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                            <span class="text-xs font-medium text-slate-400">m/s</span>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-v0" min="5" max="60" step="0.5" value="25" class="w-full">
+                    <div class="slider-scale flex justify-between text-[10px] text-slate-500 font-mono mt-0.5">
+                        <span>5 m/s</span>
+                        <span>30 m/s</span>
+                        <span>60 m/s</span>
+                    </div>
+                </div>
+
+                <!-- 3. Độ cao ban đầu h0 -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="input-h" class="text-xs sm:text-sm font-semibold text-slate-300">Độ cao bệ phóng (h₀)</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="input-h" min="0" max="80" step="1" value="0" class="w-16 px-2 py-0.5 text-right font-mono text-sm font-bold text-amber-300 bg-amber-950/50 border border-amber-500/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
+                            <span class="text-xs font-medium text-slate-400">m</span>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-h" min="0" max="80" step="1" value="0" class="w-full">
+                    <div class="slider-scale flex justify-between text-[10px] text-slate-500 font-mono mt-0.5">
+                        <span>0m (Mặt đất)</span>
+                        <span>40m</span>
+                        <span>80m</span>
+                    </div>
+                </div>
+
+                <!-- 4. Gia tốc trọng trường g -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="input-g" class="text-xs sm:text-sm font-semibold text-slate-300">Gia tốc trọng trường (g)</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="input-g" min="0.5" max="30" step="0.01" value="9.81" class="w-20 px-2 py-0.5 text-right font-mono text-sm font-bold text-cyan-300 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                            <span class="text-xs font-medium text-slate-400">m/s²</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-1.5 mt-1.5">
+                        <button type="button" data-g="9.81" class="planet-btn active px-2 py-1.5 rounded-lg text-xs font-medium border border-cyan-400 bg-cyan-500/20 text-cyan-200 transition cursor-pointer flex flex-col items-center">
+                            <span>🌍 Trái Đất</span>
+                            <span class="font-mono text-[10px] text-cyan-300">9.81</span>
+                        </button>
+                        <button type="button" data-g="1.62" class="planet-btn px-2 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-300 transition cursor-pointer flex flex-col items-center">
+                            <span>🌕 Mặt Trăng</span>
+                            <span class="font-mono text-[10px] text-slate-400">1.62</span>
+                        </button>
+                        <button type="button" data-g="3.71" class="planet-btn px-2 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-300 transition cursor-pointer flex flex-col items-center">
+                            <span>🔴 Sao Hỏa</span>
+                            <span class="font-mono text-[10px] text-slate-400">3.71</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. Tốc độ phát (Slow Motion) -->
+                <div id="speed-section" class="pt-2 border-t border-slate-800">
+                    <label class="text-xs sm:text-sm font-semibold text-slate-300 block mb-1.5">Tốc độ mô phỏng (Slow Motion)</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" data-speed="0.25" class="speed-btn py-1.5 rounded-xl text-xs font-mono font-semibold border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-300 transition cursor-pointer">
+                            0.25x
+                        </button>
+                        <button type="button" data-speed="0.5" class="speed-btn py-1.5 rounded-xl text-xs font-mono font-semibold border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-300 transition cursor-pointer">
+                            0.5x
+                        </button>
+                        <button type="button" data-speed="1" class="speed-btn active py-1.5 rounded-xl text-xs font-mono font-semibold border border-cyan-400 bg-cyan-500/20 text-cyan-200 transition cursor-pointer">
+                            1.0x (Chuẩn)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Kết Quả Tính Toán Lý Thuyết -->
+            <div id="theory-card" class="bg-gradient-to-br from-slate-900 via-[#0d1428] to-slate-950 border border-slate-800 text-white rounded-2xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-cyan-300 mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-calculator text-amber-400"></i>
+                    Dự Báo Kết Quả Lý Thuyết
+                </h2>
+                <p class="theory-sub text-xs text-slate-400 mb-2.5">Giá trị chính xác tính từ các thông số đã thiết lập:</p>
+
+                <div id="theory-list" class="space-y-2">
+                    <div class="bg-slate-950/75 border border-slate-800/90 rounded-xl p-2.5 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-300">Độ cao cực đại (H<sub>max</sub>)</div>
+                            <div class="text-[11px] font-mono text-fuchsia-400">H<sub>max</sub> = h₀ + (v₀·sinα)² / 2g</div>
+                        </div>
+                        <div class="text-base sm:text-lg font-bold font-mono text-fuchsia-300">
+                            <span id="theo-hmax">15.93</span> <span class="text-xs font-normal text-slate-500">m</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/75 border border-slate-800/90 rounded-xl p-2.5 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-300">Thời gian bay (t<sub>max</sub>)</div>
+                            <div class="text-[11px] font-mono text-cyan-400">t<sub>max</sub> = (v₀sinα + √((v₀sinα)² + 2gh₀)) / g</div>
+                        </div>
+                        <div class="text-base sm:text-lg font-bold font-mono text-white">
+                            <span id="theo-tmax">3.60</span> <span class="text-xs font-normal text-slate-500">s</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/75 border border-slate-800/90 rounded-xl p-2.5 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-300">Tầm xa cực đại (L)</div>
+                            <div class="text-[11px] font-mono text-amber-400">L = v₀ · cosα · t<sub>max</sub></div>
+                        </div>
+                        <div class="text-base sm:text-lg font-bold font-mono text-amber-300">
+                            <span id="theo-range">63.71</span> <span class="text-xs font-normal text-slate-500">m</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/75 border border-slate-800/90 rounded-xl p-2.5 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-300">Vận tốc chạm đất (v<sub>chạm</sub>)</div>
+                            <div class="text-[11px] font-mono text-lime-400">v = √(v₀² + 2gh₀)</div>
+                        </div>
+                        <div class="text-base sm:text-lg font-bold font-mono text-lime-300">
+                            <span id="theo-vfinal">25.00</span> <span class="text-xs font-normal text-slate-500">m/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        /**
+         * ỨNG DỤNG MÔ PHỎNG CHUYỂN ĐỘNG NÉM XIÊN (OBLIQUE PROJECTILE MOTION)
+         * Bảng màu Cyber-Physics / Ballistics Telemetry cá tính với quỹ đạo & vector phát sáng.
+         */
+
+        // --- 1. TRẠNG THÁI VẬT LÝ & CẤU HÌNH ---
+        const state = {
+            h: 0,               // Độ cao ban đầu h0 (m)
+            v0: 25,             // Vận tốc ban đầu v0 (m/s)
+            alpha: 45,          // Góc ném nghiêng so với phương ngang (độ)
+            g: 9.81,            // Gia tốc trọng trường (m/s^2)
+            timeScale: 1.0,     // Tốc độ phát (0.25x, 0.5x, 1.0x)
+            
+            // Trạng thái chuyển động tức thời
+            isRunning: false,
+            isPaused: false,
+            isLanded: false,
+            isDraggingAngle: false,
+            
+            t: 0,               // Thời gian (s)
+            x: 0,               // Tọa độ x (m)
+            y: 0,               // Độ cao y (m)
+            vx: 17.68,          // Thành phần vận tốc ngang vx (m/s)
+            vy: 17.68,          // Thành phần vận tốc thẳng đứng vy (m/s)
+            
+            // Tùy chọn hiển thị
+            showVectors: true,
+            showApex: true,
+            compareTrails: true,
+            
+            currentPath: [],
+            savedTrails: [],    // [{ points, h, v0, alpha, g, range, hMax, tmax, color }]
+            impactRipple: 0
+        };
+
+        // Bảng màu neon rực rỡ cho các vết quỹ đạo lưu lại
+        const TRAIL_COLORS = [
+            '#e879f9', // Fuchsia Neon
+            '#fbbf24', // Amber Gold
+            '#34d399', // Emerald Mint
+            '#fb7185', // Coral Rose
+            '#a78bfa', // Electric Violet
+            '#38bdf8'  // Sky Glow
+        ];
+
+        // --- 2. THAM CHIẾU DOM ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        const sliderAlpha = document.getElementById('slider-alpha');
+        const inputAlpha = document.getElementById('input-alpha');
+        const anglePresetBtns = document.querySelectorAll('.angle-preset-btn');
+        const sliderV0 = document.getElementById('slider-v0');
+        const inputV0 = document.getElementById('input-v0');
+        const sliderH = document.getElementById('slider-h');
+        const inputH = document.getElementById('input-h');
+        const inputG = document.getElementById('input-g');
+        const planetBtns = document.querySelectorAll('.planet-btn');
+        const speedBtns = document.querySelectorAll('.speed-btn');
+
+        const btnLaunch = document.getElementById('btn-launch');
+        const btnPause = document.getElementById('btn-pause');
+        const btnPauseText = document.getElementById('btn-pause-text');
+        const btnReset = document.getElementById('btn-reset');
+        const chkVectors = document.getElementById('chk-vectors');
+        const chkApex = document.getElementById('chk-apex');
+        const chkCompare = document.getElementById('chk-compare');
+        const btnClearTrails = document.getElementById('btn-clear-trails');
+        const trailCountSpan = document.getElementById('trail-count');
+        const vectorLegend = document.getElementById('vector-legend');
+        const statusBadge = document.getElementById('status-badge');
+
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const iconFullscreen = document.getElementById('icon-fullscreen');
+        const textFullscreen = document.getElementById('text-fullscreen');
+        const fsToast = document.getElementById('fs-toast');
+
+        const valT = document.getElementById('val-t');
+        const valX = document.getElementById('val-x');
+        const valY = document.getElementById('val-y');
+        const valVx = document.getElementById('val-vx');
+        const valVy = document.getElementById('val-vy');
+        const valV = document.getElementById('val-v');
+        const valAngle = document.getElementById('val-angle');
+
+        const theoHmax = document.getElementById('theo-hmax');
+        const theoTmax = document.getElementById('theo-tmax');
+        const theoRange = document.getElementById('theo-range');
+        const theoVfinal = document.getElementById('theo-vfinal');
+
+        // --- 3. TÍNH TOÁN CÁC ĐẠI LƯỢNG LÝ THUYẾT NÉM XIÊN ---
+        function getTheoreticalValues() {
+            const rad = (state.alpha * Math.PI) / 180;
+            const vx0 = state.v0 * Math.cos(rad);
+            const vy0 = state.v0 * Math.sin(rad);
+
+            // Thời điểm đạt độ cao cực đại: t_đỉnh = vy0 / g
+            const tApex = vy0 / state.g;
+            const xApex = vx0 * tApex;
+            const hMax = state.h + (vy0 * vy0) / (2 * state.g);
+
+            // Giải phương trình y(t) = h + vy0*t - 0.5*g*t^2 = 0
+            const discriminant = vy0 * vy0 + 2 * state.g * state.h;
+            const tmax = (vy0 + Math.sqrt(Math.max(0, discriminant))) / state.g;
+            const range = vx0 * tmax;
+
+            // Vận tốc chạm đất: v = sqrt(v0^2 + 2*g*h)
+            const vFinal = Math.sqrt(state.v0 * state.v0 + 2 * state.g * state.h);
+
+            return { vx0, vy0, tApex, xApex, hMax, tmax, range, vFinal };
+        }
+
+        function updateTheoreticalUI() {
+            const { hMax, tmax, range, vFinal } = getTheoreticalValues();
+            theoHmax.textContent = hMax.toFixed(2);
+            theoTmax.textContent = tmax.toFixed(2);
+            theoRange.textContent = range.toFixed(2);
+            theoVfinal.textContent = vFinal.toFixed(2);
+        }
+
+        function updateTelemetryUI() {
+            const vMag = Math.sqrt(state.vx * state.vx + state.vy * state.vy);
+            // Góc hợp bởi vector vận tốc tức thời và phương ngang (dương khi hướng lên, âm khi hướng xuống)
+            const angleRad = Math.atan2(state.vy, state.vx);
+            const angleDeg = (angleRad * 180) / Math.PI;
+
+            valT.textContent = state.t.toFixed(2);
+            valX.textContent = state.x.toFixed(2);
+            valY.textContent = Math.max(0, state.y).toFixed(2);
+            valVx.textContent = state.vx.toFixed(2);
+            valVy.textContent = (state.vy >= 0 ? '+' : '') + state.vy.toFixed(2);
+            valV.textContent = vMag.toFixed(2);
+            valAngle.textContent = (angleDeg >= 0 ? '+' : '') + angleDeg.toFixed(1);
+        }
+
+        // --- 4. QUẢN LÝ TRẠNG THÁI MÔ PHỎNG ---
+        function resetSimulationState() {
+            const { vx0, vy0 } = getTheoreticalValues();
+            state.isRunning = false;
+            state.isPaused = false;
+            state.isLanded = false;
+            state.t = 0;
+            state.x = 0;
+            state.y = state.h;
+            state.vx = vx0;
+            state.vy = vy0;
+            state.currentPath = [{ x: 0, y: state.h }];
+            state.impactRipple = 0;
+
+            btnLaunch.disabled = false;
+            btnLaunch.innerHTML = '<i class="fa-solid fa-play"></i><span>Bắt đầu / Ném</span>';
+            btnPause.disabled = true;
+            btnPauseText.textContent = 'Tạm dừng';
+            btnPause.querySelector('i').className = 'fa-solid fa-pause';
+
+            statusBadge.textContent = `Sẵn sàng phóng (α = ${state.alpha}°)`;
+            statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/90 border border-slate-700 text-cyan-300 backdrop-blur-sm shadow-lg';
+
+            updateTheoreticalUI();
+            updateTelemetryUI();
+            drawScene();
+        }
+
+        function launchProjectile() {
+            if (state.isLanded) {
+                if (state.compareTrails && state.currentPath.length > 1) {
+                    saveCurrentTrail();
+                }
+                resetSimulationState();
+            }
+
+            state.isRunning = true;
+            state.isPaused = false;
+            state.isLanded = false;
+
+            btnLaunch.disabled = true;
+            btnPause.disabled = false;
+            statusBadge.textContent = `Đang bay (α = ${state.alpha}°, v₀ = ${state.v0}m/s)...`;
+            statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.5)] animate-pulse';
+        }
+
+        function togglePause() {
+            if (!state.isRunning || state.isLanded) return;
+            state.isPaused = !state.isPaused;
+            if (state.isPaused) {
+                btnPauseText.textContent = 'Tiếp tục';
+                btnPause.querySelector('i').className = 'fa-solid fa-play';
+                statusBadge.textContent = 'Đang tạm dừng';
+                statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-slate-950 shadow';
+            } else {
+                btnPauseText.textContent = 'Tạm dừng';
+                btnPause.querySelector('i').className = 'fa-solid fa-pause';
+                statusBadge.textContent = `Đang bay (α = ${state.alpha}°)...`;
+                statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500 text-slate-950 shadow';
+            }
+        }
+
+        function saveCurrentTrail() {
+            const { tmax, range, hMax, xApex } = getTheoreticalValues();
+            const color = TRAIL_COLORS[state.savedTrails.length % TRAIL_COLORS.length];
+            state.savedTrails.push({
+                points: [...state.currentPath],
+                h: state.h,
+                v0: state.v0,
+                alpha: state.alpha,
+                g: state.g,
+                range,
+                hMax,
+                xApex,
+                tmax,
+                color
+            });
+            trailCountSpan.textContent = state.savedTrails.length;
+        }
+
+        // --- 5. HỆ THỐNG RENDER CANVAS & TỰ ĐỘNG CO GIÃN TỈ LỆ ---
+        function resizeCanvas() {
+            const rect = canvasWrapper.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawScene();
+        }
+
+        const canvasResizeObserver = new ResizeObserver(() => resizeCanvas());
+        canvasResizeObserver.observe(canvasWrapper);
+
+        function getViewportTransform() {
+            const width = canvasWrapper.clientWidth;
+            const height = canvasWrapper.clientHeight;
+
+            const padLeft = 58;
+            const padRight = 48;
+            const padTop = 48;
+            const padBottom = 42;
+
+            const plotWidth = Math.max(100, width - padLeft - padRight);
+            const plotHeight = Math.max(100, height - padTop - padBottom);
+
+            const { range, hMax } = getTheoreticalValues();
+            let maxX = Math.max(range * 1.15, 25);
+            let maxY = Math.max(hMax * 1.22, 18);
+
+            if (state.compareTrails && state.savedTrails.length > 0) {
+                state.savedTrails.forEach(trail => {
+                    if (trail.range * 1.15 > maxX) maxX = trail.range * 1.15;
+                    if (trail.hMax * 1.22 > maxY) maxY = trail.hMax * 1.22;
+                });
+            }
+
+            // Tỉ lệ đồng nhất (isotropic) giữ chuẩn hình học góc α và parabol
+            const scaleX = plotWidth / maxX;
+            const scaleY = plotHeight / maxY;
+            const scale = Math.min(scaleX, scaleY);
+
+            const originX = padLeft;
+            const originY = height - padBottom;
+
+            return {
+                width,
+                height,
+                originX,
+                originY,
+                scale,
+                maxX: plotWidth / scale,
+                maxY: plotHeight / scale
+            };
+        }
+
+        function toCanvasX(xMeters, vp) {
+            return vp.originX + xMeters * vp.scale;
+        }
+        function toCanvasY(yMeters, vp) {
+            return vp.originY - yMeters * vp.scale;
+        }
+
+        function drawArrow(fromX, fromY, toX, toY, color, label, lineWidth = 2.5) {
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len < 5) return;
+
+            const angle = Math.atan2(dy, dx);
+            const headLen = Math.min(10, len * 0.35);
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            if (label) {
+                ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                const offsetX = Math.cos(angle) * 14;
+                const offsetY = Math.sin(angle) * 14;
+                ctx.fillText(label, toX + offsetX - 6, toY + offsetY + 4);
+            }
+            ctx.restore();
+        }
+
+        function drawScene() {
+            const vp = getViewportTransform();
+            ctx.clearRect(0, 0, vp.width, vp.height);
+
+            // 1. Lưới tọa độ và trục Ox, Oy phong cách Radar / Cyber-Grid
+            drawGridAndAxes(vp);
+
+            // 2. Mặt đất (Nền tối & đường biên phát sáng xanh ngọc)
+            const groundGrad = ctx.createLinearGradient(0, vp.originY, 0, vp.height);
+            groundGrad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+            groundGrad.addColorStop(1, 'rgba(6, 78, 59, 0.08)');
+            ctx.fillStyle = groundGrad;
+            ctx.fillRect(0, vp.originY, vp.width, vp.height - vp.originY);
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(52, 211, 153, 0.6)';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, vp.originY);
+            ctx.lineTo(vp.width, vp.originY);
+            ctx.stroke();
+            ctx.restore();
+
+            // 3. Bệ phóng / Tháp cao h0 & Nòng pháo nghiêng góc α
+            drawLauncherAndAngle(vp);
+
+            // 4. Các vết quỹ đạo cũ (Compare Trails)
+            if (state.compareTrails && state.savedTrails.length > 0) {
+                state.savedTrails.forEach((trail, idx) => {
+                    drawTrailPath(trail.points, trail.color, 2, [5, 5], vp, false);
+                    const lastPt = trail.points[trail.points.length - 1];
+                    if (lastPt) {
+                        const lx = toCanvasX(lastPt.x, vp);
+                        const ly = toCanvasY(0, vp);
+                        ctx.fillStyle = trail.color;
+                        ctx.beginPath();
+                        ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.font = '11px "JetBrains Mono", monospace';
+                        ctx.fillText(`#${idx + 1} (${trail.alpha}°): L=${trail.range.toFixed(1)}m`, lx - 35, ly + 15);
+                    }
+                });
+            }
+
+            // 5. Quỹ đạo parabol hiện tại (Cyan phát sáng)
+            if (state.currentPath.length > 1) {
+                drawTrailPath(state.currentPath, '#22d3ee', 2.8, [6, 4], vp, true);
+            }
+
+            // 6. Đánh dấu điểm đỉnh cực đại Hmax (Fuchsia Neon)
+            const { xApex, hMax, tApex } = getTheoreticalValues();
+            if (state.showApex && state.alpha > 0 && (state.t >= tApex || state.isLanded)) {
+                const apexX = toCanvasX(xApex, vp);
+                const apexY = toCanvasY(hMax, vp);
+
+                ctx.save();
+                ctx.strokeStyle = 'rgba(232, 121, 249, 0.45)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(apexX, apexY);
+                ctx.lineTo(apexX, vp.originY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.shadowColor = '#e879f9';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#e879f9';
+                ctx.beginPath();
+                ctx.arc(apexX, apexY, 4.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                ctx.fillStyle = '#f0abfc';
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                ctx.fillText(`Hmax = ${hMax.toFixed(2)}m`, apexX - 42, apexY - 10);
+                ctx.restore();
+            }
+
+            // 7. Hiệu ứng va chạm khi chạm đất
+            if (state.isLanded) {
+                const landX = toCanvasX(state.x, vp);
+                const landY = toCanvasY(0, vp);
+
+                if (state.impactRipple < 1) {
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(251, 191, 36, ${1 - state.impactRipple})`;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(landX, landY, 6 + state.impactRipple * 30, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                ctx.save();
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(landX, landY, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.save();
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(vp.originX, landY + 22);
+                ctx.lineTo(landX, landY + 22);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.fillStyle = '#fcd34d';
+                ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                const rangeText = `L = ${state.x.toFixed(2)} m`;
+                const textWidth = ctx.measureText(rangeText).width;
+                ctx.fillText(rangeText, (vp.originX + landX) / 2 - textWidth / 2, landY + 36);
+            }
+
+            // 8. Vẽ vật thể chuyển động (Quả cầu năng lượng phát sáng)
+            const ballX = toCanvasX(state.x, vp);
+            const ballY = toCanvasY(state.y, vp);
+            const ballRadius = 8.5;
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(34, 211, 238, 0.75)';
+            ctx.shadowBlur = 14;
+
+            const ballGrad = ctx.createRadialGradient(ballX - 3, ballY - 3, 1.5, ballX, ballY, ballRadius);
+            ballGrad.addColorStop(0, '#ffffff');
+            ballGrad.addColorStop(0.45, '#22d3ee');
+            ballGrad.addColorStop(1, '#0284c7');
+
+            ctx.fillStyle = ballGrad;
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = '#cffafe';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // 9. Vẽ các Vector vận tốc (vx, vy, v)
+            if (state.showVectors) {
+                const vScale = 2.0;
+                const vxPx = state.vx * vScale;
+                const vyPx = -state.vy * vScale;
+
+                if (Math.abs(state.vy) > 0.5 && Math.abs(state.vx) > 0.5) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(ballX + vxPx, ballY);
+                    ctx.lineTo(ballX + vxPx, ballY + vyPx);
+                    ctx.lineTo(ballX, ballY + vyPx);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Vector thành phần ngang vx (Cyan sáng)
+                if (Math.abs(state.vx) > 0.2) {
+                    drawArrow(ballX, ballY, ballX + vxPx, ballY, '#22d3ee', 'vx', 2.5);
+                }
+
+                // Vector thành phần thẳng đứng vy (Hồng đỏ Rose)
+                if (Math.abs(state.vy) > 0.2) {
+                    drawArrow(ballX, ballY, ballX, ballY + vyPx, '#fb7185', 'vy', 2.5);
+                }
+
+                // Vector tổng hợp v (Xanh chanh Lime Neon)
+                const vMag = Math.hypot(state.vx, state.vy);
+                if (vMag > 0.2) {
+                    drawArrow(ballX, ballY, ballX + vxPx, ballY + vyPx, '#a3e635', 'v', 3);
+                }
+            }
+        }
+
+        function drawGridAndAxes(vp) {
+            const rawStep = Math.max(vp.maxX, vp.maxY) / 8;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            const residual = rawStep / magnitude;
+            let step = magnitude;
+            if (residual > 5) step = 10 * magnitude;
+            else if (residual > 2) step = 5 * magnitude;
+            else if (residual > 1) step = 2 * magnitude;
+
+            ctx.save();
+            ctx.font = '11px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#64748b';
+            ctx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x <= vp.maxX; x += step) {
+                const px = toCanvasX(x, vp);
+                ctx.beginPath();
+                ctx.moveTo(px, 15);
+                ctx.lineTo(px, vp.originY);
+                ctx.stroke();
+
+                if (x > 0) {
+                    ctx.fillText(`${Math.round(x)}m`, px - 10, vp.originY + 15);
+                }
+            }
+
+            for (let y = 0; y <= vp.maxY; y += step) {
+                const py = toCanvasY(y, vp);
+                ctx.beginPath();
+                ctx.moveTo(vp.originX, py);
+                ctx.lineTo(vp.width - 15, py);
+                ctx.stroke();
+
+                if (y > 0) {
+                    const label = `${Math.round(y)}m`;
+                    const w = ctx.measureText(label).width;
+                    ctx.fillText(label, vp.originX - w - 8, py + 4);
+                }
+            }
+
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(vp.originX, 15);
+            ctx.lineTo(vp.originX, vp.originY);
+            ctx.lineTo(vp.width - 15, vp.originY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.fillText('O(0,0)', vp.originX - 38, vp.originY + 15);
+            ctx.fillText('y (m)', vp.originX - 42, 24);
+            ctx.fillText('x (m)', vp.width - 38, vp.originY - 6);
+            ctx.restore();
+        }
+
+        // Vẽ bệ phóng tại (0, h0) kèm cung tròn hiển thị góc α và nòng pháo tương tác
+        function drawLauncherAndAngle(vp) {
+            const launchX = toCanvasX(0, vp);
+            const launchY = toCanvasY(state.h, vp);
+            const bottomY = vp.originY;
+
+            ctx.save();
+            // Nếu h0 > 0, vẽ trụ bệ phóng phong cách công nghệ
+            if (state.h > 0) {
+                const towerWidth = 26;
+                const towerLeft = launchX - towerWidth;
+                const grad = ctx.createLinearGradient(towerLeft, launchY, launchX, bottomY);
+                grad.addColorStop(0, '#334155');
+                grad.addColorStop(1, '#0f172a');
+                ctx.fillStyle = grad;
+                ctx.fillRect(towerLeft, launchY, towerWidth, bottomY - launchY);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.2;
+                ctx.strokeRect(towerLeft, launchY, towerWidth, bottomY - launchY);
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                ctx.fillText(`h₀=${state.h}m`, towerLeft - 14, launchY - 12);
+            }
+
+            // Vẽ đường tham chiếu ngang nét đứt tại độ cao h0
+            const rad = (state.alpha * Math.PI) / 180;
+            const barrelLen = 36;
+            const tipX = launchX + Math.cos(rad) * barrelLen;
+            const tipY = launchY - Math.sin(rad) * barrelLen;
+
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(launchX, launchY);
+            ctx.lineTo(launchX + 46, launchY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Vẽ cung góc α (Fuchsia Neon)
+            if (state.alpha > 0) {
+                ctx.strokeStyle = '#e879f9';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.arc(launchX, launchY, 24, -rad, 0, false);
+                ctx.stroke();
+
+                ctx.fillStyle = '#f0abfc';
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                const midAngle = -rad / 2;
+                ctx.fillText(`α=${state.alpha}°`, launchX + Math.cos(midAngle) * 30, launchY + Math.sin(midAngle) * 30 + 3);
+            }
+
+            // Vẽ nòng pháo hướng góc α
+            ctx.strokeStyle = state.isDraggingAngle ? '#e879f9' : '#94a3b8';
+            ctx.lineWidth = 9;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(launchX, launchY);
+            ctx.lineTo(tipX, tipY);
+            ctx.stroke();
+
+            // Khớp xoay bệ pháo phát sáng viền cyan
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(launchX, launchY, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawTrailPath(points, color, lineWidth, dashArray, vp, glow = false) {
+            if (points.length < 2) return;
+            ctx.save();
+            if (glow) {
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 8;
+            }
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.setLineDash(dashArray);
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(points[0].x, vp), toCanvasY(points[0].y, vp));
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(toCanvasX(points[i].x, vp), toCanvasY(points[i].y, vp));
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // --- 6. TƯƠNG TÁC KÉO NÒNG PHÁO ĐỂ CHỈNH GÓC α TRỰC TIẾP TRÊN CANVAS ---
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function onPointerDown(e) {
+            if (state.isRunning) return;
+            const pos = getPointerPos(e);
+            const vp = getViewportTransform();
+            const launchX = toCanvasX(0, vp);
+            const launchY = toCanvasY(state.h, vp);
+
+            if (Math.hypot(pos.x - launchX, pos.y - launchY) <= 55) {
+                state.isDraggingAngle = true;
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        function onPointerMove(e) {
+            const pos = getPointerPos(e);
+            const vp = getViewportTransform();
+            const launchX = toCanvasX(0, vp);
+            const launchY = toCanvasY(state.h, vp);
+
+            if (state.isDraggingAngle) {
+                e.preventDefault();
+                const dx = Math.max(0.001, pos.x - launchX);
+                const dy = launchY - pos.y;
+                let deg = Math.round((Math.atan2(dy, dx) * 180) / Math.PI);
+                deg = Math.max(0, Math.min(90, deg));
+                syncParamAlpha(deg);
+                return;
+            }
+
+            if (!state.isRunning && Math.hypot(pos.x - launchX, pos.y - launchY) <= 55) {
+                canvas.style.cursor = 'grab';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        function onPointerUp() {
+            if (state.isDraggingAngle) {
+                state.isDraggingAngle = false;
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        canvas.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
+
+        // --- 7. VÒNG LẶP ANIMATION THỜI GIAN THỰC ---
+        let lastTimestamp = null;
+
+        function animate(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const rawDt = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+
+            const dt = Math.min(rawDt, 0.05) * state.timeScale;
+
+            if (state.isRunning && !state.isPaused && !state.isLanded) {
+                const { vx0, vy0, tmax, range } = getTheoreticalValues();
+                state.t += dt;
+
+                // Phương trình chuyển động ném xiên:
+                // x(t) = (v0 * cosα) * t
+                // y(t) = h0 + (v0 * sinα) * t - 0.5 * g * t^2
+                // vx(t) = v0 * cosα
+                // vy(t) = v0 * sinα - g * t
+                state.x = vx0 * state.t;
+                state.y = state.h + vy0 * state.t - 0.5 * state.g * state.t * state.t;
+                state.vx = vx0;
+                state.vy = vy0 - state.g * state.t;
+
+                // Kiểm tra chạm đất (y <= 0 và đang đi xuống hoặc t >= tmax)
+                if (state.t >= tmax || (state.y <= 0 && state.vy <= 0)) {
+                    state.t = tmax;
+                    state.x = range;
+                    state.y = 0;
+                    state.vy = vy0 - state.g * tmax;
+                    state.isLanded = true;
+                    state.isRunning = false;
+
+                    btnLaunch.disabled = false;
+                    btnLaunch.innerHTML = '<i class="fa-solid fa-rotate-left"></i><span>Ném lại</span>';
+                    btnPause.disabled = true;
+
+                    statusBadge.textContent = `Đã chạm đất! Tầm xa L = ${range.toFixed(2)}m`;
+                    statusBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold bg-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(52,211,153,0.5)]';
+                }
+
+                state.currentPath.push({ x: state.x, y: state.y });
+                updateTelemetryUI();
+            }
+
+            if (state.isLanded && state.impactRipple < 1) {
+                state.impactRipple += rawDt * 1.8;
+                if (state.impactRipple > 1) state.impactRipple = 1;
+            }
+
+            drawScene();
+            requestAnimationFrame(animate);
+        }
+
+        // --- 8. ĐỒNG BỘ THÔNG SỐ ĐẦU VÀO ---
+        function syncParamAlpha(val) {
+            const clamped = Math.max(0, Math.min(90, parseFloat(val) || 0));
+            state.alpha = clamped;
+            sliderAlpha.value = clamped;
+            inputAlpha.value = clamped;
+
+            anglePresetBtns.forEach(btn => {
+                const preset = parseFloat(btn.dataset.alpha);
+                if (preset === clamped) {
+                    btn.className = 'angle-preset-btn active py-1 rounded-lg text-[11px] font-mono font-semibold border border-fuchsia-400 bg-fuchsia-500/25 text-fuchsia-200 shadow-[0_0_10px_rgba(217,70,239,0.2)] transition cursor-pointer';
+                } else {
+                    btn.className = 'angle-preset-btn py-1 rounded-lg text-[11px] font-mono font-semibold border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-300 transition cursor-pointer';
+                }
+            });
+
+            resetSimulationState();
+        }
+
+        function syncParamV0(val) {
+            const clamped = Math.max(5, Math.min(60, parseFloat(val) || 25));
+            state.v0 = clamped;
+            sliderV0.value = clamped;
+            inputV0.value = clamped;
+            resetSimulationState();
+        }
+
+        function syncParamH(val) {
+            const clamped = Math.max(0, Math.min(80, parseFloat(val) || 0));
+            state.h = clamped;
+            sliderH.value = clamped;
+            inputH.value = clamped;
+            resetSimulationState();
+        }
+
+        function syncParamG(val) {
+            const clamped = Math.max(0.5, Math.min(30, parseFloat(val) || 9.81));
+            state.g = clamped;
+            inputG.value = clamped;
+
+            planetBtns.forEach(btn => {
+                const btnG = parseFloat(btn.dataset.g);
+                if (Math.abs(btnG - clamped) < 0.01) {
+                    btn.className = 'planet-btn active px-2 py-1.5 rounded-lg text-xs font-medium border border-cyan-400 bg-cyan-500/20 text-cyan-200 transition cursor-pointer flex flex-col items-center';
+                    btn.querySelector('span:last-child').className = 'font-mono text-[10px] text-cyan-300';
+                } else {
+                    btn.className = 'planet-btn px-2 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-300 transition cursor-pointer flex flex-col items-center';
+                    btn.querySelector('span:last-child').className = 'font-mono text-[10px] text-slate-400';
+                }
+            });
+
+            resetSimulationState();
+        }
+
+        sliderAlpha.addEventListener('input', e => syncParamAlpha(e.target.value));
+        inputAlpha.addEventListener('change', e => syncParamAlpha(e.target.value));
+        anglePresetBtns.forEach(btn => btn.addEventListener('click', () => syncParamAlpha(btn.dataset.alpha)));
+
+        sliderV0.addEventListener('input', e => syncParamV0(e.target.value));
+        inputV0.addEventListener('change', e => syncParamV0(e.target.value));
+
+        sliderH.addEventListener('input', e => syncParamH(e.target.value));
+        inputH.addEventListener('change', e => syncParamH(e.target.value));
+
+        inputG.addEventListener('change', e => syncParamG(e.target.value));
+        planetBtns.forEach(btn => btn.addEventListener('click', () => syncParamG(btn.dataset.g)));
+
+        speedBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.timeScale = parseFloat(btn.dataset.speed);
+                speedBtns.forEach(b => {
+                    b.className = 'speed-btn py-1.5 rounded-xl text-xs font-mono font-semibold border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-300 transition cursor-pointer';
+                });
+                btn.className = 'speed-btn active py-1.5 rounded-xl text-xs font-mono font-semibold border border-cyan-400 bg-cyan-500/20 text-cyan-200 transition cursor-pointer';
+            });
+        });
+
+        btnLaunch.addEventListener('click', launchProjectile);
+        btnPause.addEventListener('click', togglePause);
+        btnReset.addEventListener('click', resetSimulationState);
+
+        chkVectors.addEventListener('change', e => {
+            state.showVectors = e.target.checked;
+            vectorLegend.style.display = state.showVectors ? 'flex' : 'none';
+            drawScene();
+        });
+
+        chkApex.addEventListener('change', e => {
+            state.showApex = e.target.checked;
+            drawScene();
+        });
+
+        chkCompare.addEventListener('change', e => {
+            state.compareTrails = e.target.checked;
+            drawScene();
+        });
+
+        btnClearTrails.addEventListener('click', () => {
+            state.savedTrails = [];
+            trailCountSpan.textContent = '0';
+            drawScene();
+        });
+
+        // --- 9. CHỨC NĂNG TOÀN MÀN HÌNH (FIT-TO-SCREEN 100VH TRÌNH CHIẾU) ---
+        let toastTimeout = null;
+
+        function showFullscreenToast() {
+            fsToast.classList.remove('opacity-0', 'translate-y-2');
+            fsToast.classList.add('opacity-100', 'translate-y-0');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                fsToast.classList.remove('opacity-100', 'translate-y-0');
+                fsToast.classList.add('opacity-0', 'translate-y-2');
+            }, 3200);
+        }
+
+        function isFullscreenActive() {
+            return document.body.classList.contains('is-fullscreen');
+        }
+
+        function applyFullscreenState(active) {
+            if (active) {
+                document.body.classList.add('is-fullscreen');
+                iconFullscreen.className = 'fa-solid fa-compress text-amber-300';
+                textFullscreen.textContent = 'Thoát toàn màn hình';
+                btnFullscreen.className = 'px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 active:scale-95 text-amber-200 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer';
+            } else {
+                document.body.classList.remove('is-fullscreen');
+                iconFullscreen.className = 'fa-solid fa-expand text-fuchsia-400';
+                textFullscreen.textContent = 'Toàn màn hình';
+                btnFullscreen.className = 'px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-100 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer';
+            }
+            resizeCanvas();
+            requestAnimationFrame(() => resizeCanvas());
+            setTimeout(resizeCanvas, 100);
+        }
+
+        async function toggleFullScreen() {
+            const elem = document.documentElement;
+            const willEnter = !isFullscreenActive();
+
+            if (willEnter) {
+                applyFullscreenState(true);
+                showFullscreenToast();
+                try {
+                    if (elem.requestFullscreen) await elem.requestFullscreen();
+                    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+                } catch (err) {}
+            } else {
+                applyFullscreenState(false);
+                try {
+                    if (document.exitFullscreen && document.fullscreenElement) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen && document.webkitFullscreenElement) await document.webkitExitFullscreen();
+                } catch (err) {}
+            }
+        }
+
+        btnFullscreen.addEventListener('click', toggleFullScreen);
+
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+            document.addEventListener(evt, () => {
+                const nativeFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+                if (!nativeFs && isFullscreenActive()) {
+                    applyFullscreenState(false);
+                } else {
+                    resizeCanvas();
+                }
+            });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullScreen();
+            } else if (e.key === 'Escape' && isFullscreenActive()) {
+                applyFullscreenState(false);
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        window.onload = function() {
+            resizeCanvas();
+            resetSimulationState();
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,2205 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DKVATLY Lab — Thư viện mô phỏng Vật lý THPT</title>
+    <meta
+      name="description"
+      content="Cổng học liệu mô phỏng tương tác Vật lý THPT gồm 5 chuyên đề: Cơ học, Nhiệt học, Điện từ học, Dao động và sóng, Vật lý hạt nhân."
+    />
+    <meta property="og:title" content="DKVATLY Lab — Thư viện mô phỏng Vật lý THPT" />
+    <meta
+      property="og:description"
+      content="Khám phá các thí nghiệm mô phỏng Vật lý THPT (Cơ học, Nhiệt học, Điện từ học, Dao động và sóng, Vật lý hạt nhân) trực quan trên trình duyệt."
+    />
+    <meta property="og:type" content="website" />
+
+    <!-- Phông chữ hỗ trợ Tiếng Việt hoàn hảo (Plus Jakarta Sans & JetBrains Mono) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind CSS qua CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+            },
+            colors: {
+              brand: {
+                50: '#F0F7FF',
+                100: '#E0EFFE',
+                500: '#0284C7',
+                600: '#0369A1',
+                700: '#0F4C81',
+                900: '#0C2D48',
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .sim-card {
+        transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+          box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+          border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .sim-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.1), 0 4px 8px -4px rgba(15, 23, 42, 0.05);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sim-card,
+        .sim-card:hover {
+          transition: none;
+          transform: none;
+        }
+      }
+
+      /* Hỗ trợ chế độ toàn màn hình mượt mà cho khung chạy mô phỏng */
+      #sim-stage-wrapper:fullscreen {
+        background-color: #020617;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 1rem;
+      }
+      #sim-stage-wrapper:fullscreen #sim-iframe {
+        height: 100%;
+        width: 100%;
+        border-radius: 0.5rem;
+      }
+
+      /* Định dạng in ấn sạch sẽ khi giáo viên in Phiếu học tập */
+      @media print {
+        header,
+        #catalog-view,
+        #sim-stage-section,
+        #detail-breadcrumb,
+        #tab-buttons-bar,
+        #import-modal,
+        .no-print {
+          display: none !important;
+        }
+        #detail-view,
+        #worksheet-panel {
+          display: block !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+    <!-- ===================================================================== -->
+    <!-- THANH HEADER (3 vùng chuẩn mực: Thương hiệu · Tìm kiếm · Nhập file)  -->
+    <!-- ===================================================================== -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+      <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4 sm:gap-8">
+        <!-- Vùng 1: Logo & Tên thương hiệu -->
+        <button
+          id="btn-go-home"
+          type="button"
+          class="flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-lg py-1"
+          title="Về trang thư viện mô phỏng"
+        >
+          <span class="w-9 h-9 rounded-lg bg-brand-700 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="2.2" fill="currentColor"></circle>
+              <ellipse cx="12" cy="12" rx="9.5" ry="4" transform="rotate(30 12 12)"></ellipse>
+              <ellipse cx="12" cy="12" rx="9.5" ry="4" transform="rotate(-30 12 12)"></ellipse>
+              <ellipse cx="12" cy="12" rx="9.5" ry="4" transform="rotate(90 12 12)"></ellipse>
+            </svg>
+          </span>
+          <span class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">
+            DKVATLY <span class="text-brand-600">Lab</span>
+          </span>
+        </button>
+
+        <!-- Vùng 2: Thanh tìm kiếm nhanh theo tên bài / từ khóa -->
+        <div class="flex-1 max-w-xl relative">
+          <label for="search-input" class="sr-only">Tìm kiếm bài mô phỏng Vật lý</label>
+          <svg
+            class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+          <input
+            id="search-input"
+            type="search"
+            autocomplete="off"
+            placeholder="Tìm bài mô phỏng Vật lý (vd: ném xiên, khí lý tưởng, con lắc, phóng xạ)..."
+            class="w-full h-10 pl-10 pr-14 text-sm bg-slate-100/80 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors"
+          />
+          <button
+            id="btn-clear-search"
+            type="button"
+            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500 hover:text-slate-800 px-1.5 py-0.5 rounded bg-slate-200/70"
+            aria-label="Xóa từ khóa tìm kiếm"
+          >
+            Xóa
+          </button>
+        </div>
+
+        <!-- Vùng 3: Nút "+ Nhập file HTML" -->
+        <div class="shrink-0 flex items-center">
+          <button
+            id="btn-import-sim"
+            type="button"
+            class="inline-flex items-center gap-2 h-10 px-3.5 sm:px-4 text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 active:bg-brand-900 rounded-lg shadow-sm transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          >
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14"></path>
+              <path d="M5 12h14"></path>
+            </svg>
+            <span>Nhập file HTML</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================================================================== -->
+    <!-- CHẾ ĐỘ XEM 1: THƯ VIỆN & BỘ LỌC (#catalog-view)                      -->
+    <!-- ===================================================================== -->
+    <main id="catalog-view" class="flex-1">
+      <!-- Hero Banner giới thiệu & Các nút truy cập nhanh theo chuyên đề Vật lý -->
+      <section class="bg-white border-b border-slate-200">
+        <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+          <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+            <div class="max-w-2xl">
+              <p class="text-xs font-semibold tracking-wide text-brand-600 mb-2">
+                Cổng học liệu mô phỏng tương tác · Vật lý THPT
+              </p>
+              <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight" style="text-wrap: balance;">
+                Thư viện mô phỏng Vật lý THPT
+              </h1>
+              <p class="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+                Thử nghiệm trực quan các chuyên đề Cơ học, Nhiệt học, Điện từ học, Dao động và sóng, Vật lý hạt nhân ngay trên trình duyệt hoặc tải về dùng ngoại tuyến.
+              </p>
+            </div>
+
+            <div class="flex items-center gap-6 text-sm text-slate-600 shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100">
+              <div>
+                <div id="hero-total-count" class="text-2xl font-extrabold text-slate-900 tabular-nums">0</div>
+                <div class="text-xs text-slate-500">Mô phỏng sẵn có</div>
+              </div>
+              <div class="w-px h-9 bg-slate-200" aria-hidden="true"></div>
+              <div>
+                <div class="text-2xl font-extrabold text-slate-900 tabular-nums">5</div>
+                <div class="text-xs text-slate-500">Chuyên đề Vật lý</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thanh truy cập nhanh 5 phần Vật lý có icon trực quan -->
+          <div class="mt-7 pt-6 border-t border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-semibold text-slate-500">Truy cập nhanh theo chuyên đề Vật lý</span>
+              <button
+                id="btn-hero-all"
+                type="button"
+                class="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline whitespace-nowrap"
+              >
+                Xem tất cả chuyên đề
+              </button>
+            </div>
+            <div id="hero-topic-shortcuts" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <!-- Render tự động bởi JS với SVG icon từng chuyên đề -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Khu vực nội dung chính: Cột bộ lọc bên trái (25%) & Lưới thẻ bên phải (75%) -->
+      <section class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Nút mở bộ lọc trên thiết bị di động -->
+        <div class="lg:hidden mb-4 flex items-center justify-between gap-3">
+          <button
+            id="btn-toggle-mobile-filters"
+            type="button"
+            aria-expanded="false"
+            class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg shadow-sm"
+          >
+            <svg class="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            Bộ lọc chuyên đề Vật lý
+          </button>
+          <span id="mobile-result-count" class="text-sm font-medium text-slate-600 tabular-nums"></span>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
+          <!-- CỘT BÊN TRÁI (25%): Hệ thống Bộ lọc -->
+          <aside
+            id="filter-sidebar"
+            class="hidden lg:block w-full lg:w-1/4 shrink-0 bg-white border border-slate-200 rounded-xl p-5 lg:sticky lg:top-24"
+          >
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+              <h2 class="text-base font-bold text-slate-900">Bộ lọc thư viện</h2>
+              <button
+                id="btn-reset-filters"
+                type="button"
+                class="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline whitespace-nowrap shrink-0 disabled:opacity-40 disabled:no-underline"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+
+            <!-- Hiển thị tổng số bài mô phỏng đang tìm thấy -->
+            <div class="mt-4 px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between">
+              <span class="text-xs font-medium text-slate-600">Kết quả phù hợp</span>
+              <span id="sidebar-result-count" class="text-sm font-bold text-brand-700 tabular-nums">0 / 0 bài</span>
+            </div>
+
+            <!-- Nhóm lọc 1: 5 Chuyên đề Vật lý -->
+            <div class="mt-6">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Chuyên đề Vật lý</h3>
+              <div id="filter-topics-list" class="space-y-2">
+                <!-- Checkbox rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Nhóm lọc 2: Môn học & Cấp học -->
+            <div class="mt-6 pt-5 border-t border-slate-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Phạm vi chương trình</h3>
+              <div id="filter-grades-list" class="space-y-2">
+                <!-- Checkbox rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Mẹo nhỏ dành cho giáo viên -->
+            <div class="mt-6 pt-5 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+              <p class="font-semibold text-slate-700 mb-1">Dành cho giáo viên</p>
+              <p>
+                Nhấn <strong class="font-semibold text-slate-700">+ Nhập file HTML</strong> ở thanh trên cùng để chọn tệp từ máy tính và phân loại trực tiếp vào đúng chuyên đề Vật lý THPT.
+              </p>
+            </div>
+          </aside>
+
+          <!-- CỘT BÊN PHẢI (75%): Khu vực hiển thị lưới thẻ mô phỏng -->
+          <div class="w-full lg:w-3/4 flex-1 min-w-0">
+            <!-- Thanh trạng thái danh sách -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <div>
+                <h2 class="text-lg sm:text-xl font-bold text-slate-900">Danh sách mô phỏng Vật lý</h2>
+                <p id="active-filter-summary" class="text-sm text-slate-500 mt-0.5">
+                  Hiển thị toàn bộ chuyên đề Vật lý THPT
+                </p>
+              </div>
+              <div id="desktop-result-badge" class="hidden sm:block text-sm font-medium text-slate-600 tabular-nums">
+                Tìm thấy <strong id="grid-count-number" class="text-slate-900">0</strong> bài mô phỏng
+              </div>
+            </div>
+
+            <!-- Lưới thẻ 3 cột trên desktop, 1 cột trên điện thoại -->
+            <div id="simulations-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <!-- Sim Cards rendered dynamically -->
+            </div>
+
+            <!-- Trạng thái trống khi chưa có bài mô phỏng hoặc không khớp bộ lọc -->
+            <div
+              id="empty-state"
+              class="hidden bg-white border border-slate-200 rounded-xl p-10 text-center"
+            >
+              <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+              </div>
+              <h3 id="empty-state-title" class="text-base font-bold text-slate-900">Thư viện chưa có bài mô phỏng nào</h3>
+              <p id="empty-state-desc" class="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                Nhấn "+ Nhập file HTML" để chọn hoặc kéo thả tệp .html từ máy tính, phân loại vào chuyên đề Vật lý THPT và chạy ngay.
+              </p>
+              <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  id="btn-empty-import"
+                  type="button"
+                  class="px-4 py-2 text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 rounded-lg transition-colors"
+                >
+                  + Nhập file HTML
+                </button>
+                <button
+                  id="btn-empty-reset"
+                  type="button"
+                  class="hidden px-4 py-2 text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 rounded-lg transition-colors"
+                >
+                  Xóa toàn bộ bộ lọc
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- CHẾ ĐỘ XEM 2: CHI TIẾT BÀI HỌC & TRÌNH CHẠY MÔ PHỎNG (#detail-view)   -->
+    <!-- ===================================================================== -->
+    <main id="detail-view" class="hidden flex-1">
+      <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <!-- Điều hướng quay lại & Tiêu đề bài học -->
+        <div id="detail-breadcrumb" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <button
+              id="btn-back-to-catalog"
+              type="button"
+              class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-600 mb-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6"></path>
+              </svg>
+              Quay lại Thư viện mô phỏng
+            </button>
+            <div class="flex flex-wrap items-center gap-2 text-xs font-semibold mb-1">
+              <span id="detail-topic-label" class="text-brand-700">Cơ học</span>
+              <span class="text-slate-300" aria-hidden="true">·</span>
+              <span class="text-slate-600">Vật lý</span>
+              <span class="text-slate-300" aria-hidden="true">·</span>
+              <span id="detail-grades-label" class="text-slate-600">THPT</span>
+              <span id="detail-source-separator" class="hidden text-slate-300" aria-hidden="true">·</span>
+              <span id="detail-source-label" class="hidden text-emerald-700">Tệp HTML nhập từ máy tính</span>
+            </div>
+            <h1 id="detail-title" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              Tên bài mô phỏng
+            </h1>
+          </div>
+        </div>
+
+        <!-- Khung chạy mô phỏng trực tiếp 16:9 + Thanh công cụ điều khiển -->
+        <section id="sim-stage-section" class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <!-- Khung <iframe> tỷ lệ 16:9 (tự thích ứng nền tối/sáng & tỷ lệ theo tệp) -->
+          <div id="sim-stage-wrapper" class="relative w-full aspect-video bg-slate-950 transition-colors">
+            <iframe
+              id="sim-iframe"
+              title="Trình chạy mô phỏng tương tác"
+              class="w-full h-full border-0 bg-white"
+              allow="fullscreen; autoplay; clipboard-write"
+            ></iframe>
+          </div>
+
+          <!-- Thanh công cụ dưới khung chạy -->
+          <div class="px-4 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0 max-w-xl">
+              <p id="detail-short-desc" class="text-sm text-slate-600 line-clamp-1">
+                Mô tả ngắn gọn về thí nghiệm mô phỏng.
+              </p>
+              <p id="detail-stage-meta" class="hidden text-xs text-slate-500 mt-0.5 font-mono"></p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <div id="stage-aspect-controls" class="inline-flex items-center bg-white border border-slate-200 rounded-lg p-0.5 text-xs font-semibold text-slate-600">
+                <button type="button" data-stage-aspect="16:9" class="stage-aspect-btn px-2 py-1.5 rounded-md bg-brand-50 text-brand-700 transition-colors">16:9</button>
+                <button type="button" data-stage-aspect="4:3" class="stage-aspect-btn px-2 py-1.5 rounded-md hover:text-slate-900 transition-colors">4:3</button>
+                <button type="button" data-stage-aspect="tall" class="stage-aspect-btn px-2 py-1.5 rounded-md hover:text-slate-900 transition-colors">Mở rộng</button>
+              </div>
+
+              <button
+                id="btn-toggle-stage-theme"
+                type="button"
+                title="Đổi nền khung chạy tối / sáng"
+                class="inline-flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <span id="stage-theme-label">Nền tối</span>
+              </button>
+
+              <button
+                id="btn-delete-imported"
+                type="button"
+                class="hidden inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                Xóa bài đã nhập
+              </button>
+
+              <button
+                id="btn-reload-sim"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                  <path d="M3 3v5h5"></path>
+                </svg>
+                Tải lại
+              </button>
+
+              <button
+                id="btn-fullscreen"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                  <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                  <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                  <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                </svg>
+                <span id="fullscreen-label">Toàn màn hình</span>
+              </button>
+
+              <button
+                id="btn-download-offline"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-brand-700 bg-brand-50 border border-brand-200 hover:bg-brand-100 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Tải bản Offline (.html)
+              </button>
+
+              <a
+                id="btn-open-newtab"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M15 3h6v6"></path>
+                  <path d="M10 14 21 3"></path>
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                </svg>
+                Mở tab mới
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Các tab thông tin sư phạm bên dưới -->
+        <section class="mt-8 bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <!-- Thanh chuyển Tab -->
+          <div id="tab-buttons-bar" class="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 px-4 sm:px-6 gap-6" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected="true"
+              data-tab="objectives"
+              class="detail-tab-btn py-4 text-sm font-bold border-b-2 border-brand-700 text-brand-700 whitespace-nowrap shrink-0 transition-colors"
+            >
+              Mục tiêu học tập
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-tab="teacher"
+              class="detail-tab-btn py-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 whitespace-nowrap shrink-0 transition-colors"
+            >
+              Hướng dẫn dành cho giáo viên
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-tab="worksheet"
+              class="detail-tab-btn py-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 whitespace-nowrap shrink-0 transition-colors"
+            >
+              Phiếu học tập gợi ý
+            </button>
+          </div>
+
+          <!-- Nội dung Tab 1: Mục tiêu học tập -->
+          <div id="tab-panel-objectives" class="detail-tab-panel p-6 sm:p-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div class="lg:col-span-2">
+                <h2 class="text-lg font-bold text-slate-900 mb-4">Sau khi thực hành mô phỏng, học sinh có thể:</h2>
+                <ul id="detail-objectives-list" class="space-y-3 text-sm sm:text-base text-slate-700 leading-relaxed">
+                  <!-- Populated dynamically -->
+                </ul>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 class="text-sm font-bold text-slate-900 mb-3">Kiến thức &amp; Công thức trọng tâm</h3>
+                <div id="detail-key-concepts" class="space-y-2.5 text-sm text-slate-700">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nội dung Tab 2: Hướng dẫn dành cho giáo viên -->
+          <div id="tab-panel-teacher" class="detail-tab-panel hidden p-6 sm:p-8">
+            <div id="detail-teacher-guide" class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm sm:text-base text-slate-700 leading-relaxed">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Nội dung Tab 3: Phiếu học tập gợi ý -->
+          <div id="tab-panel-worksheet" class="detail-tab-panel hidden p-6 sm:p-8">
+            <div id="worksheet-panel">
+              <div class="flex flex-wrap items-center justify-between gap-4 pb-5 mb-6 border-b border-slate-200">
+                <div>
+                  <h2 id="worksheet-title" class="text-lg font-bold text-slate-900">Phiếu học tập thực hành</h2>
+                  <p class="text-sm text-slate-500 mt-0.5">Giáo viên có thể in trực tiếp hoặc sao chép nhanh sang Word / Google Docs.</p>
+                </div>
+                <div class="flex items-center gap-2 no-print">
+                  <button
+                    id="btn-copy-worksheet"
+                    type="button"
+                    class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Sao chép nội dung
+                  </button>
+                  <button
+                    id="btn-print-worksheet"
+                    type="button"
+                    class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    In phiếu học tập
+                  </button>
+                </div>
+              </div>
+              <div id="detail-worksheet-content" class="space-y-5 text-sm sm:text-base text-slate-700 leading-relaxed">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- HỘP THOẠI NHẬP FILE HTML TÙY BIẾN CHUYÊN ĐỀ VẬT LÝ (#import-modal)    -->
+    <!-- ===================================================================== -->
+    <div
+      id="import-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="import-modal-title"
+      class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto"
+    >
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+          <div>
+            <h2 id="import-modal-title" class="text-lg font-bold text-slate-900">Nhập file mô phỏng HTML</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Chọn tệp .html từ máy tính — hệ thống tự tạo giao diện thẻ và khung chạy phù hợp từng tệp</p>
+          </div>
+          <button
+            id="btn-close-import-modal"
+            type="button"
+            class="w-8 h-8 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors"
+            aria-label="Đóng hộp thoại"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <form id="import-form" class="p-6 space-y-5 overflow-y-auto">
+          <!-- Bước 1: Chọn file .html -->
+          <div>
+            <label class="block text-sm font-bold text-slate-800 mb-2">1. Chọn hoặc kéo thả tệp HTML mô phỏng</label>
+            <input id="local-sim-file-input" type="file" accept=".html,.htm,text/html" class="hidden" />
+            <div
+              id="import-dropzone"
+              tabindex="0"
+              role="button"
+              class="border-2 border-dashed border-slate-300 hover:border-brand-500 bg-slate-50 hover:bg-brand-50/40 rounded-xl p-5 text-center cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              <svg class="w-8 h-8 text-brand-600 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <p id="import-file-status" class="text-sm font-semibold text-slate-800">
+                Nhấn để chọn file (.html) hoặc kéo thả vào đây
+              </p>
+              <p id="import-file-sub" class="text-xs text-slate-500 mt-1">
+                Tự nhận diện Canvas 2D, 3D WebGL, SVG, đồ thị hay bài tập HTML để tạo giao diện riêng
+              </p>
+              <span class="inline-block mt-3 px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg">
+                Chọn tệp từ máy tính
+              </span>
+            </div>
+          </div>
+
+          <!-- Hồ sơ giao diện tự động tạo theo từng tệp (hiện sau khi chọn file) -->
+          <div id="import-adaptive-preview" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+            <div class="flex flex-col sm:flex-row gap-4 items-start">
+              <div id="import-card-svg-preview" class="w-full sm:w-44 aspect-[16/10] rounded-lg overflow-hidden border border-slate-200 bg-white shrink-0"></div>
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-brand-700">Giao diện đề xuất theo tệp</span>
+                  <span id="import-detected-engine" class="text-xs font-mono font-semibold text-slate-600">Canvas 2D</span>
+                </div>
+                <p id="import-detected-summary" class="text-xs text-slate-600 mt-1 leading-relaxed"></p>
+                <div id="import-detected-controls" class="mt-2 text-xs text-slate-500"></div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200/80">
+              <div>
+                <label for="import-motif-select" class="block text-xs font-bold text-slate-700 mb-1">Đồ họa thẻ thư viện</label>
+                <select id="import-motif-select" class="w-full h-9 px-2.5 text-xs font-medium bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:border-brand-500">
+                  <option value="auto">Tự động theo nội dung tệp</option>
+                  <option value="projectile">Quỹ đạo &amp; Chuyển động</option>
+                  <option value="forces">Lực &amp; Cân bằng cơ học</option>
+                  <option value="gas">Khí lý tưởng &amp; Piston</option>
+                  <option value="thermo_cycle">Chu trình &amp; Nhiệt lượng</option>
+                  <option value="circuit">Mạch điện &amp; Dòng điện</option>
+                  <option value="magnet">Từ trường &amp; Cảm ứng</option>
+                  <option value="pendulum">Con lắc &amp; Dao động</option>
+                  <option value="wave">Sóng cơ &amp; Giao thoa</option>
+                  <option value="optics">Quang học &amp; Thấu kính</option>
+                  <option value="nuclear">Hạt nhân &amp; Phóng xạ</option>
+                  <option value="graph_quiz">Đồ thị &amp; Trắc nghiệm</option>
+                </select>
+              </div>
+              <div>
+                <label for="import-stage-theme-select" class="block text-xs font-bold text-slate-700 mb-1">Nền khung chạy</label>
+                <select id="import-stage-theme-select" class="w-full h-9 px-2.5 text-xs font-medium bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:border-brand-500">
+                  <option value="dark">Phòng thí nghiệm tối (Canvas/3D)</option>
+                  <option value="light">Bảng sáng sư phạm (HTML/Tài liệu)</option>
+                </select>
+              </div>
+              <div>
+                <label for="import-stage-aspect-select" class="block text-xs font-bold text-slate-700 mb-1">Tỷ lệ khung chạy</label>
+                <select id="import-stage-aspect-select" class="w-full h-9 px-2.5 text-xs font-medium bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:border-brand-500">
+                  <option value="16:9">16:9 Chuẩn trình chiếu</option>
+                  <option value="4:3">4:3 Cân đối cổ điển</option>
+                  <option value="tall">Mở rộng dọc (Bài nhiều nội dung)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bước 2: Chọn chuyên đề Vật lý để đưa vào -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="block text-sm font-bold text-slate-800">2. Đưa vào chuyên đề Vật lý THPT</span>
+              <span id="import-topic-hint" class="hidden text-xs font-medium text-brand-700"></span>
+            </div>
+            <div id="import-topic-choices" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <!-- Render radio button choices dynamically -->
+            </div>
+          </div>
+
+          <!-- Bước 3: Tên bài & Mô tả ngắn -->
+          <div class="grid grid-cols-1 gap-4">
+            <div>
+              <label for="import-title-input" class="block text-sm font-bold text-slate-800 mb-1.5">3. Tên bài mô phỏng</label>
+              <input
+                id="import-title-input"
+                type="text"
+                required
+                placeholder="Ví dụ: Giao thoa sóng cơ hoặc Chuyển động ném xiên..."
+                class="w-full h-10 px-3.5 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              />
+            </div>
+            <div>
+              <label for="import-desc-input" class="block text-sm font-bold text-slate-800 mb-1.5">Mô tả ngắn gọn (tùy chọn)</label>
+              <textarea
+                id="import-desc-input"
+                rows="2"
+                placeholder="Tóm tắt nội dung thí nghiệm dành cho học sinh THPT..."
+                class="w-full p-3 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button
+              id="btn-cancel-import"
+              type="button"
+              class="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              id="btn-submit-import"
+              type="submit"
+              disabled
+              class="px-4 py-2 text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg shadow-sm transition-colors"
+            >
+              Nạp vào thư viện &amp; Chạy ngay
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Chân trang tối giản -->
+    <footer class="bg-white border-t border-slate-200 mt-auto">
+      <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <p>DKVATLY Lab — Cổng Thư viện Mô phỏng Tương tác Vật lý THPT.</p>
+        <p>Tương thích mọi trình duyệt hiện đại · Hỗ trợ chạy ngoại tuyến bằng tệp HTML đơn lẻ.</p>
+      </div>
+    </footer>
+
+    <!-- Thông báo nổi nhẹ nhàng (thay thế window.alert) -->
+    <div
+      id="toast-banner"
+      role="status"
+      aria-live="polite"
+      class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg border border-slate-700 flex items-center gap-3"
+    >
+      <span id="toast-message">Thông báo</span>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MÃ NGUỒN JAVASCRIPT THUẦN & CƠ SỞ DỮ LIỆU SIMULATIONS_DB              -->
+    <!-- ===================================================================== -->
+    <script>
+      /**
+       * =======================================================================
+       * HƯỚNG DẪN TỰ THÊM BÀI MÔ PHỎNG VẬT LÝ THPT VÀO `SIMULATIONS_DB`:
+       * =======================================================================
+       * Thầy/Cô chỉ cần copy khối mẫu dưới đây, dán vào cuối mảng `SIMULATIONS_DB`
+       * và sửa lại thông tin bài học của mình:
+       *
+       * {
+       *   id: 'ten-bai-viet-lien-khong-dau',       // Mã định danh duy nhất (không trùng, không dấu cách)
+       *   title: 'Tên bài mô phỏng Tiếng Việt',    // Tiêu đề hiển thị trên thẻ và trang chi tiết
+       *   subject: 'Vật lý',                       // Giữ nguyên môn 'Vật lý'
+       *   topic: 'Cơ học',                         // Chọn 1 trong 5 phần: 'Cơ học' | 'Nhiệt học' | 'Điện từ học' | 'Dao động và sóng' | 'Vật lý hạt nhân'
+       *   grades: ['THPT'],                        // Giữ nguyên cấp học ['THPT']
+       *   description: 'Mô tả ngắn 1-2 câu...',    // Tóm tắt nội dung thí nghiệm
+       *   thumbnail: '',                           // Đường dẫn ảnh đại diện (vd: './images/bai1.png'). Để trống '' để tự tạo đồ họa SVG theo chuyên đề!
+       *   simUrl: './sims/ten-file.html',          // Đường dẫn tới file .html mô phỏng đặt cùng thư mục (nếu dùng file rời).
+       *   simHtml: '',                             // HOẶC dán trực tiếp mã nguồn HTML vào đây nếu muốn đóng gói 1 file duy nhất (để trống nếu đã dùng simUrl).
+       *   svgTheme: 'mechanics',                   // Kiểu hình vẽ SVG tự động: 'mechanics' | 'thermo' | 'electro' | 'waves' | 'nuclear'
+       *   objectives: [                            // Danh sách các mục tiêu học tập
+       *     'Mục tiêu 1...',
+       *     'Mục tiêu 2...'
+       *   ],
+       *   keyConcepts: [                           // Công thức hoặc khái niệm trọng tâm
+       *     { label: 'Công thức', value: 'F = m · a' }
+       *   ],
+       *   teacherGuide: {                          // Hướng dẫn tổ chức dạy học cho giáo viên
+       *     duration: '15–20 phút',
+       *     preparation: 'Chuẩn bị...',
+       *     steps: ['Bước 1...', 'Bước 2...'],
+       *     misconceptions: 'Lưu ý sai lầm thường gặp...'
+       *   },
+       *   worksheet: {                             // Phiếu học tập gợi ý cho học sinh
+       *     goal: 'Mục đích phiếu học tập...',
+       *     tasks: ['Câu hỏi 1...', 'Câu hỏi 2...'],
+       *     tableHeaders: ['Lần đo', 'Thông số', 'Kết quả quan sát'],
+       *     tableRows: 3
+       *   }
+       * },
+       * =======================================================================
+       */
+
+      // Thư viện khởi tạo trống — giáo viên nhập tệp .html qua nút "+ Nhập file HTML" hoặc dán vào mảng này
+      const SIMULATIONS_DB = [];
+
+      // =======================================================================
+      // CẤU HÌNH 5 CHUYÊN ĐỀ VẬT LÝ THPT & ĐỒ HỌA SVG TỰ ĐỘNG
+      // =======================================================================
+      const PHYSICS_TOPICS = [
+        'Cơ học',
+        'Nhiệt học',
+        'Điện từ học',
+        'Dao động và sóng',
+        'Vật lý hạt nhân',
+      ];
+
+      const ALL_GRADES = ['THPT'];
+
+      const TOPIC_META = {
+        'Cơ học': {
+          textClass: 'text-sky-700',
+          bgSoft: 'bg-sky-50',
+          borderActive: 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50/70',
+          accentHex: '#0284C7',
+          gradStart: '#E0F2FE',
+          gradEnd: '#BAE6FD',
+          svgTheme: 'mechanics',
+          iconSvg: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18c4-11 9-14 16-4"></path><circle cx="14" cy="7" r="2"></circle><path d="M3 19h18"></path></svg>`,
+        },
+        'Nhiệt học': {
+          textClass: 'text-amber-700',
+          bgSoft: 'bg-amber-50',
+          borderActive: 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/70',
+          accentHex: '#D97706',
+          gradStart: '#FEF3C7',
+          gradEnd: '#FDE68A',
+          svgTheme: 'thermo',
+          iconSvg: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"></path><circle cx="12" cy="17" r="1.5" fill="currentColor"></circle></svg>`,
+        },
+        'Điện từ học': {
+          textClass: 'text-rose-700',
+          bgSoft: 'bg-rose-50',
+          borderActive: 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/70',
+          accentHex: '#E11D48',
+          gradStart: '#FFE4E6',
+          gradEnd: '#FECDD3',
+          svgTheme: 'electro',
+          iconSvg: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`,
+        },
+        'Dao động và sóng': {
+          textClass: 'text-teal-700',
+          bgSoft: 'bg-teal-50',
+          borderActive: 'border-teal-500 ring-2 ring-teal-500/20 bg-teal-50/70',
+          accentHex: '#0D9488',
+          gradStart: '#CCFBF1',
+          gradEnd: '#99F6E4',
+          svgTheme: 'waves',
+          iconSvg: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"></path><line x1="2" y1="12" x2="22" y2="12" stroke-opacity="0.35"></line></svg>`,
+        },
+        'Vật lý hạt nhân': {
+          textClass: 'text-purple-700',
+          bgSoft: 'bg-purple-50',
+          borderActive: 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/70',
+          accentHex: '#9333EA',
+          gradStart: '#F3E8FF',
+          gradEnd: '#E9D5FF',
+          svgTheme: 'nuclear',
+          iconSvg: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2" fill="currentColor"></circle><ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(30 12 12)"></ellipse><ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(-30 12 12)"></ellipse><ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(90 12 12)"></ellipse></svg>`,
+        },
+      };
+
+      // Tạo mã băm đơn giản từ chuỗi để mỗi tệp nhập vào có biến thể bố cục/màu sắc riêng biệt
+      function hashStringSeed(str) {
+        let h = 2166136261;
+        const s = String(str || 'ptdtntqn');
+        for (let i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return Math.abs(h);
+      }
+
+      // Tạo đồ họa SVG riêng biệt, tự động thích ứng theo từng bài/tệp mô phỏng
+      function buildTopicSvgGraphic(sim) {
+        const meta = TOPIC_META[sim.topic] || TOPIC_META['Cơ học'];
+        const seed = sim.styleSeed || hashStringSeed(`${sim.id}-${sim.title}`);
+        const c = sim.accentOverride || meta.accentHex;
+        const isDarkThumb = sim.stageTheme === 'dark' && sim.isLocalImport;
+        const gStart = sim.gradStartOverride || (isDarkThumb ? '#0F172A' : meta.gradStart);
+        const gEnd = sim.gradEndOverride || (isDarkThumb ? '#1E293B' : meta.gradEnd);
+        const gridStroke = isDarkThumb ? '#94A3B8' : c;
+        const gridOpacity = isDarkThumb ? '0.12' : '0.09';
+
+        const themeFallback = {
+          mechanics: 'projectile',
+          thermo: 'gas',
+          electro: 'circuit',
+          waves: 'pendulum',
+          nuclear: 'nuclear',
+        };
+        const motifType =
+          sim.visualMotif && sim.visualMotif !== 'auto'
+            ? sim.visualMotif
+            : themeFallback[sim.svgTheme || meta.svgTheme] || 'projectile';
+
+        const shiftX = (seed % 3) * 10 - 10;
+        const shiftY = ((seed >> 3) % 3) * 6 - 6;
+        let motif = '';
+
+        if (motifType === 'projectile') {
+          motif = `
+            <line x1="48" y1="128" x2="272" y2="128" stroke="${c}" stroke-opacity="0.4" stroke-width="2"/>
+            <path d="M62 128 Q${156 + shiftX} ${10 + shiftY} 254 128" fill="none" stroke="${c}" stroke-dasharray="5 4" stroke-width="2.5"/>
+            <circle cx="${190 + shiftX}" cy="${76 + shiftY}" r="11" fill="${c}"/>
+            <line x1="${190 + shiftX}" y1="${76 + shiftY}" x2="${228 + shiftX}" y2="${76 + shiftY}" stroke="#16a34a" stroke-width="2.2"/>
+            <line x1="${190 + shiftX}" y1="${76 + shiftY}" x2="${190 + shiftX}" y2="${104 + shiftY}" stroke="#e11d48" stroke-width="2.2"/>`;
+        } else if (motifType === 'forces') {
+          motif = `
+            <line x1="44" y1="132" x2="276" y2="96" stroke="${c}" stroke-width="3"/>
+            <polygon points="44,132 276,132 276,96" fill="${c}" fill-opacity="0.14"/>
+            <g transform="translate(155, 96) rotate(-8.8)">
+              <rect x="-24" y="-28" width="48" height="28" rx="4" fill="${c}"/>
+              <line x1="0" y1="-14" x2="48" y2="-14" stroke="#16a34a" stroke-width="2.6"/>
+              <line x1="0" y1="-14" x2="0" y2="26" stroke="#e11d48" stroke-width="2.4"/>
+            </g>`;
+        } else if (motifType === 'gas') {
+          motif = `
+            <rect x="88" y="32" width="144" height="94" rx="8" fill="${isDarkThumb ? '#0f172a' : '#ffffff'}" fill-opacity="${isDarkThumb ? '0.65' : '0.6'}" stroke="${c}" stroke-width="2.5"/>
+            <rect x="${186 + (seed % 18)}" y="34" width="10" height="90" fill="${c}"/>
+            <circle cx="118" cy="${62 + shiftY}" r="5" fill="${c}"/>
+            <circle cx="152" cy="96" r="5" fill="#e11d48"/>
+            <circle cx="134" cy="106" r="4.5" fill="${c}"/>
+            <circle cx="164" cy="58" r="4.5" fill="#e11d48"/>
+            <path d="M118 62 l14 -10 M152 96 l12 12" stroke="${c}" stroke-width="1.6"/>`;
+        } else if (motifType === 'thermo_cycle') {
+          motif = `
+            <line x1="76" y1="26" x2="76" y2="132" stroke="${c}" stroke-width="2"/>
+            <line x1="76" y1="132" x2="256" y2="132" stroke="${c}" stroke-width="2"/>
+            <path d="M106 46 Q154 70 218 82 L218 114 Q146 106 106 84 Z" fill="${c}" fill-opacity="0.18" stroke="${c}" stroke-width="2.5"/>
+            <circle cx="106" cy="46" r="4.5" fill="#e11d48"/>
+            <circle cx="218" cy="82" r="4.5" fill="${c}"/>`;
+        } else if (motifType === 'circuit') {
+          motif = `
+            <rect x="92" y="34" width="136" height="90" rx="8" fill="none" stroke="${c}" stroke-width="2.5"/>
+            <rect x="135" y="114" width="50" height="18" rx="4" fill="${c}"/>
+            <circle cx="160" cy="34" r="14" fill="#fef08a" stroke="${c}" stroke-width="2"/>
+            <circle cx="92" cy="79" r="9" fill="#ffffff" stroke="${c}" stroke-width="2.2"/>`;
+        } else if (motifType === 'magnet') {
+          motif = `
+            <rect x="64" y="64" width="44" height="32" rx="4" fill="#e11d48"/>
+            <rect x="212" y="64" width="44" height="32" rx="4" fill="${c}"/>
+            <path d="M108 70 C140 34, 180 34, 212 70" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 3"/>
+            <path d="M108 80 L212 80" fill="none" stroke="${c}" stroke-width="2.2"/>
+            <path d="M108 90 C140 126, 180 126, 212 90" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 3"/>`;
+        } else if (motifType === 'pendulum') {
+          const angleX = 206 + (seed % 20) - 10;
+          motif = `
+            <line x1="160" y1="22" x2="160" y2="140" stroke="${c}" stroke-opacity="0.3" stroke-dasharray="4 4" stroke-width="1.5"/>
+            <path d="M115 130 A 75 75 0 0 0 205 130" fill="none" stroke="${c}" stroke-opacity="0.35" stroke-width="2"/>
+            <line x1="160" y1="22" x2="${angleX}" y2="112" stroke="${c}" stroke-width="2.5"/>
+            <rect x="132" y="18" width="56" height="6" rx="3" fill="${c}"/>
+            <circle cx="${angleX}" cy="112" r="15" fill="${c}"/>`;
+        } else if (motifType === 'wave') {
+          motif = `
+            <line x1="36" y1="80" x2="284" y2="80" stroke="${c}" stroke-opacity="0.35" stroke-width="1.5"/>
+            <path d="M36 80 Q66 ${22 + shiftY} 96 80 T156 80 T216 80 T276 80" fill="none" stroke="${c}" stroke-width="3"/>
+            <path d="M36 80 Q66 ${116 - shiftY} 96 80 T156 80 T216 80 T276 80" fill="none" stroke="#38bdf8" stroke-opacity="0.7" stroke-width="2" stroke-dasharray="4 3"/>`;
+        } else if (motifType === 'optics') {
+          motif = `
+            <line x1="40" y1="80" x2="280" y2="80" stroke="${c}" stroke-opacity="0.3" stroke-dasharray="4 4" stroke-width="1.5"/>
+            <ellipse cx="160" cy="80" rx="12" ry="52" fill="#38bdf8" fill-opacity="0.24" stroke="${c}" stroke-width="2.2"/>
+            <polyline points="52,52 160,52 252,102" fill="none" stroke="#f59e0b" stroke-width="2.2"/>
+            <polyline points="52,108 160,108 252,58" fill="none" stroke="#f59e0b" stroke-width="2.2"/>
+            <circle cx="212" cy="80" r="4" fill="#e11d48"/>`;
+        } else if (motifType === 'graph_quiz') {
+          motif = `
+            <rect x="64" y="28" width="192" height="106" rx="8" fill="${isDarkThumb ? '#0f172a' : '#ffffff'}" fill-opacity="0.88" stroke="${c}" stroke-width="2"/>
+            <polyline points="84,112 118,88 152,96 190,54 232,44" fill="none" stroke="${c}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="118" cy="88" r="4" fill="${c}"/>
+            <circle cx="190" cy="54" r="4" fill="#e11d48"/>
+            <rect x="84" y="42" width="52" height="7" rx="3" fill="${c}" fill-opacity="0.35"/>`;
+        } else {
+          motif = `
+            <circle cx="160" cy="80" r="11" fill="${c}"/>
+            <ellipse cx="160" cy="80" rx="54" ry="20" transform="rotate(${30 + (seed % 15)} 160 80)" fill="none" stroke="${c}" stroke-width="2"/>
+            <ellipse cx="160" cy="80" rx="54" ry="20" transform="rotate(${-30 - (seed % 15)} 160 80)" fill="none" stroke="${c}" stroke-width="2"/>
+            <ellipse cx="160" cy="80" rx="54" ry="20" transform="rotate(90 160 80)" fill="none" stroke="${c}" stroke-width="2"/>
+            <circle cx="206" cy="54" r="4.5" fill="#f59e0b"/>
+            <circle cx="114" cy="106" r="4.5" fill="#f59e0b"/>`;
+        }
+
+        const badgeHtml = sim.engineBadge
+          ? `<g transform="translate(14, 14)">
+               <rect width="${Math.min(130, 18 + sim.engineBadge.length * 6.5)}" height="22" rx="6" fill="${isDarkThumb ? '#1e293b' : '#ffffff'}" fill-opacity="0.92" stroke="${c}" stroke-opacity="0.35"/>
+               <text x="9" y="15" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="${isDarkThumb ? '#e2e8f0' : '#0f172a'}">${escapeHtml(sim.engineBadge)}</text>
+             </g>`
+          : '';
+
+        return `
+          <svg viewBox="0 0 320 160" class="w-full h-full object-cover" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="g-${escapeHtml(sim.id)}-${seed % 997}" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="${gStart}"/>
+                <stop offset="100%" stop-color="${gEnd}"/>
+              </linearGradient>
+              <pattern id="grid-${escapeHtml(sim.id)}-${seed % 997}" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="${gridStroke}" stroke-opacity="${gridOpacity}" stroke-width="1"/>
+              </pattern>
+            </defs>
+            <rect width="320" height="160" fill="url(#g-${escapeHtml(sim.id)}-${seed % 997})"/>
+            <rect width="320" height="160" fill="url(#grid-${escapeHtml(sim.id)}-${seed % 997})"/>
+            ${motif}
+            ${badgeHtml}
+          </svg>`;
+      }
+
+      // =======================================================================
+      // TRẠNG THÁI ỨNG DỤNG (Application State)
+      // =======================================================================
+      const state = {
+        searchQuery: '',
+        selectedTopics: new Set(),
+        selectedGrades: new Set(),
+        activeSimId: null,
+        activeTab: 'objectives',
+        currentBlobUrl: null,
+        pendingImportFile: null,
+      };
+
+      // Tham chiếu DOM chính
+      const elCatalogView = document.getElementById('catalog-view');
+      const elDetailView = document.getElementById('detail-view');
+      const elSearchInput = document.getElementById('search-input');
+      const elClearSearch = document.getElementById('btn-clear-search');
+      const elHeroShortcuts = document.getElementById('hero-topic-shortcuts');
+      const elFilterTopics = document.getElementById('filter-topics-list');
+      const elFilterGrades = document.getElementById('filter-grades-list');
+      const elSimGrid = document.getElementById('simulations-grid');
+      const elEmptyState = document.getElementById('empty-state');
+      const elSimIframe = document.getElementById('sim-iframe');
+      const elStageWrapper = document.getElementById('sim-stage-wrapper');
+
+      // Tiện ích chống lỗi ký tự đặc biệt khi chèn tên/mô tả do giáo viên nhập
+      function escapeHtml(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      // Tiện ích hiển thị thông báo nổi nhẹ nhàng
+      let toastTimer = null;
+      function showToast(message) {
+        const banner = document.getElementById('toast-banner');
+        document.getElementById('toast-message').textContent = message;
+        banner.classList.remove('hidden');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => banner.classList.add('hidden'), 3200);
+      }
+
+      // =======================================================================
+      // BỘ LỌC & RENDER DANH SÁCH THẺ MÔ PHỎNG VẬT LÝ THPT
+      // =======================================================================
+      function getFilteredSimulations() {
+        const q = state.searchQuery.trim().toLowerCase();
+        return SIMULATIONS_DB.filter((sim) => {
+          const matchSearch =
+            !q ||
+            sim.title.toLowerCase().includes(q) ||
+            sim.description.toLowerCase().includes(q) ||
+            sim.topic.toLowerCase().includes(q) ||
+            sim.subject.toLowerCase().includes(q);
+
+          const matchTopic =
+            state.selectedTopics.size === 0 || state.selectedTopics.has(sim.topic);
+
+          const matchGrade =
+            state.selectedGrades.size === 0 ||
+            sim.grades.some((g) => state.selectedGrades.has(g));
+
+          return matchSearch && matchTopic && matchGrade;
+        });
+      }
+
+      function renderHeroShortcuts() {
+        elHeroShortcuts.innerHTML = PHYSICS_TOPICS.map((topic) => {
+          const meta = TOPIC_META[topic];
+          const isActive = state.selectedTopics.has(topic);
+          const count = SIMULATIONS_DB.filter((s) => s.topic === topic).length;
+          return `
+            <button
+              type="button"
+              data-hero-topic="${topic}"
+              class="flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                isActive
+                  ? meta.borderActive
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+              }"
+            >
+              <span class="w-10 h-10 rounded-lg ${meta.bgSoft} ${meta.textClass} flex items-center justify-center shrink-0">
+                ${meta.iconSvg}
+              </span>
+              <span class="min-w-0">
+                <span class="block text-sm font-bold text-slate-900 truncate">${topic}</span>
+                <span class="block text-xs text-slate-500 tabular-nums">${count} bài mô phỏng</span>
+              </span>
+            </button>`;
+        }).join('');
+
+        elHeroShortcuts.querySelectorAll('[data-hero-topic]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const topic = btn.getAttribute('data-hero-topic');
+            if (state.selectedTopics.has(topic) && state.selectedTopics.size === 1) {
+              state.selectedTopics.clear();
+            } else {
+              state.selectedTopics.clear();
+              state.selectedTopics.add(topic);
+            }
+            renderAllCatalog();
+            document.getElementById('simulations-grid').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          });
+        });
+      }
+
+      function renderSidebarFilters() {
+        // Render checkbox 5 chuyên đề Vật lý
+        elFilterTopics.innerHTML = PHYSICS_TOPICS.map((topic) => {
+          const checked = state.selectedTopics.has(topic) ? 'checked' : '';
+          const count = SIMULATIONS_DB.filter((s) => s.topic === topic).length;
+          return `
+            <label class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer select-none">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <input
+                  type="checkbox"
+                  value="${topic}"
+                  data-filter-type="topic"
+                  ${checked}
+                  class="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span class="text-sm font-medium text-slate-700 truncate">${topic}</span>
+              </span>
+              <span class="text-xs text-slate-400 font-mono tabular-nums">${count}</span>
+            </label>`;
+        }).join('');
+
+        // Render checkbox Cấp học (THPT)
+        elFilterGrades.innerHTML = ALL_GRADES.map((grade) => {
+          const checked = state.selectedGrades.has(grade) ? 'checked' : '';
+          const count = SIMULATIONS_DB.filter((s) => s.grades.includes(grade)).length;
+          return `
+            <label class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer select-none">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <input
+                  type="checkbox"
+                  value="${grade}"
+                  data-filter-type="grade"
+                  ${checked}
+                  class="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span class="text-sm font-medium text-slate-700 truncate">Vật lý · ${grade}</span>
+              </span>
+              <span class="text-xs text-slate-400 font-mono tabular-nums">${count}</span>
+            </label>`;
+        }).join('');
+
+        document.querySelectorAll('[data-filter-type="topic"]').forEach((cb) => {
+          cb.addEventListener('change', (e) => {
+            if (e.target.checked) state.selectedTopics.add(e.target.value);
+            else state.selectedTopics.delete(e.target.value);
+            renderAllCatalog();
+          });
+        });
+
+        document.querySelectorAll('[data-filter-type="grade"]').forEach((cb) => {
+          cb.addEventListener('change', (e) => {
+            if (e.target.checked) state.selectedGrades.add(e.target.value);
+            else state.selectedGrades.delete(e.target.value);
+            renderAllCatalog();
+          });
+        });
+      }
+
+      function renderSimulationsGrid() {
+        const filtered = getFilteredSimulations();
+        const total = SIMULATIONS_DB.length;
+
+        document.getElementById('hero-total-count').textContent = total;
+        document.getElementById('sidebar-result-count').textContent = `${filtered.length} / ${total} bài`;
+        document.getElementById('mobile-result-count').textContent = `${filtered.length} / ${total} bài`;
+        document.getElementById('grid-count-number').textContent = filtered.length;
+
+        const hasFilters =
+          state.searchQuery.trim() !== '' ||
+          state.selectedTopics.size > 0 ||
+          state.selectedGrades.size > 0;
+        document.getElementById('btn-reset-filters').disabled = !hasFilters;
+
+        const parts = [];
+        if (state.selectedTopics.size > 0) parts.push(`Chuyên đề: ${[...state.selectedTopics].join(', ')}`);
+        if (state.selectedGrades.size > 0) parts.push(`Cấp: ${[...state.selectedGrades].join(', ')}`);
+        if (state.searchQuery.trim()) parts.push(`Từ khóa: "${state.searchQuery.trim()}"`);
+        document.getElementById('active-filter-summary').textContent =
+          parts.length > 0 ? parts.join(' · ') : 'Hiển thị toàn bộ chuyên đề Vật lý THPT';
+
+        if (filtered.length === 0) {
+          elSimGrid.classList.add('hidden');
+          elEmptyState.classList.remove('hidden');
+          const elEmptyTitle = document.getElementById('empty-state-title');
+          const elEmptyDesc = document.getElementById('empty-state-desc');
+          const elEmptyImportBtn = document.getElementById('btn-empty-import');
+          const elEmptyResetBtn = document.getElementById('btn-empty-reset');
+          if (total === 0) {
+            elEmptyTitle.textContent = 'Thư viện chưa có bài mô phỏng nào';
+            elEmptyDesc.textContent =
+              'Nhấn "+ Nhập file HTML" để chọn hoặc kéo thả tệp .html từ máy tính, phân loại vào chuyên đề Vật lý THPT và chạy ngay.';
+            elEmptyImportBtn.classList.remove('hidden');
+            elEmptyResetBtn.classList.add('hidden');
+          } else {
+            elEmptyTitle.textContent = 'Không tìm thấy bài mô phỏng phù hợp';
+            elEmptyDesc.textContent = 'Thử thay đổi từ khóa tìm kiếm hoặc bỏ bớt điều kiện lọc chuyên đề.';
+            elEmptyImportBtn.classList.add('hidden');
+            elEmptyResetBtn.classList.remove('hidden');
+          }
+          return;
+        }
+
+        elEmptyState.classList.add('hidden');
+        elSimGrid.classList.remove('hidden');
+
+        elSimGrid.innerHTML = filtered
+          .map((sim) => {
+            const meta = TOPIC_META[sim.topic] || TOPIC_META['Cơ học'];
+            const svgGraphic = buildTopicSvgGraphic(sim);
+            const mediaHtml = sim.thumbnail
+              ? `<img src="${escapeHtml(sim.thumbnail)}" alt="${escapeHtml(sim.title)}" referrerpolicy="no-referrer" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='block';" /><div style="display:none" class="w-full h-full">${svgGraphic}</div>`
+              : svgGraphic;
+
+            return `
+              <article
+                tabindex="0"
+                role="button"
+                data-open-sim="${escapeHtml(sim.id)}"
+                class="sim-card group bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                <div class="aspect-[16/10] w-full bg-slate-100 overflow-hidden border-b border-slate-100">
+                  ${mediaHtml}
+                </div>
+                <div class="p-5 flex-1 flex flex-col">
+                  <div class="flex items-center gap-2 text-xs font-semibold mb-1.5">
+                    <span class="${meta.textClass}">${escapeHtml(sim.topic)}</span>
+                    <span class="text-slate-300" aria-hidden="true">·</span>
+                    <span class="text-slate-500 truncate">${escapeHtml(sim.subject)} · ${escapeHtml(sim.grades.join(', '))}</span>
+                  </div>
+                  <h3 class="text-base font-bold text-slate-900 group-hover:text-brand-700 transition-colors leading-snug">
+                    ${escapeHtml(sim.title)}
+                  </h3>
+                  <p class="mt-2 text-sm text-slate-600 line-clamp-2 leading-relaxed flex-1">
+                    ${escapeHtml(sim.description)}
+                  </p>
+                  <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-brand-700">
+                    <span>${sim.isLocalImport && sim.engineBadge ? `Mở (${escapeHtml(sim.engineBadge)})` : 'Mở bài mô phỏng'}</span>
+                    <span class="group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
+                  </div>
+                </div>
+              </article>`;
+          })
+          .join('');
+
+        elSimGrid.querySelectorAll('[data-open-sim]').forEach((card) => {
+          const openHandler = () => openSimulationDetail(card.getAttribute('data-open-sim'));
+          card.addEventListener('click', openHandler);
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openHandler();
+            }
+          });
+        });
+      }
+
+      function renderAllCatalog() {
+        renderHeroShortcuts();
+        renderSidebarFilters();
+        renderSimulationsGrid();
+      }
+
+      function resetAllFilters() {
+        state.searchQuery = '';
+        elSearchInput.value = '';
+        elClearSearch.classList.add('hidden');
+        state.selectedTopics.clear();
+        state.selectedGrades.clear();
+        renderAllCatalog();
+      }
+
+      // =======================================================================
+      // LƯU TRỮ CỤC BỘ CÁC FILE HTML ĐÃ NHẬP (localStorage)
+      // =======================================================================
+      const STORAGE_KEY_IMPORTS = 'ptdtntqn_imported_sims_v1';
+
+      function loadImportedSimsFromStorage() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY_IMPORTS);
+          if (!raw) return;
+          const items = JSON.parse(raw);
+          if (Array.isArray(items)) {
+            items.reverse().forEach((item) => {
+              if (item && item.id && !SIMULATIONS_DB.some((s) => s.id === item.id)) {
+                SIMULATIONS_DB.unshift(item);
+              }
+            });
+          }
+        } catch {
+          // Bỏ qua nếu trình duyệt chặn localStorage
+        }
+      }
+
+      function saveImportedSimsToStorage() {
+        try {
+          const imported = SIMULATIONS_DB.filter((s) => s.isLocalImport);
+          localStorage.setItem(STORAGE_KEY_IMPORTS, JSON.stringify(imported));
+        } catch {
+          // Bỏ qua nếu vượt dung lượng lưu trữ trình duyệt
+        }
+      }
+
+      // Đảm bảo tệp HTML nhập vào luôn có khai báo UTF-8 chuẩn Tiếng Việt
+      function ensureUtf8Html(rawHtml) {
+        const html = String(rawHtml || '').trim();
+        if (!html) return '';
+        if (!/<html[\s>]/i.test(html)) {
+          return `<!doctype html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}</body></html>`;
+        }
+        if (!/charset=/i.test(html)) {
+          if (/<head[^>]*>/i.test(html)) {
+            return html.replace(/<head([^>]*)>/i, '<head$1><meta charset="UTF-8">');
+          }
+          return html.replace(/<html([^>]*)>/i, '<html$1><head><meta charset="UTF-8"></head>');
+        }
+        return html;
+      }
+
+      // =======================================================================
+      // TRANG CHI TIẾT & TRÌNH CHẠY MÔ PHỎNG
+      // =======================================================================
+      function revokeActiveBlobUrl() {
+        if (state.currentBlobUrl) {
+          URL.revokeObjectURL(state.currentBlobUrl);
+          state.currentBlobUrl = null;
+        }
+      }
+
+      function loadSimIntoIframe(sim) {
+        revokeActiveBlobUrl();
+        const openTabBtn = document.getElementById('btn-open-newtab');
+
+        elSimIframe.onload = () => {
+          try {
+            if (elSimIframe.contentWindow) {
+              elSimIframe.contentWindow.dispatchEvent(new Event('resize'));
+            }
+          } catch {
+            // Bỏ qua nếu khác origin
+          }
+        };
+
+        if (sim.simHtml && sim.simHtml.trim() !== '') {
+          const readyHtml = ensureUtf8Html(sim.simHtml);
+          const blob = new Blob([readyHtml], { type: 'text/html;charset=utf-8' });
+          state.currentBlobUrl = URL.createObjectURL(blob);
+          openTabBtn.href = state.currentBlobUrl;
+
+          if (window.location.protocol !== 'file:') {
+            elSimIframe.removeAttribute('srcdoc');
+            elSimIframe.src = state.currentBlobUrl;
+          } else {
+            elSimIframe.removeAttribute('src');
+            elSimIframe.srcdoc = readyHtml;
+          }
+        } else if (sim.simUrl && sim.simUrl.trim() !== '') {
+          elSimIframe.removeAttribute('srcdoc');
+          elSimIframe.src = sim.simUrl;
+          openTabBtn.href = sim.simUrl;
+        } else {
+          const fallbackHtml = '<!doctype html><html lang="vi"><head><meta charset="UTF-8"></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#475569">Chưa có đường dẫn simUrl hoặc mã simHtml cho bài này.</body></html>';
+          elSimIframe.removeAttribute('src');
+          elSimIframe.srcdoc = fallbackHtml;
+          openTabBtn.href = '#';
+        }
+      }
+
+      function applySimStageAppearance(stageTheme, stageAspect) {
+        const isLight = stageTheme === 'light';
+        elStageWrapper.classList.toggle('bg-white', isLight);
+        elStageWrapper.classList.toggle('bg-slate-950', !isLight);
+        elStageWrapper.classList.remove('aspect-video', 'aspect-[4/3]', 'aspect-[16/10]', 'min-h-[680px]');
+        if (stageAspect === '4:3') {
+          elStageWrapper.classList.add('aspect-[4/3]');
+        } else if (stageAspect === 'tall') {
+          elStageWrapper.classList.add('aspect-[16/10]', 'min-h-[680px]');
+        } else {
+          elStageWrapper.classList.add('aspect-video');
+        }
+
+        document.getElementById('stage-theme-label').textContent = isLight ? 'Nền sáng' : 'Nền tối';
+        document.querySelectorAll('.stage-aspect-btn').forEach((btn) => {
+          const active = btn.getAttribute('data-stage-aspect') === stageAspect;
+          btn.classList.toggle('bg-brand-50', active);
+          btn.classList.toggle('text-brand-700', active);
+        });
+      }
+
+      function openSimulationDetail(simId) {
+        const sim = SIMULATIONS_DB.find((s) => s.id === simId);
+        if (!sim) return;
+
+        state.activeSimId = sim.id;
+        const meta = TOPIC_META[sim.topic] || TOPIC_META['Cơ học'];
+
+        const topicEl = document.getElementById('detail-topic-label');
+        topicEl.textContent = sim.topic;
+        topicEl.className = meta.textClass;
+        document.getElementById('detail-grades-label').textContent = sim.grades.join(', ');
+        document.getElementById('detail-title').textContent = sim.title;
+        document.getElementById('detail-short-desc').textContent = sim.description;
+
+        const stageMetaEl = document.getElementById('detail-stage-meta');
+        if (sim.engineBadge || sim.detectedSummary) {
+          stageMetaEl.textContent = [sim.engineBadge, sim.detectedSummary].filter(Boolean).join(' · ');
+          stageMetaEl.classList.remove('hidden');
+        } else {
+          stageMetaEl.classList.add('hidden');
+        }
+
+        const isImported = Boolean(sim.isLocalImport);
+        document.getElementById('detail-source-separator').classList.toggle('hidden', !isImported);
+        document.getElementById('detail-source-label').classList.toggle('hidden', !isImported);
+        document.getElementById('btn-delete-imported').classList.toggle('hidden', !isImported);
+
+        applySimStageAppearance(sim.stageTheme || 'dark', sim.stageAspect || '16:9');
+
+        const objList = document.getElementById('detail-objectives-list');
+        objList.innerHTML = (sim.objectives || [])
+          .map(
+            (item, idx) => `
+            <li class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-md bg-brand-50 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 tabular-nums">${idx + 1}</span>
+              <span>${escapeHtml(item)}</span>
+            </li>`
+          )
+          .join('');
+
+        const conceptsEl = document.getElementById('detail-key-concepts');
+        conceptsEl.innerHTML = (sim.keyConcepts || [])
+          .map(
+            (c) => `
+            <div class="pb-2.5 border-b border-slate-200/70 last:border-b-0 last:pb-0">
+              <div class="text-xs font-semibold text-slate-500">${escapeHtml(c.label)}</div>
+              <div class="font-mono text-xs sm:text-sm font-semibold text-slate-900 mt-0.5 break-all">${escapeHtml(c.value)}</div>
+            </div>`
+          )
+          .join('');
+
+        const tg = sim.teacherGuide || {};
+        document.getElementById('detail-teacher-guide').innerHTML = `
+          <div class="space-y-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 mb-1">Thời lượng gợi ý</h3>
+              <p class="text-slate-600">${escapeHtml(tg.duration || '15–20 phút')}</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 mb-1">Chuẩn bị &amp; Gợi mở đầu giờ</h3>
+              <p class="text-slate-600">${escapeHtml(tg.preparation || 'Cho học sinh quan sát và dự đoán hiện tượng trước khi thao tác.')}</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 mb-1">Lưu ý nhận thức sai lầm thường gặp</h3>
+              <p class="text-slate-600">${escapeHtml(tg.misconceptions || 'Nhấn mạnh việc chỉ thay đổi 1 biến số tại một thời điểm để đối chứng.')}</p>
+            </div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-5">
+            <h3 class="text-sm font-bold text-slate-900 mb-3">Tiến trình tổ chức lớp học</h3>
+            <ol class="space-y-2.5 text-sm text-slate-700">
+              ${(tg.steps || [])
+                .map(
+                  (step, i) => `
+                  <li class="flex items-start gap-2.5">
+                    <span class="font-mono text-xs font-bold text-brand-700 mt-0.5">${String(i + 1).padStart(2, '0')}.</span>
+                    <span>${escapeHtml(step)}</span>
+                  </li>`
+                )
+                .join('')}
+            </ol>
+          </div>`;
+
+        const ws = sim.worksheet || {};
+        document.getElementById('worksheet-title').textContent = `Phiếu học tập: ${sim.title}`;
+        const headers = ws.tableHeaders || ['Lần thí nghiệm', 'Thông số điều chỉnh', 'Kết quả quan sát'];
+        const rows = ws.tableRows || 3;
+        document.getElementById('detail-worksheet-content').innerHTML = `
+          <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Mục tiêu phiếu học tập</span>
+            <p class="mt-1 font-medium text-slate-900">${escapeHtml(ws.goal || 'Ghi chép số liệu thực nghiệm ảo và rút ra quy luật.')}</p>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 mb-2">Nhiệm vụ thực hành của học sinh:</h3>
+            <ol class="list-decimal pl-5 space-y-2 text-slate-700">
+              ${(ws.tasks || []).map((t) => `<li>${escapeHtml(t)}</li>`).join('')}
+            </ol>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse border border-slate-200 text-sm">
+              <thead>
+                <tr class="bg-slate-100">
+                  ${headers.map((h) => `<th class="border border-slate-200 px-3 py-2 font-bold text-slate-800">${h}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${Array.from({ length: rows })
+                  .map(
+                    (_, rIdx) => `
+                  <tr>
+                    ${headers
+                      .map(
+                        (__, cIdx) =>
+                          `<td class="border border-slate-200 px-3 py-3 text-slate-400 font-mono text-xs">${
+                            cIdx === 0 ? `#${rIdx + 1}` : ''
+                          }</td>`
+                      )
+                      .join('')}
+                  </tr>`
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+          </div>`;
+
+        switchDetailTab('objectives');
+        // Hiện khung #detail-view TRƯỚC khi nạp iframe để canvas/layout bên trong có kích thước thực (> 0px)
+        elCatalogView.classList.add('hidden');
+        elDetailView.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        requestAnimationFrame(() => loadSimIntoIframe(sim));
+      }
+
+      function closeSimulationDetail() {
+        elDetailView.classList.add('hidden');
+        elCatalogView.classList.remove('hidden');
+        elSimIframe.removeAttribute('srcdoc');
+        elSimIframe.removeAttribute('src');
+        revokeActiveBlobUrl();
+        state.activeSimId = null;
+      }
+
+      function switchDetailTab(tabName) {
+        state.activeTab = tabName;
+        document.querySelectorAll('.detail-tab-btn').forEach((btn) => {
+          const isMatch = btn.getAttribute('data-tab') === tabName;
+          btn.setAttribute('aria-selected', String(isMatch));
+          btn.classList.toggle('border-brand-700', isMatch);
+          btn.classList.toggle('text-brand-700', isMatch);
+          btn.classList.toggle('font-bold', isMatch);
+          btn.classList.toggle('border-transparent', !isMatch);
+          btn.classList.toggle('text-slate-600', !isMatch);
+          btn.classList.toggle('font-semibold', !isMatch);
+        });
+        document.querySelectorAll('.detail-tab-panel').forEach((panel) => {
+          panel.classList.toggle('hidden', panel.id !== `tab-panel-${tabName}`);
+        });
+      }
+
+      // =======================================================================
+      // TÍNH NĂNG NHẬP FILE HTML & TỰ TẠO GIAO DIỆN PHÙ HỢP TỪNG TỆP
+      // =======================================================================
+      const elImportModal = document.getElementById('import-modal');
+      const elFileInput = document.getElementById('local-sim-file-input');
+      const elDropzone = document.getElementById('import-dropzone');
+      const elTitleInput = document.getElementById('import-title-input');
+      const elDescInput = document.getElementById('import-desc-input');
+      const elSubmitImport = document.getElementById('btn-submit-import');
+      const elAdaptivePreview = document.getElementById('import-adaptive-preview');
+      const elMotifSelect = document.getElementById('import-motif-select');
+      const elStageThemeSelect = document.getElementById('import-stage-theme-select');
+      const elStageAspectSelect = document.getElementById('import-stage-aspect-select');
+      const elTopicHint = document.getElementById('import-topic-hint');
+
+      // Phân tích sâu nội dung từng tệp HTML để đề xuất chuyên đề, đồ họa thẻ, giao diện khung chạy & thông tin sư phạm riêng
+      function analyzeImportedHtmlFile(file, htmlContent) {
+        let doc = null;
+        try {
+          doc = new DOMParser().parseFromString(htmlContent, 'text/html');
+        } catch {
+          doc = null;
+        }
+
+        const rawTitle =
+          (doc && doc.querySelector('title') && doc.querySelector('title').textContent.trim()) ||
+          (doc && doc.querySelector('h1') && doc.querySelector('h1').textContent.trim()) ||
+          file.name.replace(/\.(html?|xhtml)$/i, '');
+
+        const metaDesc = doc && doc.querySelector('meta[name="description"]');
+        const firstPara = doc && [...doc.querySelectorAll('p')].find((p) => p.textContent.trim().length > 20);
+        const extractedDesc =
+          (metaDesc && metaDesc.getAttribute('content') && metaDesc.getAttribute('content').trim()) ||
+          (firstPara ? firstPara.textContent.trim().slice(0, 180) : '');
+
+        const textSample = (
+          file.name +
+          ' ' +
+          rawTitle +
+          ' ' +
+          (doc && doc.body ? doc.body.textContent.slice(0, 4500) : htmlContent.slice(0, 4500))
+        ).toLowerCase();
+
+        // Nhận diện công nghệ chạy của tệp
+        let engineBadge = 'HTML Tương tác';
+        if (/three(\.min)?\.js|webgl|babylon|a-scene|getcontext\(['"]webgl/i.test(htmlContent)) {
+          engineBadge = '3D WebGL';
+        } else if (/chart(\.min)?\.js|plotly|echarts|d3\./i.test(htmlContent)) {
+          engineBadge = 'Đồ thị & Số liệu';
+        } else if (/<canvas|getcontext\(['"]2d['"]\)/i.test(htmlContent)) {
+          engineBadge = 'Canvas 2D';
+        } else if ((doc && doc.querySelectorAll('svg').length > 0 && /<svg[\s\S]{120,}/i.test(htmlContent))) {
+          engineBadge = 'SVG Tương tác';
+        } else if (/type=["']radio["']|trắc nghiệm|quiz|câu\s*\d+/i.test(htmlContent)) {
+          engineBadge = 'Bài tập HTML';
+        }
+
+        // Nhận diện nền tối / sáng từ CSS của tệp
+        const hasDarkBg = /background(?:-color)?\s*:\s*(?:#0[0-9a-f]{2,5}|#1[0-9a-f]{2,5}|#2[0-9a-f]{2,5}|black|rgb\(\s*[0-3]?\d\s*,)/i.test(
+          htmlContent
+        );
+        const stageTheme = hasDarkBg || engineBadge === '3D WebGL' ? 'dark' : 'light';
+
+        // Nhận diện các nút & thanh điều khiển thực tế có trong tệp
+        const controls = [];
+        if (doc) {
+          doc.querySelectorAll('input[type="range"], select, input[type="number"]').forEach((el) => {
+            if (controls.length >= 6) return;
+            let lbl = '';
+            if (el.id) {
+              const forLbl = doc.querySelector(`label[for="${el.id}"]`);
+              if (forLbl) lbl = forLbl.textContent.trim();
+            }
+            if (!lbl && el.closest('label')) {
+              lbl = el.closest('label').textContent.trim();
+            }
+            if (!lbl && el.previousElementSibling) {
+              lbl = el.previousElementSibling.textContent.trim();
+            }
+            lbl = lbl.replace(/\s+/g, ' ').slice(0, 40);
+            if (lbl && !controls.includes(lbl)) controls.push(lbl);
+          });
+        }
+        const rangeCount = doc ? doc.querySelectorAll('input[type="range"]').length : 0;
+        const btnCount = doc ? doc.querySelectorAll('button').length : 0;
+
+        // Dự đoán chuyên đề Vật lý THPT & đồ họa đặc trưng phù hợp nhất cho tệp
+        const topicKeywords = {
+          'Cơ học': /cơ học|ném|quỹ đạo|parabol|vận tốc|gia tốc|lực|ma sát|newton|động lượng|rơi tự do|mặt phẳng nghiêng|projectile|velocity|force|gravity|collision|orbit|torque/,
+          'Nhiệt học': /nhiệt|khí lý tưởng|áp suất|đẳng tích|đẳng áp|đẳng nhiệt|chu trình|piston|kelvin|entropy|pv\s*=\s*nrt|ideal gas|thermal|heat|thermodynamic/,
+          'Điện từ học': /điện|mạch|dòng điện|hiệu điện thế|điện trở|tụ điện|từ trường|cảm ứng|ampe|vôn|ohm|coulomb|circuit|voltage|current|resistor|magnet|induct/,
+          'Dao động và sóng': /dao động|con lắc|lò xo|sóng|giao thoa|tần số|chu kỳ|biên độ|bước sóng|khúc xạ|thấu kính|quang|ánh sáng|pendulum|wave|oscillation|frequency|interference|optics|lens/,
+          'Vật lý hạt nhân': /hạt nhân|phóng xạ|bán rã|đồng vị|phân hạch|nhiệt hạch|alpha|beta|gamma|nguyên tử|lượng tử|nuclear|radioactive|half-life|decay|isotope|atom/,
+        };
+
+        let suggestedTopic = state.selectedTopics.size === 1 ? [...state.selectedTopics][0] : 'Cơ học';
+        let bestScore = 0;
+        for (const [topicName, regex] of Object.entries(topicKeywords)) {
+          const matches = textSample.match(new RegExp(regex.source, 'gi'));
+          const score = matches ? matches.length : 0;
+          if (score > bestScore) {
+            bestScore = score;
+            suggestedTopic = topicName;
+          }
+        }
+
+        // Chọn đồ họa SVG chi tiết nhất khớp nội dung tệp
+        let visualMotif = 'projectile';
+        if (/thấu kính|khúc xạ|quang|ánh sáng|optics|lens|refraction/i.test(textSample)) visualMotif = 'optics';
+        else if (/sóng|giao thoa|wave|interference|bước sóng/i.test(textSample)) visualMotif = 'wave';
+        else if (/con lắc|lò xo|dao động|pendulum|oscillation/i.test(textSample)) visualMotif = 'pendulum';
+        else if (/từ trường|nam châm|cảm ứng|magnet|flux/i.test(textSample)) visualMotif = 'magnet';
+        else if (/mạch|điện trở|hiệu điện thế|ampe|ohm|circuit|voltage|resistor/i.test(textSample)) visualMotif = 'circuit';
+        else if (/chu trình|carnot|nhiệt lượng|entropy/i.test(textSample)) visualMotif = 'thermo_cycle';
+        else if (/khí|áp suất|piston|pv\s*=\s*nrt|gas|kelvin/i.test(textSample)) visualMotif = 'gas';
+        else if (/hạt nhân|phóng xạ|bán rã|nguyên tử|nuclear|decay|atom/i.test(textSample)) visualMotif = 'nuclear';
+        else if (/mặt phẳng nghiêng|ma sát|lực|cân bằng|force|friction|torque/i.test(textSample)) visualMotif = 'forces';
+        else if (engineBadge === 'Bài tập HTML' || engineBadge === 'Đồ thị & Số liệu') visualMotif = 'graph_quiz';
+        else if (suggestedTopic === 'Nhiệt học') visualMotif = 'gas';
+        else if (suggestedTopic === 'Điện từ học') visualMotif = 'circuit';
+        else if (suggestedTopic === 'Dao động và sóng') visualMotif = 'wave';
+        else if (suggestedTopic === 'Vật lý hạt nhân') visualMotif = 'nuclear';
+
+        const hasFullViewportCss = /100vh|overflow\s*:\s*hidden/i.test(htmlContent);
+        const suggestedAspect = !hasFullViewportCss && (engineBadge === 'Bài tập HTML' || htmlContent.length > 18000 && !/<canvas/i.test(htmlContent))
+          ? 'tall'
+          : '16:9';
+
+        const styleSeed = hashStringSeed(`${file.name}-${rawTitle}-${htmlContent.length}`);
+        const detectedSummary = [
+          `Nền ${stageTheme === 'dark' ? 'tối' : 'sáng'}`,
+          rangeCount > 0 ? `${rangeCount} thanh trượt` : null,
+          btnCount > 0 ? `${btnCount} nút thao tác` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+        return {
+          title: rawTitle,
+          description: extractedDesc,
+          suggestedTopic,
+          topicMatchedByContent: bestScore > 0,
+          engineBadge,
+          stageTheme,
+          stageAspect: '16:9',
+          recommendedAspectNote: suggestedAspect === 'tall' ? 'Tệp nhiều nội dung, có thể chọn Mở rộng nếu cần' : '',
+          visualMotif,
+          controls,
+          detectedSummary,
+          styleSeed,
+        };
+      }
+
+      function updateImportLivePreview() {
+        if (!state.pendingImportFile) return;
+        const p = state.pendingImportFile.profile;
+        const selectedRadio = document.querySelector('input[name="import-topic"]:checked');
+        const chosenTopic = selectedRadio ? selectedRadio.value : p.suggestedTopic;
+        const chosenMotif = elMotifSelect.value === 'auto' ? p.visualMotif : elMotifSelect.value;
+        const chosenTheme = elStageThemeSelect.value || p.stageTheme;
+
+        const previewSim = {
+          id: 'preview-import',
+          title: elTitleInput.value.trim() || p.title,
+          topic: chosenTopic,
+          svgTheme: (TOPIC_META[chosenTopic] || TOPIC_META['Cơ học']).svgTheme,
+          visualMotif: chosenMotif,
+          engineBadge: p.engineBadge,
+          stageTheme: chosenTheme,
+          isLocalImport: true,
+          styleSeed: p.styleSeed,
+        };
+        document.getElementById('import-card-svg-preview').innerHTML = buildTopicSvgGraphic(previewSim);
+      }
+
+      function renderImportTopicChoices(defaultTopic = 'Cơ học') {
+        const container = document.getElementById('import-topic-choices');
+        container.innerHTML = PHYSICS_TOPICS.map((topic) => {
+          const meta = TOPIC_META[topic];
+          const checked = topic === defaultTopic ? 'checked' : '';
+          return `
+            <label class="cursor-pointer block">
+              <input type="radio" name="import-topic" value="${topic}" ${checked} class="sr-only" />
+              <div data-topic-card="${topic}" class="flex items-center gap-2 p-2.5 rounded-lg border transition-all ${
+                topic === defaultTopic
+                  ? 'border-brand-600 bg-brand-50 ring-2 ring-brand-500/20'
+                  : 'border-slate-200 bg-white hover:bg-slate-50'
+              }">
+                <span class="w-7 h-7 rounded-md ${meta.bgSoft} ${meta.textClass} flex items-center justify-center shrink-0">
+                  ${meta.iconSvg}
+                </span>
+                <span class="text-xs font-bold text-slate-800 leading-tight">${topic}</span>
+              </div>
+            </label>`;
+        }).join('');
+
+        container.querySelectorAll('input[name="import-topic"]').forEach((radio) => {
+          radio.addEventListener('change', () => {
+            container.querySelectorAll('[data-topic-card]').forEach((card) => {
+              const isSelected = card.getAttribute('data-topic-card') === radio.value;
+              card.className = isSelected
+                ? 'flex items-center gap-2 p-2.5 rounded-lg border transition-all border-brand-600 bg-brand-50 ring-2 ring-brand-500/20'
+                : 'flex items-center gap-2 p-2.5 rounded-lg border transition-all border-slate-200 bg-white hover:bg-slate-50';
+            });
+            updateImportLivePreview();
+          });
+        });
+      }
+
+      function openImportModal() {
+        state.pendingImportFile = null;
+        elFileInput.value = '';
+        elTitleInput.value = '';
+        elDescInput.value = '';
+        elSubmitImport.disabled = true;
+        elAdaptivePreview.classList.add('hidden');
+        elTopicHint.classList.add('hidden');
+        elMotifSelect.value = 'auto';
+        elStageThemeSelect.value = 'dark';
+        elStageAspectSelect.value = '16:9';
+        document.getElementById('import-file-status').textContent = 'Nhấn để chọn file (.html) hoặc kéo thả vào đây';
+        document.getElementById('import-file-sub').textContent = 'Tự nhận diện Canvas 2D, 3D WebGL, SVG, đồ thị hay bài tập HTML để tạo giao diện riêng';
+        const preSelected = state.selectedTopics.size === 1 ? [...state.selectedTopics][0] : 'Cơ học';
+        renderImportTopicChoices(preSelected);
+        elImportModal.classList.remove('hidden');
+        elImportModal.classList.add('flex');
+      }
+
+      function closeImportModal() {
+        elImportModal.classList.add('hidden');
+        elImportModal.classList.remove('flex');
+      }
+
+      function handleSelectedHtmlFile(file) {
+        if (!file) return;
+        if (!/\.(html?|xhtml)$/i.test(file.name) && file.type && !file.type.includes('html')) {
+          showToast('Vui lòng chọn tệp định dạng .html hoặc .htm');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const htmlContent = String(ev.target.result || '');
+          if (!htmlContent.trim()) {
+            showToast('Tệp HTML đang trống, vui lòng chọn tệp khác.');
+            return;
+          }
+
+          const profile = analyzeImportedHtmlFile(file, htmlContent);
+          state.pendingImportFile = {
+            name: file.name,
+            size: file.size,
+            content: htmlContent,
+            profile,
+          };
+
+          document.getElementById('import-file-status').textContent = `Đã chọn: ${file.name}`;
+          document.getElementById('import-file-sub').textContent = `Dung lượng ${(file.size / 1024).toFixed(1)} KB · Đã tạo hồ sơ giao diện riêng`;
+
+          elTitleInput.value = profile.title;
+          elDescInput.value = profile.description;
+
+          renderImportTopicChoices(profile.suggestedTopic);
+          if (profile.topicMatchedByContent) {
+            elTopicHint.textContent = `Tự gợi ý theo nội dung tệp: ${profile.suggestedTopic}`;
+            elTopicHint.classList.remove('hidden');
+          } else {
+            elTopicHint.classList.add('hidden');
+          }
+
+          elMotifSelect.value = 'auto';
+          elStageThemeSelect.value = profile.stageTheme;
+          elStageAspectSelect.value = profile.stageAspect;
+
+          document.getElementById('import-detected-engine').textContent = profile.engineBadge;
+          document.getElementById('import-detected-summary').textContent =
+            profile.detectedSummary + (profile.recommendedAspectNote ? ` · ${profile.recommendedAspectNote}` : '');
+
+          const controlsEl = document.getElementById('import-detected-controls');
+          controlsEl.textContent =
+            profile.controls.length > 0
+              ? `Điều khiển phát hiện trong tệp: ${profile.controls.join(', ')}`
+              : 'Sẵn sàng khởi chạy trực tiếp trong khung 16:9';
+
+          elAdaptivePreview.classList.remove('hidden');
+          updateImportLivePreview();
+          elSubmitImport.disabled = false;
+        };
+        reader.onerror = () => {
+          showToast('Không thể đọc tệp đã chọn. Vui lòng thử lại.');
+        };
+        reader.readAsText(file, 'utf-8');
+      }
+
+      document.getElementById('btn-import-sim').addEventListener('click', openImportModal);
+      document.getElementById('btn-close-import-modal').addEventListener('click', closeImportModal);
+      document.getElementById('btn-cancel-import').addEventListener('click', closeImportModal);
+      elImportModal.addEventListener('click', (e) => {
+        if (e.target === elImportModal) closeImportModal();
+      });
+
+      [elMotifSelect, elStageThemeSelect, elStageAspectSelect].forEach((sel) => {
+        sel.addEventListener('change', updateImportLivePreview);
+      });
+      elTitleInput.addEventListener('input', updateImportLivePreview);
+
+      elDropzone.addEventListener('click', () => elFileInput.click());
+      elDropzone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          elFileInput.click();
+        }
+      });
+      elDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        elDropzone.classList.add('border-brand-500', 'bg-brand-50/50');
+      });
+      elDropzone.addEventListener('dragleave', () => {
+        elDropzone.classList.remove('border-brand-500', 'bg-brand-50/50');
+      });
+      elDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        elDropzone.classList.remove('border-brand-500', 'bg-brand-50/50');
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) handleSelectedHtmlFile(file);
+      });
+
+      elFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) handleSelectedHtmlFile(file);
+      });
+
+      document.getElementById('import-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!state.pendingImportFile) {
+          showToast('Vui lòng chọn một tệp .html trước khi nạp.');
+          return;
+        }
+
+        const p = state.pendingImportFile.profile;
+        const selectedRadio = document.querySelector('input[name="import-topic"]:checked');
+        const topic = selectedRadio ? selectedRadio.value : p.suggestedTopic;
+        const meta = TOPIC_META[topic] || TOPIC_META['Cơ học'];
+        const cleanName = elTitleInput.value.trim() || state.pendingImportFile.name.replace(/\.(html?|xhtml)$/i, '');
+        const customDesc =
+          elDescInput.value.trim() ||
+          `Mô phỏng ${p.engineBadge} thuộc chuyên đề ${topic} (tệp ${state.pendingImportFile.name}).`;
+        const chosenMotif = elMotifSelect.value === 'auto' ? p.visualMotif : elMotifSelect.value;
+        const chosenTheme = elStageThemeSelect.value || p.stageTheme;
+        const chosenAspect = elStageAspectSelect.value || '16:9';
+
+        const keyConceptsList = [
+          { label: 'Chuyên đề', value: `${topic} · Vật lý THPT` },
+          { label: 'Định dạng giao diện', value: `${p.engineBadge} (${chosenTheme === 'dark' ? 'Nền tối' : 'Nền sáng'} · ${chosenAspect})` },
+          { label: 'Tên tệp gốc', value: `${state.pendingImportFile.name} (${(state.pendingImportFile.size / 1024).toFixed(1)} KB)` },
+        ];
+        if (p.controls.length > 0) {
+          keyConceptsList.push({ label: 'Thông số điều khiển trong tệp', value: p.controls.join(' · ') });
+        }
+
+        const controlTasks =
+          p.controls.length > 0
+            ? [
+                `Khởi chạy mô phỏng và xác định các bộ điều khiển: ${p.controls.slice(0, 4).join(', ')}.`,
+                'Thay đổi từng thông số độc lập để quan sát quy luật biến đổi trên màn hình.',
+                'Ghi chép ít nhất 3 bộ số liệu thử nghiệm vào bảng bên dưới để đối chiếu lý thuyết.',
+              ]
+            : [
+                'Quan sát các thành phần trực quan và nút thao tác chính trong mô phỏng.',
+                'Thực hiện thay đổi trạng thái hoặc chạy lại thí nghiệm nhiều lần để rút ra nhận xét.',
+              ];
+
+        const newId = 'local-import-' + Date.now();
+        const importedSim = {
+          id: newId,
+          title: cleanName,
+          subject: 'Vật lý',
+          topic: topic,
+          grades: ['THPT'],
+          description: customDesc,
+          thumbnail: '',
+          simUrl: '',
+          simHtml: state.pendingImportFile.content,
+          svgTheme: meta.svgTheme,
+          visualMotif: chosenMotif,
+          engineBadge: p.engineBadge,
+          stageTheme: chosenTheme,
+          stageAspect: chosenAspect,
+          detectedSummary: p.detectedSummary,
+          styleSeed: p.styleSeed,
+          isLocalImport: true,
+          objectives: [
+            `Thực hành tương tác với mô phỏng "${cleanName}" thuộc chuyên đề ${topic} (Vật lý THPT).`,
+            p.controls.length > 0
+              ? `Khảo sát ảnh hưởng của các đại lượng (${p.controls.slice(0, 3).join(', ')}) tới hiện tượng vật lý trong tệp.`
+              : 'Quan sát trực quan hiện tượng vật lý và sử dụng chế độ Toàn màn hình khi trình chiếu giảng dạy.',
+          ],
+          keyConcepts: keyConceptsList,
+          teacherGuide: {
+            duration: '15–25 phút (linh hoạt theo giáo án)',
+            preparation: `Tệp ${p.engineBadge} đã được tự cấu hình giao diện ${chosenTheme === 'dark' ? 'phòng lab tối' : 'bảng sáng'} và lưu vào chuyên đề "${topic}".`,
+            steps: [
+              `Mở bài "${cleanName}" trong khung chạy (có thể chuyển nhanh 16:9 / 4:3 / Mở rộng ở thanh công cụ nếu cần).`,
+              p.controls.length > 0
+                ? `Hướng dẫn học sinh thao tác lần lượt với: ${p.controls.slice(0, 3).join(', ')}.`
+                : 'Cho học sinh dự đoán kết quả trước khi nhấn chạy mô phỏng.',
+              'Nhấn "Toàn màn hình" để trình chiếu rõ nét trên bảng tương tác.',
+            ],
+            misconceptions: 'Lưu ý giữ cố định các biến phụ và chỉ thay đổi từng thông số để học sinh dễ phát hiện quy luật.',
+          },
+          worksheet: {
+            goal: `Thực hành khám phá trên mô phỏng "${cleanName}" (${topic}).`,
+            tasks: controlTasks,
+            tableHeaders:
+              p.controls.length >= 2
+                ? ['Lần thử', p.controls[0], p.controls[1], 'Kết quả quan sát']
+                : ['Lần thử', 'Thông số thay đổi', 'Kết quả quan sát'],
+            tableRows: 3,
+          },
+        };
+
+        SIMULATIONS_DB.unshift(importedSim);
+        saveImportedSimsToStorage();
+
+        // Chuyển bộ lọc về đúng chuyên đề vừa nạp để bài luôn hiển thị trong thư viện
+        state.searchQuery = '';
+        elSearchInput.value = '';
+        elClearSearch.classList.add('hidden');
+        state.selectedTopics.clear();
+        state.selectedTopics.add(topic);
+        state.selectedGrades.clear();
+
+        closeImportModal();
+        renderAllCatalog();
+        openSimulationDetail(newId);
+        showToast(`Đã nạp "${cleanName}" (${p.engineBadge}) vào chuyên đề ${topic}`);
+      });
+
+      // =======================================================================
+      // CÁC SỰ KIỆN TƯƠNG TÁC TRÊN GIAO DIỆN
+      // =======================================================================
+      elSearchInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value;
+        elClearSearch.classList.toggle('hidden', !state.searchQuery);
+        if (!elDetailView.classList.contains('hidden')) {
+          closeSimulationDetail();
+        }
+        renderSimulationsGrid();
+      });
+
+      elClearSearch.addEventListener('click', () => {
+        state.searchQuery = '';
+        elSearchInput.value = '';
+        elClearSearch.classList.add('hidden');
+        renderSimulationsGrid();
+        elSearchInput.focus();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !elImportModal.classList.contains('hidden')) {
+          closeImportModal();
+          return;
+        }
+        if (
+          e.key === '/' &&
+          document.activeElement !== elSearchInput &&
+          !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)
+        ) {
+          e.preventDefault();
+          elSearchInput.focus();
+        }
+      });
+
+      document.getElementById('btn-hero-all').addEventListener('click', () => {
+        state.selectedTopics.clear();
+        renderAllCatalog();
+        document.getElementById('simulations-grid').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      document.getElementById('btn-reset-filters').addEventListener('click', resetAllFilters);
+      document.getElementById('btn-empty-reset').addEventListener('click', resetAllFilters);
+      document.getElementById('btn-empty-import').addEventListener('click', openImportModal);
+      document.getElementById('btn-go-home').addEventListener('click', closeSimulationDetail);
+      document.getElementById('btn-back-to-catalog').addEventListener('click', closeSimulationDetail);
+
+      document.getElementById('btn-toggle-mobile-filters').addEventListener('click', (e) => {
+        const sidebar = document.getElementById('filter-sidebar');
+        const isHidden = sidebar.classList.contains('hidden');
+        sidebar.classList.toggle('hidden', !isHidden);
+        e.currentTarget.setAttribute('aria-expanded', String(isHidden));
+      });
+
+      document.querySelectorAll('.detail-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchDetailTab(btn.getAttribute('data-tab')));
+      });
+
+      document.querySelectorAll('.stage-aspect-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const sim = SIMULATIONS_DB.find((s) => s.id === state.activeSimId);
+          const nextAspect = btn.getAttribute('data-stage-aspect') || '16:9';
+          if (sim) {
+            sim.stageAspect = nextAspect;
+            if (sim.isLocalImport) saveImportedSimsToStorage();
+            applySimStageAppearance(sim.stageTheme || 'dark', nextAspect);
+          } else {
+            applySimStageAppearance('dark', nextAspect);
+          }
+          try {
+            if (elSimIframe.contentWindow) elSimIframe.contentWindow.dispatchEvent(new Event('resize'));
+          } catch {}
+        });
+      });
+
+      document.getElementById('btn-toggle-stage-theme').addEventListener('click', () => {
+        const sim = SIMULATIONS_DB.find((s) => s.id === state.activeSimId);
+        if (!sim) return;
+        sim.stageTheme = sim.stageTheme === 'light' ? 'dark' : 'light';
+        if (sim.isLocalImport) saveImportedSimsToStorage();
+        applySimStageAppearance(sim.stageTheme, sim.stageAspect || '16:9');
+        renderSimulationsGrid();
+      });
+
+      document.getElementById('btn-reload-sim').addEventListener('click', () => {
+        const sim = SIMULATIONS_DB.find((s) => s.id === state.activeSimId);
+        if (sim) {
+          loadSimIntoIframe(sim);
+          showToast('Đã khởi động lại mô phỏng');
+        }
+      });
+
+      document.getElementById('btn-fullscreen').addEventListener('click', async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await elStageWrapper.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch {
+          showToast('Trình duyệt hiện tại chưa hỗ trợ chế độ toàn màn hình tại khung nhúng này.');
+        }
+      });
+
+      document.addEventListener('fullscreenchange', () => {
+        const label = document.getElementById('fullscreen-label');
+        label.textContent = document.fullscreenElement ? 'Thoát toàn màn hình' : 'Toàn màn hình';
+      });
+
+      document.getElementById('btn-download-offline').addEventListener('click', async () => {
+        const sim = SIMULATIONS_DB.find((s) => s.id === state.activeSimId);
+        if (!sim) return;
+
+        let content = sim.simHtml;
+        if (!content && sim.simUrl) {
+          try {
+            const res = await fetch(sim.simUrl);
+            content = await res.text();
+          } catch {
+            showToast('Không thể tải tệp rời từ simUrl khi chạy ở chế độ file://.');
+            return;
+          }
+        }
+        if (!content) return;
+
+        const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${sim.id}.html`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(`Đã tải xuống ${sim.id}.html để dùng ngoại tuyến`);
+      });
+
+      document.getElementById('btn-copy-worksheet').addEventListener('click', async () => {
+        const sim = SIMULATIONS_DB.find((s) => s.id === state.activeSimId);
+        if (!sim || !sim.worksheet) return;
+        const text = [
+          `PHIẾU HỌC TẬP: ${sim.title}`,
+          `Chuyên đề: ${sim.topic} | Môn: ${sim.subject} (${sim.grades.join(', ')})`,
+          `Mục tiêu: ${sim.worksheet.goal}`,
+          '',
+          'Nhiệm vụ thực hành:',
+          ...sim.worksheet.tasks.map((t, i) => `${i + 1}. ${t}`),
+        ].join('\n');
+
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('Đã sao chép nội dung phiếu học tập');
+        } catch {
+          showToast('Không thể truy cập bộ nhớ tạm; Thầy/Cô có thể nhấn nút In phiếu học tập.');
+        }
+      });
+
+      document.getElementById('btn-delete-imported').addEventListener('click', () => {
+        const idx = SIMULATIONS_DB.findIndex((s) => s.id === state.activeSimId && s.isLocalImport);
+        if (idx === -1) return;
+        const removed = SIMULATIONS_DB.splice(idx, 1)[0];
+        saveImportedSimsToStorage();
+        closeSimulationDetail();
+        renderAllCatalog();
+        showToast(`Đã xóa "${removed.title}" khỏi thư viện`);
+      });
+
+      document.getElementById('btn-print-worksheet').addEventListener('click', () => {
+        window.print();
+      });
+
+      // Khởi tạo giao diện lần đầu (nạp thêm bài đã nhập từ localStorage nếu có)
+      loadImportedSimsFromStorage();
+      renderAllCatalog();
+    </script>
+  </body>
+</html>

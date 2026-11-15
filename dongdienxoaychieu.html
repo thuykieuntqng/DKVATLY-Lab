@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Dòng Điện Xoay Chiều - Máy Phát & Mạch RLC Tương Tác</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải Font Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tải FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Tùy chỉnh thanh trượt (Range Slider) phong cách Cyber-Physics */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #22d3ee;
+            border: 2px solid #060913;
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.75);
+            transition: transform 0.12s ease, background-color 0.12s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #67e8f9;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 999px;
+        }
+        canvas {
+            touch-action: none;
+        }
+
+        /* =====================================================================
+           CHẾ ĐỘ TRÌNH CHIẾU TOÀN MÀN HÌNH (FIT-TO-SCREEN 100VH - KHÔNG CUỘN)
+           ===================================================================== */
+        body.is-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+            box-sizing: border-box;
+            background-color: #060913;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.is-fullscreen #app-header {
+            padding: 6px 14px;
+            flex-shrink: 0;
+        }
+        body.is-fullscreen #app-header .header-subtitle {
+            display: none;
+        }
+        body.is-fullscreen #app-header .header-logo {
+            width: 30px;
+            height: 30px;
+        }
+
+        body.is-fullscreen #app-main {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-width: 100% !important;
+            width: 100%;
+            padding: 8px 12px;
+            gap: 10px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.92fr) minmax(340px, 1fr);
+            overflow: hidden;
+        }
+
+        body.is-fullscreen #left-col {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+        body.is-fullscreen #canvas-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        body.is-fullscreen #canvas-toolbar {
+            padding: 5px 12px;
+        }
+        body.is-fullscreen #vector-legend {
+            padding: 3px 14px;
+        }
+        body.is-fullscreen #canvas-wrapper {
+            flex: 1 1 auto;
+            height: auto !important;
+            min-height: 160px;
+        }
+
+        body.is-fullscreen #telemetry-card {
+            flex-shrink: 0;
+            padding: 7px 12px;
+        }
+        body.is-fullscreen #telemetry-card .section-header {
+            margin-bottom: 5px;
+        }
+        body.is-fullscreen #telemetry-grid {
+            gap: 6px;
+        }
+        body.is-fullscreen #telemetry-grid > div {
+            padding: 5px 10px;
+        }
+        body.is-fullscreen #telemetry-grid .tele-label {
+            font-size: 11px;
+            margin-bottom: 1px;
+        }
+        body.is-fullscreen #telemetry-grid .tele-value {
+            font-size: 0.95rem;
+            line-height: 1.2;
+        }
+
+        body.is-fullscreen #bottom-controls-bar {
+            flex-shrink: 0;
+            padding: 6px 12px;
+        }
+
+        body.is-fullscreen #right-col {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+        body.is-fullscreen #controls-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 8px 12px;
+            gap: 5px;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+        body.is-fullscreen #controls-card .controls-header {
+            padding-bottom: 4px;
+        }
+        body.is-fullscreen #controls-card .slider-scale {
+            display: none;
+        }
+        body.is-fullscreen #controls-card .control-row {
+            margin-bottom: 1px;
+        }
+        body.is-fullscreen #summary-card {
+            flex-shrink: 0;
+            padding: 8px 12px;
+        }
+        body.is-fullscreen #summary-card .summary-sub {
+            display: none;
+        }
+        body.is-fullscreen #summary-grid {
+            gap: 6px;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body class="bg-[#060913] text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+
+    <!-- Thông báo nhanh (Toast) khi bật chế độ trình chiếu toàn màn hình -->
+    <div id="fs-toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none opacity-0 transition-all duration-300 translate-y-2">
+        <div class="bg-slate-900/95 text-slate-100 border border-cyan-400/50 px-4 py-2 rounded-full shadow-[0_0_25px_rgba(34,211,238,0.25)] backdrop-blur-md flex items-center gap-2 text-xs font-medium">
+            <i class="fa-solid fa-display text-cyan-400"></i>
+            <span>Đã tối ưu bố cục trình chiếu 1 màn hình — Nhấn <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-[11px] font-mono text-amber-300">ESC</kbd> hoặc <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-[11px] font-mono text-amber-300">F</kbd> để thoát</span>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header id="app-header" class="bg-slate-900/90 border-b border-slate-800/90 px-4 py-3 shadow-lg backdrop-blur-md sticky top-0 z-20">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="header-logo w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-amber-400 to-fuchsia-500 p-[2px] shadow-[0_0_16px_rgba(34,211,238,0.3)]">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i class="fa-solid fa-bolt-lightning text-amber-400 text-lg"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-xl font-bold text-white leading-tight flex items-center gap-2">
+                        Mô Phỏng Dòng Điện Xoay Chiều
+                        <span class="hidden sm:inline-block text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">AC Generator & RLC Lab</span>
+                    </h1>
+                    <p class="header-subtitle text-xs text-slate-400">Nguyên lý máy phát điện • Mạch RLC nối tiếp • Giản đồ vector Fresnel • Cộng hưởng điện</p>
+                </div>
+            </div>
+
+            <!-- Chọn nhanh cấu hình mạch điện xoay chiều -->
+            <div class="flex flex-wrap items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                <button type="button" data-preset="rlc" class="preset-btn active px-2.5 py-1.5 rounded-lg text-xs font-semibold transition bg-cyan-500/25 border border-cyan-400 text-cyan-200 cursor-pointer">
+                    Mạch R–L–C tổng quát
+                </button>
+                <button type="button" data-preset="resistor" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-300 hover:bg-slate-800 border border-transparent cursor-pointer" title="Chỉ có điện trở thuần R (u và i cùng pha)">
+                    Thuần trở (R)
+                </button>
+                <button type="button" data-preset="inductor" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-300 hover:bg-slate-800 border border-transparent cursor-pointer" title="Cảm kháng trội hơn dung kháng (u sớm pha hơn i)">
+                    Cảm kháng trội (Z<sub>L</sub> > Z<sub>C</sub>)
+                </button>
+                <button type="button" data-preset="resonance" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-300 hover:bg-slate-800 border border-transparent cursor-pointer" title="Cộng hưởng điện ZL = ZC (I đạt cực đại, cosφ = 1)">
+                    ⚡ Cộng hưởng (Z<sub>L</sub> = Z<sub>C</sub>)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main id="app-main" class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- Cột Trái: Khu vực Canvas Máy Phát + Mạch RLC + Đồ Thị & Số Liệu Thời Gian Thực (8 cột) -->
+        <div id="left-col" class="lg:col-span-8 flex flex-col gap-4">
+            
+            <!-- Khung chứa Canvas Mô Phỏng -->
+            <div id="canvas-card" class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col">
+                <!-- Thanh công cụ trên Canvas -->
+                <div id="canvas-toolbar" class="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex flex-wrap items-center gap-3.5">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer select-none font-medium text-slate-300 hover:text-white">
+                            <input type="checkbox" id="chk-generator" checked class="w-4 h-4 rounded accent-amber-400 cursor-pointer">
+                            <span>Khung dây máy phát</span>
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer select-none font-medium text-slate-300 hover:text-white">
+                            <input type="checkbox" id="chk-phasor" checked class="w-4 h-4 rounded accent-fuchsia-400 cursor-pointer">
+                            <span>Giản đồ vector Fresnel</span>
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer select-none font-medium text-slate-300 hover:text-white">
+                            <input type="checkbox" id="chk-electrons" checked class="w-4 h-4 rounded accent-cyan-400 cursor-pointer">
+                            <span>Hạt tải điện dao động</span>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-auto-res" class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/50 hover:bg-amber-500/30 text-amber-200 font-semibold transition cursor-pointer" title="Tự động điều chỉnh tần số f để đạt cộng hưởng ZL = ZC">
+                            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Chỉnh tần số cộng hưởng
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chú thích màu sắc các đại lượng xoay chiều -->
+                <div id="vector-legend" class="bg-slate-950/70 border-b border-slate-800/80 px-4 py-1.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <span class="font-semibold text-slate-400">Ký hiệu sóng:</span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 bg-amber-400 inline-block rounded shadow-[0_0_6px_#fbbf24]"></span>
+                            <span>Điện áp <b class="font-mono text-amber-300">u(t)</b></span>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 bg-cyan-400 inline-block rounded shadow-[0_0_6px_#22d3ee]"></span>
+                            <span>Cường độ dòng <b class="font-mono text-cyan-300">i(t)</b></span>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 bg-fuchsia-400 inline-block rounded shadow-[0_0_6px_#e879f9]"></span>
+                            <span>Từ thông <b class="font-mono text-fuchsia-300">Φ(t)</b></span>
+                        </span>
+                    </div>
+                    <span id="phase-relation-hint" class="text-cyan-400/90 italic hidden sm:inline">
+                        i(t) và u(t) biến thiên điều hòa cùng tần số f
+                    </span>
+                </div>
+
+                <!-- Vùng vẽ Canvas tương tác -->
+                <div id="canvas-wrapper" class="relative w-full h-[385px] sm:h-[455px] bg-gradient-to-b from-[#070b19] via-[#0b1226] to-[#080d1d] select-none">
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                </div>
+            </div>
+
+            <!-- Bảng Thông Số Tức Thời & Hiệu Dụng (Real-time Telemetry) -->
+            <div id="telemetry-card" class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-lg">
+                <div class="section-header flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-wave-square text-cyan-400"></i>
+                        Giá Trị Tức Thời & Hiệu Dụng Trong Mạch
+                    </h2>
+                    <span id="resonance-badge" class="text-xs font-mono text-cyan-300">● Mạch RLC hoạt động bình thường</span>
+                </div>
+
+                <div id="telemetry-grid" class="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
+                    <!-- Điện áp tức thời u -->
+                    <div class="bg-amber-950/35 rounded-xl p-2.5 border border-amber-500/30">
+                        <div class="tele-label text-xs text-amber-300 mb-1">Điện áp u(t)</div>
+                        <div class="tele-value text-base sm:text-lg font-bold font-mono text-amber-300">
+                            <span id="val-u">+0.0</span> <span class="text-[11px] font-normal text-amber-400/70">V</span>
+                        </div>
+                    </div>
+
+                    <!-- Dòng điện tức thời i -->
+                    <div class="bg-cyan-950/35 rounded-xl p-2.5 border border-cyan-500/30">
+                        <div class="tele-label text-xs text-cyan-300 mb-1">Dòng điện i(t)</div>
+                        <div class="tele-value text-base sm:text-lg font-bold font-mono text-cyan-300">
+                            <span id="val-i">+0.00</span> <span class="text-[11px] font-normal text-cyan-400/70">A</span>
+                        </div>
+                    </div>
+
+                    <!-- Cường độ hiệu dụng I -->
+                    <div class="bg-lime-950/30 rounded-xl p-2.5 border border-lime-500/25">
+                        <div class="tele-label text-xs text-lime-300 mb-1">Cường độ hiệu dụng (I)</div>
+                        <div class="tele-value text-base sm:text-lg font-bold font-mono text-lime-300">
+                            <span id="val-Ieff">2.20</span> <span class="text-[11px] font-normal text-lime-400/70">A</span>
+                        </div>
+                    </div>
+
+                    <!-- Tổng trở Z -->
+                    <div class="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800">
+                        <div class="tele-label text-xs text-slate-400 mb-1">Tổng trở (Z)</div>
+                        <div class="tele-value text-base sm:text-lg font-bold font-mono text-white">
+                            <span id="val-Z">100.0</span> <span class="text-[11px] font-normal text-slate-500">Ω</span>
+                        </div>
+                    </div>
+
+                    <!-- Độ lệch pha φ = φu - φi -->
+                    <div class="bg-fuchsia-950/30 rounded-xl p-2.5 border border-fuchsia-500/25">
+                        <div class="tele-label text-xs text-fuchsia-300 mb-1">Độ lệch pha (φ<sub>u/i</sub>)</div>
+                        <div class="tele-value text-base sm:text-lg font-bold font-mono text-fuchsia-300">
+                            <span id="val-phi">0.0</span> <span class="text-[11px] font-normal text-fuchsia-400/70">°</span>
+                        </div>
+                    </div>
+
+                    <!-- Công suất tiêu thụ trung bình P -->
+                    <div class="bg-rose-950/35 rounded-xl p-2.5 border border-rose-500/30">
+                        <div class="tele-label text-xs text-rose-300 mb-1">Công suất (P)</div>
+                        <div class="tele-value text-base sm:text-lg font-bold font-mono text-rose-300">
+                            <span id="val-P">484</span> <span class="text-[11px] font-normal text-rose-400/70">W</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thanh Nút Điều Khiển Chính (Đặt phía dưới để dễ thao tác) -->
+            <div id="bottom-controls-bar" class="bg-slate-900 rounded-2xl border border-slate-800 p-3 shadow-lg flex flex-wrap items-center justify-between gap-2.5">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="btn-play-pause" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(34,211,238,0.35)] transition flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-pause" id="icon-play-pause"></i>
+                        <span id="text-play-pause">Tạm dừng</span>
+                    </button>
+                    <button id="btn-slowmo" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-200 font-semibold text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer" title="Chuyển đổi tốc độ quan sát chậm">
+                        <i class="fa-solid fa-gauge-simple text-amber-400"></i>
+                        <span id="text-slowmo">Tốc độ: 1.0x</span>
+                    </button>
+                    <button id="btn-reset" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-200 font-semibold text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-rotate-right text-cyan-400"></i>
+                        <span>Đặt lại chuẩn</span>
+                    </button>
+                </div>
+
+                <button type="button" id="btn-fullscreen" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-100 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer" title="Trình chiếu toàn màn hình vừa khít 1 khung hình (Phím tắt: F)">
+                    <i class="fa-solid fa-expand text-fuchsia-400" id="icon-fullscreen"></i>
+                    <span id="text-fullscreen">Toàn màn hình</span>
+                    <kbd class="hidden md:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-950 text-slate-400 rounded border border-slate-700">F</kbd>
+                </button>
+            </div>
+        </div>
+
+        <!-- Cột Phải: Bảng Điều Khiển Thông Số Nguồn & Linh Kiện R-L-C (4 cột) -->
+        <div id="right-col" class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Bảng Điều Khiển Thông Số Đầu Vào -->
+            <div id="controls-card" class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-3">
+                <h2 class="controls-header text-sm font-bold uppercase tracking-wider text-slate-200 border-b border-slate-800 pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-cyan-400"></i>
+                    Thông Số Nguồn Điện & Mạch R–L–C
+                </h2>
+
+                <!-- 1. Điện áp hiệu dụng U -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="slider-U" class="text-xs sm:text-sm font-semibold text-slate-300">Điện áp hiệu dụng (U)</label>
+                        <span class="px-2 py-0.5 rounded-lg bg-amber-950/60 border border-amber-500/40 font-mono text-xs sm:text-sm font-bold text-amber-300">
+                            <span id="disp-U">220</span> V (U₀ = <span id="disp-U0">311</span>V)
+                        </span>
+                    </div>
+                    <input type="range" id="slider-U" min="50" max="380" step="10" value="220" class="w-full">
+                </div>
+
+                <!-- 2. Tần số dòng điện f -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="slider-f" class="text-xs sm:text-sm font-semibold text-slate-300">Tần số dòng điện (f)</label>
+                        <span class="px-2 py-0.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 font-mono text-xs sm:text-sm font-bold text-cyan-300">
+                            <span id="disp-f">50</span> Hz (ω = <span id="disp-omega">314</span> rad/s)
+                        </span>
+                    </div>
+                    <input type="range" id="slider-f" min="20" max="120" step="1" value="50" class="w-full">
+                </div>
+
+                <!-- 3. Điện trở thuần R -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="slider-R" class="text-xs sm:text-sm font-semibold text-slate-300">Điện trở thuần (R)</label>
+                        <span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 font-mono text-xs sm:text-sm font-bold text-lime-300">
+                            <span id="disp-R">60</span> Ω
+                        </span>
+                    </div>
+                    <input type="range" id="slider-R" min="10" max="200" step="5" value="60" class="w-full">
+                </div>
+
+                <!-- 4. Độ tự cảm cuộn dây L -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="slider-L" class="text-xs sm:text-sm font-semibold text-slate-300">Độ tự cảm cuộn dây (L)</label>
+                        <span class="px-2 py-0.5 rounded-lg bg-fuchsia-950/60 border border-fuchsia-500/40 font-mono text-xs sm:text-sm font-bold text-fuchsia-300">
+                            <span id="disp-L">0.38</span> H (Z<sub>L</sub> = <span id="disp-ZL">119.4</span> Ω)
+                        </span>
+                    </div>
+                    <input type="range" id="slider-L" min="0.00" max="0.80" step="0.02" value="0.38" class="w-full">
+                </div>
+
+                <!-- 5. Điện dung tụ điện C -->
+                <div>
+                    <div class="control-row flex justify-between items-center mb-1">
+                        <label for="slider-C" class="text-xs sm:text-sm font-semibold text-slate-300">Điện dung tụ điện (C)</label>
+                        <span class="px-2 py-0.5 rounded-lg bg-sky-950/60 border border-sky-500/40 font-mono text-xs sm:text-sm font-bold text-sky-300">
+                            <span id="disp-C">80</span> μF (Z<sub>C</sub> = <span id="disp-ZC">39.8</span> Ω)
+                        </span>
+                    </div>
+                    <input type="range" id="slider-C" min="20" max="200" step="5" value="80" class="w-full">
+                </div>
+            </div>
+
+            <!-- Bảng Tổng Hợp Điện Áp Thành Phần & Hệ Số Công Suất -->
+            <div id="summary-card" class="bg-gradient-to-br from-slate-900 via-[#0d1428] to-slate-950 border border-slate-800 text-white rounded-2xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-cyan-300 mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-diagram-project text-amber-400"></i>
+                    Điện Áp Hiệu Dụng & Hệ Số Công Suất
+                </h2>
+                <p class="summary-sub text-xs text-slate-400">Quan hệ Pitago điện áp: <span class="font-mono text-amber-300">U = √(U<sub>R</sub>² + (U<sub>L</sub> - U<sub>C</sub>)²)</span></p>
+
+                <div id="summary-grid" class="grid grid-cols-2 gap-2 mt-2.5 text-xs font-mono">
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2 flex items-center justify-between">
+                        <span class="text-lime-400 font-semibold">U<sub>R</sub> = I·R:</span>
+                        <span id="val-UR" class="text-sm font-bold text-lime-300">132.0 V</span>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2 flex items-center justify-between">
+                        <span class="text-fuchsia-400 font-semibold">U<sub>L</sub> = I·Z<sub>L</sub>:</span>
+                        <span id="val-UL" class="text-sm font-bold text-fuchsia-300">262.6 V</span>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2 flex items-center justify-between">
+                        <span class="text-sky-400 font-semibold">U<sub>C</sub> = I·Z<sub>C</sub>:</span>
+                        <span id="val-UC" class="text-sm font-bold text-sky-300">87.5 V</span>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2 flex items-center justify-between">
+                        <span class="text-amber-400 font-semibold">Hệ số cosφ:</span>
+                        <span id="val-cosphi" class="text-sm font-bold text-amber-300">0.600</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        /**
+         * MÔ PHỎNG DÒNG ĐIỆN XOAY CHIỀU (AC GENERATOR & SERIES RLC CIRCUIT LAB)
+         * Hiển thị đồng bộ:
+         * 1. Khung dây quay đều trong từ trường đều B (Nguyên lý tạo dòng điện xoay chiều)
+         * 2. Sơ đồ mạch điện R - L - C nối tiếp với các hạt electron dao động điều hòa
+         * 3. Giản đồ vector Fresnel quay (U, UR, UL, UC, I)
+         * 4. Đồ thị dao động thời gian thực u(t) và i(t)
+         */
+
+        // --- 1. TRẠNG THÁI VẬT LÝ & CẤU HÌNH ---
+        const state = {
+            U_eff: 220,         // Điện áp hiệu dụng U (V)
+            freq: 50,           // Tần số dòng điện f (Hz)
+            R: 60,              // Điện trở thuần R (Ω)
+            L: 0.38,            // Độ tự cảm L (H)
+            C_uF: 80,           // Điện dung C (μF)
+
+            phaseSim: 0,        // Pha dao động trực quan ωt (rad)
+            isPlaying: true,
+            timeScale: 1.0,     // 1.0x hoặc 0.3x
+
+            showGenerator: true,
+            showPhasor: true,
+            showElectrons: true,
+
+            waveHistory: []     // Lưu điểm { uNorm, iNorm } vẽ đồ thị sóng
+        };
+
+        // --- 2. THAM CHIẾU DOM ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        const sliderU = document.getElementById('slider-U');
+        const dispU = document.getElementById('disp-U');
+        const dispU0 = document.getElementById('disp-U0');
+
+        const sliderF = document.getElementById('slider-f');
+        const dispF = document.getElementById('disp-f');
+        const dispOmega = document.getElementById('disp-omega');
+
+        const sliderR = document.getElementById('slider-R');
+        const dispR = document.getElementById('disp-R');
+
+        const sliderL = document.getElementById('slider-L');
+        const dispL = document.getElementById('disp-L');
+        const dispZL = document.getElementById('disp-ZL');
+
+        const sliderC = document.getElementById('slider-C');
+        const dispC = document.getElementById('disp-C');
+        const dispZC = document.getElementById('disp-ZC');
+
+        const chkGenerator = document.getElementById('chk-generator');
+        const chkPhasor = document.getElementById('chk-phasor');
+        const chkElectrons = document.getElementById('chk-electrons');
+        const btnAutoRes = document.getElementById('btn-auto-res');
+
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const iconPlayPause = document.getElementById('icon-play-pause');
+        const textPlayPause = document.getElementById('text-play-pause');
+        const btnSlowmo = document.getElementById('btn-slowmo');
+        const textSlowmo = document.getElementById('text-slowmo');
+        const btnReset = document.getElementById('btn-reset');
+
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const iconFullscreen = document.getElementById('icon-fullscreen');
+        const textFullscreen = document.getElementById('text-fullscreen');
+        const fsToast = document.getElementById('fs-toast');
+
+        // Telemetry & Summary DOM
+        const resonanceBadge = document.getElementById('resonance-badge');
+        const phaseRelationHint = document.getElementById('phase-relation-hint');
+        const valU = document.getElementById('val-u');
+        const valI = document.getElementById('val-i');
+        const valIeff = document.getElementById('val-Ieff');
+        const valZ = document.getElementById('val-Z');
+        const valPhi = document.getElementById('val-phi');
+        const valP = document.getElementById('val-P');
+
+        const valUR = document.getElementById('val-UR');
+        const valUL = document.getElementById('val-UL');
+        const valUC = document.getElementById('val-UC');
+        const valCosphi = document.getElementById('val-cosphi');
+
+        // --- 3. TÍNH TOÁN MẠCH ĐIỆN XOAY CHIỀU R-L-C NỐI TIẾP ---
+        function computeACCircuit() {
+            const omega = 2 * Math.PI * state.freq;
+            const C_F = state.C_uF * 1e-6;
+
+            const ZL = omega * state.L;
+            const ZC = 1 / (omega * C_F);
+            const Z = Math.sqrt(state.R * state.R + Math.pow(ZL - ZC, 2));
+
+            const U0 = state.U_eff * Math.SQRT2;
+            const I_eff = state.U_eff / Z;
+            const I0 = I_eff * Math.SQRT2;
+
+            // Độ lệch pha φ = φu - φi: tan(φ) = (ZL - ZC) / R
+            const phiRad = Math.atan2(ZL - ZC, state.R);
+            const phiDeg = (phiRad * 180) / Math.PI;
+            const cosPhi = state.R / Z;
+            const P_watt = state.U_eff * I_eff * cosPhi;
+
+            const UR = I_eff * state.R;
+            const UL = I_eff * ZL;
+            const UC = I_eff * ZC;
+
+            // Giá trị tức thời: lấy pha của i(t) là ωt => u(t) có pha (ωt + φ)
+            const iInst = I0 * Math.cos(state.phaseSim);
+            const uInst = U0 * Math.cos(state.phaseSim + phiRad);
+
+            const isResonance = Math.abs(ZL - ZC) < 1.5;
+
+            return {
+                omega, ZL, ZC, Z, U0, I_eff, I0,
+                phiRad, phiDeg, cosPhi, P_watt,
+                UR, UL, UC, iInst, uInst, isResonance
+            };
+        }
+
+        function updateUI() {
+            const ac = computeACCircuit();
+
+            dispU.textContent = state.U_eff;
+            dispU0.textContent = Math.round(ac.U0);
+
+            dispF.textContent = state.freq;
+            dispOmega.textContent = Math.round(ac.omega);
+
+            dispR.textContent = state.R;
+            dispL.textContent = state.L.toFixed(2);
+            dispZL.textContent = ac.ZL.toFixed(1);
+            dispC.textContent = state.C_uF;
+            dispZC.textContent = ac.ZC.toFixed(1);
+
+            valU.textContent = (ac.uInst >= 0 ? '+' : '') + ac.uInst.toFixed(1);
+            valI.textContent = (ac.iInst >= 0 ? '+' : '') + ac.iInst.toFixed(2);
+            valIeff.textContent = ac.I_eff.toFixed(2);
+            valZ.textContent = ac.Z.toFixed(1);
+            valPhi.textContent = (ac.phiDeg >= 0 ? '+' : '') + ac.phiDeg.toFixed(1);
+            valP.textContent = Math.round(ac.P_watt);
+
+            valUR.textContent = `${ac.UR.toFixed(1)} V`;
+            valUL.textContent = `${ac.UL.toFixed(1)} V`;
+            valUC.textContent = `${ac.UC.toFixed(1)} V`;
+            valCosphi.textContent = ac.cosPhi.toFixed(3);
+
+            if (ac.isResonance) {
+                resonanceBadge.textContent = '⚡ ĐANG CỘNG HƯỞNG ĐIỆN (ZL ≈ ZC, Imax, cosφ ≈ 1)';
+                resonanceBadge.className = 'text-xs font-mono font-bold text-amber-300 animate-pulse';
+                phaseRelationHint.textContent = 'Cộng hưởng: Điện áp u(t) và dòng điện i(t) dao động CÙNG PHA!';
+            } else if (ac.phiDeg > 2) {
+                resonanceBadge.textContent = `● Tính cảm kháng (u sớm pha hơn i góc ${ac.phiDeg.toFixed(1)}°)`;
+                resonanceBadge.className = 'text-xs font-mono text-fuchsia-300';
+                phaseRelationHint.textContent = `ZL > ZC: Điện áp u(t) sớm pha hơn dòng điện i(t) một góc ${ac.phiDeg.toFixed(1)}°`;
+            } else if (ac.phiDeg < -2) {
+                resonanceBadge.textContent = `● Tính dung kháng (u trễ pha hơn i góc ${Math.abs(ac.phiDeg).toFixed(1)}°)`;
+                resonanceBadge.className = 'text-xs font-mono text-sky-300';
+                phaseRelationHint.textContent = `ZC > ZL: Điện áp u(t) trễ pha hơn dòng điện i(t) một góc ${Math.abs(ac.phiDeg).toFixed(1)}°`;
+            } else {
+                resonanceBadge.textContent = '● Mạch thuần trở (u và i cùng pha, φ ≈ 0°)';
+                resonanceBadge.className = 'text-xs font-mono text-lime-300';
+                phaseRelationHint.textContent = 'Điện áp u(t) và dòng điện i(t) biến thiên cùng pha';
+            }
+        }
+
+        // --- 4. HỆ THỐNG RENDER CANVAS (MÁY PHÁT + MẠCH RLC + FRESNEL + ĐỒ THỊ SÓNG) ---
+        function resizeCanvas() {
+            const rect = canvasWrapper.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawScene();
+        }
+
+        const canvasResizeObserver = new ResizeObserver(() => resizeCanvas());
+        canvasResizeObserver.observe(canvasWrapper);
+
+        function drawArrow(x1, y1, x2, y2, color, label, lineWidth = 2.2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.hypot(dx, dy);
+            if (len < 6) return;
+
+            const angle = Math.atan2(dy, dx);
+            const headLen = Math.min(9, len * 0.35);
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            if (label) {
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                ctx.fillText(label, x2 + Math.cos(angle) * 10 - 5, y2 + Math.sin(angle) * 10 + 4);
+            }
+            ctx.restore();
+        }
+
+        function drawScene() {
+            const W = canvasWrapper.clientWidth;
+            const H = canvasWrapper.clientHeight;
+            const ac = computeACCircuit();
+            ctx.clearRect(0, 0, W, H);
+
+            // Chia 2 tầng theo chiều dọc: Nửa trên (Máy phát + Mạch RLC + Vector Fresnel), Nửa dưới (Đồ thị sóng u(t), i(t))
+            const topH = Math.max(175, H * 0.52);
+            const botY = topH + 8;
+            const botH = Math.max(115, H - botY - 12);
+
+            // Đường phân cách mờ
+            ctx.save();
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.55)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(14, topH + 2);
+            ctx.lineTo(W - 14, topH + 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // Tính toán bố cục 3 khối ở nửa trên
+            const genW = state.showGenerator ? Math.min(220, W * 0.27) : 0;
+            const fresnelW = state.showPhasor ? Math.min(220, W * 0.27) : 0;
+            const circuitX = genW + 12;
+            const circuitW = Math.max(180, W - genW - fresnelW - 24);
+
+            // 1. Vẽ Máy phát điện xoay chiều (Khung dây quay trong từ trường đều N - S)
+            if (state.showGenerator) {
+                drawACGenerator(12, 10, genW - 16, topH - 16, ac);
+            }
+
+            // 2. Vẽ Mạch điện R - L - C nối tiếp & Hạt electron dao động
+            drawRLCCircuit(circuitX, 10, circuitW, topH - 16, ac);
+
+            // 3. Vẽ Giản đồ Vector Fresnel quay (U, UR, UL, UC, I)
+            if (state.showPhasor) {
+                drawFresnelPhasors(W - fresnelW + 4, 10, fresnelW - 16, topH - 16, ac);
+            }
+
+            // 4. Vẽ Đồ thị dao động điều hòa u(t) và i(t) ở nửa dưới
+            drawWaveforms(14, botY, W - 28, botH, ac);
+        }
+
+        function drawACGenerator(x, y, w, h, ac) {
+            const cx = x + w * 0.5;
+            const cy = y + h * 0.54;
+            const r = Math.min(w * 0.34, h * 0.34);
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.7)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 10px "Inter", sans-serif';
+            ctx.fillText('Máy phát điện xoay chiều', x + 10, y + 16);
+
+            // Hai cực nam châm N (Đỏ) và S (Xanh)
+            const magW = 18;
+            const magH = r * 1.45;
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.28)';
+            ctx.strokeStyle = '#fb7185';
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(cx - r - magW - 6, cy - magH / 2, magW, magH);
+            ctx.strokeRect(cx - r - magW - 6, cy - magH / 2, magW, magH);
+            ctx.fillStyle = '#fda4af';
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.fillText('N', cx - r - magW - 1, cy + 4);
+
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.fillRect(cx + r + 6, cy - magH / 2, magW, magH);
+            ctx.strokeRect(cx + r + 6, cy - magH / 2, magW, magH);
+            ctx.fillStyle = '#7dd3fc';
+            ctx.fillText('S', cx + r + 11, cy + 4);
+
+            // Đường sức từ B hướng từ N -> S
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+            ctx.setLineDash([3, 3]);
+            for (let dy = -magH * 0.3; dy <= magH * 0.3; dy += magH * 0.3) {
+                ctx.beginPath();
+                ctx.moveTo(cx - r - 4, cy + dy);
+                ctx.lineTo(cx + r + 4, cy + dy);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+
+            // Khung dây quay góc α = phaseSim + phiRad
+            const theta = state.phaseSim + ac.phiRad;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            // Hình chiếu cạnh khung dây đang quay
+            const p1x = cx - r * sinT;
+            const p1y = cy - r * cosT;
+            const p2x = cx + r * sinT;
+            const p2y = cy + r * cosT;
+
+            // Vector pháp tuyến n của khung dây (Fuchsia)
+            drawArrow(cx, cy, cx + (r * 0.85) * cosT, cy - (r * 0.85) * sinT, '#e879f9', 'n⃗', 2);
+
+            // Cạnh khung dây phát sáng vàng
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(p1x, p1y);
+            ctx.lineTo(p2x, p2y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Hai đầu dây dẫn khung dây
+            ctx.fillStyle = '#fb7185';
+            ctx.beginPath();
+            ctx.arc(p1x, p1y, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(p2x, p2y, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawRLCCircuit(x, y, w, h, ac) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.7)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 10px "Inter", sans-serif';
+            ctx.fillText('Mạch điện xoay chiều R – L – C nối tiếp', x + 10, y + 16);
+
+            const leftX = x + 36;
+            const rightX = x + w - 32;
+            const topY = y + 42;
+            const botY = y + h - 26;
+            const midY = (topY + botY) * 0.5;
+
+            // Dây dẫn vòng mạch chữ nhật
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(leftX, midY - 18);
+            ctx.lineTo(leftX, topY);
+            ctx.lineTo(rightX, topY);
+            ctx.lineTo(rightX, botY);
+            ctx.lineTo(leftX, botY);
+            ctx.lineTo(leftX, midY + 18);
+            ctx.stroke();
+
+            // Nguồn xoay chiều (~) bên trái
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(leftX, midY, 18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 16px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('~', leftX, midY + 5);
+            ctx.font = 'bold 10px "JetBrains Mono", monospace';
+            ctx.fillText(`u=${state.U_eff}V`, leftX + 2, midY + 30);
+
+            // Chia nhánh trên thành 3 linh kiện: R, L, C
+            const span = rightX - leftX;
+            const rX = leftX + span * 0.22;
+            const lX = leftX + span * 0.52;
+            const cX = leftX + span * 0.80;
+
+            // 1. Điện trở R (Hình chữ nhật phát sáng xanh chanh)
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#a3e635';
+            ctx.lineWidth = 2;
+            ctx.fillRect(rX - 22, topY - 9, 44, 18);
+            ctx.strokeRect(rX - 22, topY - 9, 44, 18);
+            ctx.fillStyle = '#bef264';
+            ctx.font = 'bold 10px "JetBrains Mono", monospace';
+            ctx.fillText(`R=${state.R}Ω`, rX, topY - 14);
+
+            // 2. Cuộn cảm thuần L (Các vòng cung tím neon)
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(lX - 24, topY - 10, 48, 20);
+            ctx.strokeStyle = '#e879f9';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            for (let k = 0; k < 4; k++) {
+                const cxArc = lX - 18 + k * 12;
+                ctx.arc(cxArc, topY, 6, Math.PI, 0, false);
+            }
+            ctx.stroke();
+            ctx.fillStyle = '#f0abfc';
+            ctx.fillText(`L=${state.L.toFixed(2)}H`, lX, topY - 14);
+
+            // 3. Tụ điện C (Hai bản cực song song xanh dương)
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(cX - 8, topY - 14, 16, 28);
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(cX - 5, topY - 13);
+            ctx.lineTo(cX - 5, topY + 13);
+            ctx.moveTo(cX + 5, topY - 13);
+            ctx.lineTo(cX + 5, topY + 13);
+            ctx.stroke();
+            ctx.fillStyle = '#7dd3fc';
+            ctx.fillText(`C=${state.C_uF}μF`, cX, topY - 16);
+
+            // Hiệu ứng các hạt tải điện (Electron) dao động qua lại dọc theo nhánh dưới
+            if (state.showElectrons) {
+                const ampShift = Math.min(22, ac.I_eff * 6.5);
+                const shift = ampShift * Math.sin(state.phaseSim);
+                const numDots = 10;
+                const wireLen = rightX - leftX - 24;
+
+                ctx.fillStyle = '#22d3ee';
+                ctx.shadowColor = '#22d3ee';
+                ctx.shadowBlur = 6;
+                for (let idx = 0; idx < numDots; idx++) {
+                    const basePos = leftX + 12 + (idx / (numDots - 1)) * wireLen;
+                    const ex = Math.max(leftX + 6, Math.min(rightX - 6, basePos + shift));
+                    ctx.beginPath();
+                    ctx.arc(ex, botY, 3.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
+
+                // Mũi tên chỉ chiều dòng điện tức thời i(t)
+                if (Math.abs(ac.iInst) > 0.08) {
+                    const dir = Math.sign(ac.iInst);
+                    const midWireX = (leftX + rightX) * 0.5;
+                    drawArrow(midWireX - dir * 18, botY - 13, midWireX + dir * 18, botY - 13, '#22d3ee', 'i(t)', 2);
+                }
+            }
+
+            ctx.textAlign = 'left';
+            ctx.restore();
+        }
+
+        function drawFresnelPhasors(x, y, w, h, ac) {
+            const cx = x + w * 0.48;
+            const cy = y + h * 0.55;
+            const maxR = Math.min(w * 0.36, h * 0.35);
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.7)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 10px "Inter", sans-serif';
+            ctx.fillText('Giản đồ vector Fresnel', x + 10, y + 16);
+
+            // Vòng tròn tham chiếu mờ
+            ctx.strokeStyle = 'rgba(71, 85, 105, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Tỉ lệ độ dài vector theo U_eff lớn nhất
+            const maxVoltage = Math.max(state.U_eff, ac.UR, ac.UL, ac.UC, 50);
+            const vScale = maxR / maxVoltage;
+
+            // Vector I (trục pha chuẩn quay góc phaseSim)
+            const angI = -state.phaseSim;
+            const iLen = maxR * 0.78;
+            drawArrow(cx, cy, cx + Math.cos(angI) * iLen, cy + Math.sin(angI) * iLen, '#22d3ee', 'I⃗', 2.2);
+
+            // Vector UR cùng pha với I
+            const urLen = ac.UR * vScale;
+            const urX = cx + Math.cos(angI) * urLen;
+            const urY = cy + Math.sin(angI) * urLen;
+            drawArrow(cx, cy, urX, urY, '#a3e635', 'UR', 2);
+
+            // Vector (UL - UC) vuông góc với I (sớm pha +90° nếu UL > UC)
+            const ulcVal = ac.UL - ac.UC;
+            const angULC = angI - Math.PI / 2;
+            const ulcLen = ulcVal * vScale;
+            const uEndX = urX + Math.cos(angULC) * ulcLen;
+            const uEndY = urY + Math.sin(angULC) * ulcLen;
+
+            if (Math.abs(ulcLen) > 5) {
+                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = '#e879f9';
+                ctx.lineWidth = 1.4;
+                ctx.beginPath();
+                ctx.moveTo(urX, urY);
+                ctx.lineTo(uEndX, uEndY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Vector tổng U hợp góc φ với I (Amber Gold)
+            drawArrow(cx, cy, uEndX, uEndY, '#fbbf24', 'U⃗', 2.6);
+
+            ctx.restore();
+        }
+
+        function drawWaveforms(x, y, w, h, ac) {
+            const padL = 46;
+            const padR = 16;
+            const gTop = y + 18;
+            const gH = Math.max(70, h - 26);
+            const gMidY = gTop + gH / 2;
+            const gW = Math.max(100, w - padL - padR);
+            const ampPx = (gH / 2) * 0.84;
+
+            ctx.save();
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 11px "Inter", sans-serif';
+            ctx.fillText('Đồ thị dao động điều hòa theo thời gian: Điện áp u(t) và Dòng điện i(t)', x + padL, y + 11);
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.65)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x + padL, gTop, gW, gH, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Trục ngang 0
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            ctx.beginPath();
+            ctx.moveTo(x + padL, gMidY);
+            ctx.lineTo(x + padL + gW, gMidY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText('+Max', x + padL - 6, gMidY - ampPx + 3);
+            ctx.fillText('0', x + padL - 6, gMidY + 3);
+            ctx.fillText('-Max', x + padL - 6, gMidY + ampPx + 3);
+            ctx.textAlign = 'left';
+
+            const hist = state.waveHistory;
+            if (hist.length > 1) {
+                const maxPts = 320;
+                const stepX = gW / (maxPts - 1);
+                const startOffset = Math.max(0, maxPts - hist.length);
+
+                const drawCurve = (key, color, width) => {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = width;
+                    ctx.beginPath();
+                    for (let i = 0; i < hist.length; i++) {
+                        const px = x + padL + (startOffset + i) * stepX;
+                        const py = gMidY - hist[i][key] * ampPx;
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.stroke();
+
+                    const lastIdx = hist.length - 1;
+                    const endX = x + padL + (startOffset + lastIdx) * stepX;
+                    const endY = gMidY - hist[lastIdx][key] * ampPx;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, 3.8, 0, Math.PI * 2);
+                    ctx.fill();
+                };
+
+                // Sóng điện áp u(t) - Vàng hổ phách
+                drawCurve('uNorm', '#fbbf24', 2.4);
+                // Sóng dòng điện i(t) - Xanh điện quang
+                drawCurve('iNorm', '#22d3ee', 2.4);
+            }
+
+            ctx.restore();
+        }
+
+        // --- 5. VÒNG LẶP ANIMATION THỜI GIAN THỰC ---
+        function recordWavePoint() {
+            const ac = computeACCircuit();
+            const uNorm = Math.cos(state.phaseSim + ac.phiRad);
+            // Chuẩn hóa biên độ sóng i(t) theo mức cộng hưởng tối đa I_res = U / R để thấy rõ đỉnh cộng hưởng!
+            const iScaleRatio = Math.min(1.0, state.R / ac.Z);
+            const iNorm = iScaleRatio * Math.cos(state.phaseSim);
+
+            state.waveHistory.push({ uNorm, iNorm });
+            if (state.waveHistory.length > 320) state.waveHistory.shift();
+        }
+
+        let lastTimestamp = null;
+
+        function animate(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const rawDt = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+            const dt = Math.min(rawDt, 0.05) * state.timeScale;
+
+            if (state.isPlaying) {
+                // Tốc độ góc trực quan tỉ lệ với tần số f (ở 50Hz quay ~ 4.2 rad/s để mắt thường quan sát rõ)
+                const visualOmega = (state.freq / 50.0) * 4.2;
+                state.phaseSim += visualOmega * dt;
+                recordWavePoint();
+                updateUI();
+            }
+
+            drawScene();
+            requestAnimationFrame(animate);
+        }
+
+        // --- 6. SỰ KIỆN BẢNG ĐIỀU KHIỂN & TOÀN MÀN HÌNH ---
+        function applyPreset(presetKey) {
+            if (presetKey === 'rlc') {
+                state.U_eff = 220; state.freq = 50; state.R = 60; state.L = 0.38; state.C_uF = 80;
+            } else if (presetKey === 'resistor') {
+                state.U_eff = 220; state.freq = 50; state.R = 100; state.L = 0.00; state.C_uF = 200;
+                // Đặt C lớn hoặc triệt tiêu cảm/dung để u, i gần như đồng pha
+                state.L = 0.16; state.C_uF = 63; // ZL ≈ ZC ≈ 50.3Ω => thuần trở tương đương
+            } else if (presetKey === 'inductor') {
+                state.U_eff = 220; state.freq = 60; state.R = 50; state.L = 0.50; state.C_uF = 120;
+            } else if (presetKey === 'resonance') {
+                state.U_eff = 220; state.freq = 50; state.R = 50; state.L = 0.32; state.C_uF = 32;
+                // Tính chính xác tần số cộng hưởng f0 = 1 / (2π√(LC))
+                const fRes = Math.round(1 / (2 * Math.PI * Math.sqrt(state.L * state.C_uF * 1e-6)));
+                state.freq = Math.max(20, Math.min(120, fRes));
+            }
+
+            sliderU.value = state.U_eff;
+            sliderF.value = state.freq;
+            sliderR.value = state.R;
+            sliderL.value = state.L;
+            sliderC.value = state.C_uF;
+
+            presetBtns.forEach(b => {
+                b.className = b.dataset.preset === presetKey
+                    ? 'preset-btn active px-2.5 py-1.5 rounded-lg text-xs font-semibold transition bg-cyan-500/25 border border-cyan-400 text-cyan-200 cursor-pointer'
+                    : 'preset-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-300 hover:bg-slate-800 border border-transparent cursor-pointer';
+            });
+
+            updateUI();
+            drawScene();
+        }
+
+        presetBtns.forEach(btn => btn.addEventListener('click', () => applyPreset(btn.dataset.preset)));
+
+        sliderU.addEventListener('input', e => { state.U_eff = parseFloat(e.target.value); updateUI(); drawScene(); });
+        sliderF.addEventListener('input', e => { state.freq = parseFloat(e.target.value); updateUI(); drawScene(); });
+        sliderR.addEventListener('input', e => { state.R = parseFloat(e.target.value); updateUI(); drawScene(); });
+        sliderL.addEventListener('input', e => { state.L = parseFloat(e.target.value); updateUI(); drawScene(); });
+        sliderC.addEventListener('input', e => { state.C_uF = parseFloat(e.target.value); updateUI(); drawScene(); });
+
+        btnAutoRes.addEventListener('click', () => {
+            if (state.L <= 0.01) state.L = 0.32;
+            const f0 = Math.round(1 / (2 * Math.PI * Math.sqrt(state.L * state.C_uF * 1e-6)));
+            state.freq = Math.max(20, Math.min(120, f0));
+            sliderL.value = state.L;
+            sliderF.value = state.freq;
+            updateUI();
+            drawScene();
+        });
+
+        btnPlayPause.addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            if (state.isPlaying) {
+                iconPlayPause.className = 'fa-solid fa-pause';
+                textPlayPause.textContent = 'Tạm dừng';
+            } else {
+                iconPlayPause.className = 'fa-solid fa-play';
+                textPlayPause.textContent = 'Tiếp tục';
+            }
+        });
+
+        btnSlowmo.addEventListener('click', () => {
+            if (state.timeScale === 1.0) {
+                state.timeScale = 0.3;
+                textSlowmo.textContent = 'Tốc độ: 0.3x';
+                btnSlowmo.classList.add('border-amber-400', 'text-amber-300');
+            } else {
+                state.timeScale = 1.0;
+                textSlowmo.textContent = 'Tốc độ: 1.0x';
+                btnSlowmo.classList.remove('border-amber-400', 'text-amber-300');
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            state.phaseSim = 0;
+            state.waveHistory = [];
+            applyPreset('rlc');
+            recordWavePoint();
+        });
+
+        chkGenerator.addEventListener('change', e => { state.showGenerator = e.target.checked; drawScene(); });
+        chkPhasor.addEventListener('change', e => { state.showPhasor = e.target.checked; drawScene(); });
+        chkElectrons.addEventListener('change', e => { state.showElectrons = e.target.checked; drawScene(); });
+
+        // --- 7. CHỨC NĂNG TOÀN MÀN HÌNH (FIT-TO-SCREEN 100VH TRÌNH CHIẾU) ---
+        let toastTimeout = null;
+
+        function showFullscreenToast() {
+            fsToast.classList.remove('opacity-0', 'translate-y-2');
+            fsToast.classList.add('opacity-100', 'translate-y-0');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                fsToast.classList.remove('opacity-100', 'translate-y-0');
+                fsToast.classList.add('opacity-0', 'translate-y-2');
+            }, 3200);
+        }
+
+        function isFullscreenActive() {
+            return document.body.classList.contains('is-fullscreen');
+        }
+
+        function applyFullscreenState(active) {
+            if (active) {
+                document.body.classList.add('is-fullscreen');
+                iconFullscreen.className = 'fa-solid fa-compress text-amber-300';
+                textFullscreen.textContent = 'Thoát toàn màn hình';
+                btnFullscreen.className = 'px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 active:scale-95 text-amber-200 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer';
+            } else {
+                document.body.classList.remove('is-fullscreen');
+                iconFullscreen.className = 'fa-solid fa-expand text-fuchsia-400';
+                textFullscreen.textContent = 'Toàn màn hình';
+                btnFullscreen.className = 'px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-100 font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer';
+            }
+            resizeCanvas();
+            requestAnimationFrame(() => resizeCanvas());
+            setTimeout(resizeCanvas, 100);
+        }
+
+        async function toggleFullScreen() {
+            const elem = document.documentElement;
+            const willEnter = !isFullscreenActive();
+
+            if (willEnter) {
+                applyFullscreenState(true);
+                showFullscreenToast();
+                try {
+                    if (elem.requestFullscreen) await elem.requestFullscreen();
+                    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+                } catch (err) {}
+            } else {
+                applyFullscreenState(false);
+                try {
+                    if (document.exitFullscreen && document.fullscreenElement) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen && document.webkitFullscreenElement) await document.webkitExitFullscreen();
+                } catch (err) {}
+            }
+        }
+
+        btnFullscreen.addEventListener('click', toggleFullScreen);
+
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+            document.addEventListener(evt, () => {
+                const nativeFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+                if (!nativeFs && isFullscreenActive()) {
+                    applyFullscreenState(false);
+                } else {
+                    resizeCanvas();
+                }
+            });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullScreen();
+            } else if (e.key === 'Escape' && isFullscreenActive()) {
+                applyFullscreenState(false);
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        window.onload = function() {
+            resizeCanvas();
+            updateUI();
+            recordWavePoint();
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>

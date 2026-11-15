@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Sóng Ngang, Sóng Dọc & Sóng Dừng</title>
+    <!-- Tải Tailwind CSS và Font chữ Inter, JetBrains Mono -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Thư viện Phosphor Icons cho biểu tượng giao diện -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .font-mono-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Tùy chỉnh thanh trượt (Range Input) */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 999px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            border: 2px solid #0f172a;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #7dd3fc;
+        }
+        .canvas-grid {
+            background-image: 
+                linear-gradient(to right, rgba(51, 65, 85, 0.25) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(51, 65, 85, 0.25) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+
+    <!-- Thanh điều hướng & chọn loại sóng -->
+    <header class="border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <i class="ph-bold ph-wave-sine text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">Mô Phỏng Sóng Vật Lý</h1>
+                    <p class="text-xs text-slate-400">Trực quan hóa dao động & truyền sóng</p>
+                </div>
+            </div>
+
+            <!-- Bộ chuyển đổi 3 chế độ sóng -->
+            <nav class="flex p-1 bg-slate-950/90 border border-slate-800 rounded-xl w-full sm:w-auto justify-between sm:justify-start" role="tablist">
+                <button id="tab-transverse" onclick="switchMode('transverse')" class="flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 bg-sky-500 text-slate-950 shadow-md">
+                    Sóng Ngang
+                </button>
+                <button id="tab-longitudinal" onclick="switchMode('longitudinal')" class="flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                    Sóng Dọc
+                </button>
+                <button id="tab-standing" onclick="switchMode('standing')" class="flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                    Sóng Dừng
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Khu vực nội dung chính -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+        
+        <!-- Khung hiển thị mô phỏng Canvas -->
+        <section class="relative w-full h-[360px] sm:h-[430px] lg:h-[470px] bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl canvas-grid flex flex-col">
+            
+            <!-- Thanh thông tin nhanh góc trên Canvas -->
+            <div class="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 z-10 pointer-events-none">
+                <div class="flex items-center gap-2 bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-xl">
+                    <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="wave-title-badge" class="text-xs sm:text-sm font-semibold text-sky-300">Sóng Ngang (Dao động ⊥ Phương truyền)</span>
+                </div>
+
+                <!-- Chú thích màu sắc -->
+                <div id="canvas-legend" class="flex flex-wrap items-center gap-3 bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>Phần tử dây</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Điểm theo dõi M</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-emerald-400"></span>Vận tốc v_y</span>
+                </div>
+            </div>
+
+            <!-- Canvas vẽ sóng -->
+            <canvas id="waveCanvas" class="w-full h-full block"></canvas>
+
+            <!-- Thanh công cụ điều khiển phát / tạm dừng / bước / reset -->
+            <div class="absolute bottom-3 right-3 flex items-center gap-2 z-10">
+                <button id="btn-play-pause" onclick="togglePlayPause()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-xs sm:text-sm shadow-lg transition active:scale-95">
+                    <i id="icon-play-pause" class="ph-fill ph-pause text-base"></i>
+                    <span id="text-play-pause">Tạm dừng</span>
+                </button>
+                <button id="btn-step" onclick="stepFrame()" disabled class="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none text-slate-200 border border-slate-700 font-medium text-xs sm:text-sm transition active:scale-95" title="Tiến 1 khung hình">
+                    <i class="ph-bold ph-skip-forward text-base"></i>
+                </button>
+                <button onclick="resetSimulation()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs sm:text-sm transition active:scale-95" title="Đặt lại mặc định">
+                    <i class="ph-bold ph-arrow-counter-clockwise text-base"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Bảng thông số đo lường trực tiếp -->
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5 flex flex-col justify-between">
+                <span class="text-xs text-slate-400 font-medium">Bước sóng (λ)</span>
+                <span id="readout-wavelength" class="text-lg sm:text-xl font-bold font-mono-code text-yellow-300 mt-1">2.00 m</span>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5 flex flex-col justify-between">
+                <span class="text-xs text-slate-400 font-medium">Tốc độ truyền sóng (v)</span>
+                <span id="readout-velocity" class="text-lg sm:text-xl font-bold font-mono-code text-sky-400 mt-1">1.60 m/s</span>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5 flex flex-col justify-between">
+                <span class="text-xs text-slate-400 font-medium">Chu kì dao động (T)</span>
+                <span id="readout-period" class="text-lg sm:text-xl font-bold font-mono-code text-emerald-400 mt-1">1.25 s</span>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5 flex flex-col justify-between">
+                <span id="readout-extra-label" class="text-xs text-slate-400 font-medium">Tần số góc (ω)</span>
+                <span id="readout-extra-value" class="text-lg sm:text-xl font-bold font-mono-code text-purple-400 mt-1">5.03 rad/s</span>
+            </div>
+        </section>
+
+        <!-- Bảng điều khiển thông số tương tác -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-5">
+            
+            <!-- Điều khiển dành riêng cho Sóng Dừng (ẩn ở Sóng Ngang & Sóng Dọc) -->
+            <div id="standing-controls" class="hidden grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-800">
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Điều kiện hai đầu dây</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btn-fixed-fixed" onclick="setBoundary('fixed-fixed')" class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/50 transition">
+                            2 Đầu Cố Định
+                        </button>
+                        <button id="btn-fixed-free" onclick="setBoundary('fixed-free')" class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                            1 Cố Định - 1 Tự Do
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Chỉnh nhanh tần số cộng hưởng (bậc n)</label>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="snapToHarmonic(1)" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-sky-500/20 hover:text-sky-300 border border-slate-700 text-xs font-mono-code font-semibold transition">n = 1</button>
+                        <button onclick="snapToHarmonic(2)" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-sky-500/20 hover:text-sky-300 border border-slate-700 text-xs font-mono-code font-semibold transition">n = 2</button>
+                        <button onclick="snapToHarmonic(3)" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-sky-500/20 hover:text-sky-300 border border-slate-700 text-xs font-mono-code font-semibold transition">n = 3</button>
+                        <button onclick="snapToHarmonic(4)" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-sky-500/20 hover:text-sky-300 border border-slate-700 text-xs font-mono-code font-semibold transition">n = 4</button>
+                        <button onclick="snapToHarmonic(5)" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-sky-500/20 hover:text-sky-300 border border-slate-700 text-xs font-mono-code font-semibold transition">n = 5</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Các thanh trượt thông số vật lý -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <!-- Biên độ A -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <label for="slider-amplitude" class="text-xs sm:text-sm font-medium text-slate-300">Biên độ sóng (A)</label>
+                        <span id="val-amplitude" class="text-xs font-mono-code font-semibold text-sky-400 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">0.45 m</span>
+                    </div>
+                    <input id="slider-amplitude" type="range" min="0.10" max="0.80" step="0.05" value="0.45" oninput="updateParams()">
+                </div>
+
+                <!-- Tần số f -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <label for="slider-frequency" class="text-xs sm:text-sm font-medium text-slate-300">Tần số dao động (f)</label>
+                        <span id="val-frequency" class="text-xs font-mono-code font-semibold text-sky-400 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">0.80 Hz</span>
+                    </div>
+                    <input id="slider-frequency" type="range" min="0.10" max="3.00" step="0.05" value="0.80" oninput="updateParams()">
+                </div>
+
+                <!-- Bước sóng λ (Hiển thị ở Sóng Ngang & Sóng Dọc) -->
+                <div id="wavelength-control" class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <label for="slider-wavelength" class="text-xs sm:text-sm font-medium text-slate-300">Bước sóng (λ)</label>
+                        <span id="val-wavelength" class="text-xs font-mono-code font-semibold text-yellow-300 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">2.00 m</span>
+                    </div>
+                    <input id="slider-wavelength" type="range" min="0.50" max="5.00" step="0.10" value="2.00" oninput="updateParams()">
+                </div>
+
+                <!-- Chiều dài dây L (Hiển thị ở Sóng Dừng) -->
+                <div id="length-control" class="hidden flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <label for="slider-length" class="text-xs sm:text-sm font-medium text-slate-300">Chiều dài dây (L)</label>
+                        <span id="val-length" class="text-xs font-mono-code font-semibold text-amber-300 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">4.00 m</span>
+                    </div>
+                    <input id="slider-length" type="range" min="1.00" max="6.00" step="0.10" value="4.00" oninput="updateParams()">
+                </div>
+
+                <!-- Tốc độ mô phỏng -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <label for="slider-speed" class="text-xs sm:text-sm font-medium text-slate-300">Tốc độ thời gian</label>
+                        <span id="val-speed" class="text-xs font-mono-code font-semibold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">1.0x</span>
+                    </div>
+                    <input id="slider-speed" type="range" min="0.2" max="2.0" step="0.1" value="1.0" oninput="updateParams()">
+                </div>
+            </div>
+
+            <!-- Các tùy chọn bật/tắt hiển thị trực quan -->
+            <div class="pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm text-slate-300">
+                <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input id="toggle-highlight" type="checkbox" checked onchange="updateToggles()" class="w-4 h-4 rounded accent-sky-500 cursor-pointer">
+                    <span>Theo dõi phần tử M</span>
+                </label>
+                <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input id="toggle-velocity" type="checkbox" checked onchange="updateToggles()" class="w-4 h-4 rounded accent-sky-500 cursor-pointer">
+                    <span>Vector vận tốc dao động</span>
+                </label>
+                <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input id="toggle-grid" type="checkbox" checked onchange="updateToggles()" class="w-4 h-4 rounded accent-sky-500 cursor-pointer">
+                    <span>Thước chia mét (m)</span>
+                </label>
+                <label id="wrapper-toggle-components" class="hidden inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input id="toggle-components" type="checkbox" checked onchange="updateToggles()" class="w-4 h-4 rounded accent-sky-500 cursor-pointer">
+                    <span>Hiển thị sóng tới & sóng phản xạ</span>
+                </label>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Tỉ lệ quy đổi chuẩn: 1 mét = 120 pixel trên màn hình
+        const PIXELS_PER_METER = 120;
+        // Tốc độ truyền sóng cố định trên dây ở chế độ sóng dừng (m/s)
+        const STANDING_WAVE_SPEED = 3.20;
+
+        // Trạng thái toàn cục của mô phỏng
+        const state = {
+            mode: 'transverse',
+            isPlaying: true,
+            time: 0,
+            lastTimestamp: 0,
+            amplitudeMeters: 0.45,
+            frequency: 0.80,
+            wavelengthMeters: 2.00,
+            stringLengthMeters: 4.00,
+            simSpeed: 1.0,
+            boundary: 'fixed-fixed',
+            highlightParticle: true,
+            showVelocity: true,
+            showGrid: true,
+            showComponents: true
+        };
+
+        // Dữ liệu chú thích cho từng chế độ sóng
+        const modeMetadata = {
+            transverse: {
+                badge: 'Sóng Ngang (Dao động ⊥ Phương truyền)',
+                legend: `
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>Phần tử dây</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Điểm theo dõi M</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-emerald-400"></span>Vận tốc v_y</span>
+                `
+            },
+            longitudinal: {
+                badge: 'Sóng Dọc (Dao động ∥ Phương truyền)',
+                legend: `
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>Phần tử môi trường</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Điểm theo dõi M</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-emerald-400"></span>Vận tốc v_x</span>
+                `
+            },
+            standing: {
+                badge: 'Sóng Dừng (Giao thoa sóng tới & phản xạ)',
+                legend: `
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Nút sóng (N)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>Bụng sóng (B)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-purple-400"></span>Sóng tới</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-teal-400"></span>Sóng phản xạ</span>
+                `
+            }
+        };
+
+        // Tự động điều chỉnh kích thước Canvas theo khung chứa và mật độ điểm ảnh (DPR)
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            if (!state.isPlaying) {
+                renderFrame();
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Chuyển đổi chế độ sóng
+        function switchMode(newMode) {
+            state.mode = newMode;
+            
+            ['transverse', 'longitudinal', 'standing'].forEach(m => {
+                const tab = document.getElementById(`tab-${m}`);
+                if (m === newMode) {
+                    tab.className = 'flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 bg-sky-500 text-slate-950 shadow-md';
+                } else {
+                    tab.className = 'flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white';
+                }
+            });
+
+            const standingControls = document.getElementById('standing-controls');
+            const wavelengthControl = document.getElementById('wavelength-control');
+            const lengthControl = document.getElementById('length-control');
+            const toggleComponentsWrapper = document.getElementById('wrapper-toggle-components');
+
+            if (newMode === 'standing') {
+                standingControls.classList.remove('hidden');
+                standingControls.classList.add('grid');
+                wavelengthControl.classList.add('hidden');
+                lengthControl.classList.remove('hidden');
+                lengthControl.classList.add('flex');
+                toggleComponentsWrapper.classList.remove('hidden');
+                toggleComponentsWrapper.classList.add('inline-flex');
+
+                const ampSlider = document.getElementById('slider-amplitude');
+                if (parseFloat(ampSlider.value) > 0.50) {
+                    ampSlider.value = 0.40;
+                    state.amplitudeMeters = 0.40;
+                }
+            } else {
+                standingControls.classList.add('hidden');
+                standingControls.classList.remove('grid');
+                wavelengthControl.classList.remove('hidden');
+                lengthControl.classList.add('hidden');
+                lengthControl.classList.remove('flex');
+                toggleComponentsWrapper.classList.add('hidden');
+                toggleComponentsWrapper.classList.remove('inline-flex');
+            }
+
+            const info = modeMetadata[newMode];
+            document.getElementById('wave-title-badge').textContent = info.badge;
+            document.getElementById('canvas-legend').innerHTML = info.legend;
+
+            updateParams();
+            if (!state.isPlaying) {
+                renderFrame();
+            }
+        }
+
+        // Cập nhật giá trị từ các thanh trượt
+        function updateParams() {
+            state.amplitudeMeters = parseFloat(document.getElementById('slider-amplitude').value);
+            state.frequency = parseFloat(document.getElementById('slider-frequency').value);
+            state.wavelengthMeters = parseFloat(document.getElementById('slider-wavelength').value);
+            state.stringLengthMeters = parseFloat(document.getElementById('slider-length').value);
+            state.simSpeed = parseFloat(document.getElementById('slider-speed').value);
+
+            document.getElementById('val-amplitude').textContent = `${state.amplitudeMeters.toFixed(2)} m`;
+            document.getElementById('val-frequency').textContent = `${state.frequency.toFixed(2)} Hz`;
+            document.getElementById('val-wavelength').textContent = `${state.wavelengthMeters.toFixed(2)} m`;
+            document.getElementById('val-length').textContent = `${state.stringLengthMeters.toFixed(2)} m`;
+            document.getElementById('val-speed').textContent = `${state.simSpeed.toFixed(1)}x`;
+
+            const period = 1 / state.frequency;
+            document.getElementById('readout-period').textContent = `${period.toFixed(2)} s`;
+
+            if (state.mode === 'standing') {
+                // Ở sóng dừng: v cố định, f thay đổi -> λ = v / f
+                const lambdaStanding = STANDING_WAVE_SPEED / state.frequency;
+                state.wavelengthMeters = lambdaStanding;
+
+                document.getElementById('readout-wavelength').textContent = `${lambdaStanding.toFixed(2)} m`;
+                document.getElementById('readout-velocity').textContent = `${STANDING_WAVE_SPEED.toFixed(2)} m/s`;
+
+                // Tính số nút và số bụng xuất hiện trên đoạn dây chiều dài L
+                const { nodesCount, antinodesCount, isResonant } = analyzeStandingNodes(
+                    state.stringLengthMeters,
+                    lambdaStanding,
+                    state.boundary
+                );
+
+                document.getElementById('readout-extra-label').textContent = isResonant
+                    ? 'Trạng thái cộng hưởng chuẩn'
+                    : 'Số nút / Số bụng trên dây';
+                document.getElementById('readout-extra-value').textContent = `${nodesCount} Nút • ${antinodesCount} Bụng`;
+            } else {
+                const waveVelocity = state.wavelengthMeters * state.frequency;
+                const angularFreq = 2 * Math.PI * state.frequency;
+
+                document.getElementById('readout-wavelength').textContent = `${state.wavelengthMeters.toFixed(2)} m`;
+                document.getElementById('readout-velocity').textContent = `${waveVelocity.toFixed(2)} m/s`;
+                document.getElementById('readout-extra-label').textContent = 'Tần số góc (ω)';
+                document.getElementById('readout-extra-value').textContent = `${angularFreq.toFixed(2)} rad/s`;
+            }
+
+            if (!state.isPlaying) {
+                renderFrame();
+            }
+        }
+
+        // Phân tích số nút và số bụng trên dây dựa vào L, λ và điều kiện biên
+        function analyzeStandingNodes(L, lambda, boundary) {
+            const halfLambda = lambda / 2;
+            const quarterLambda = lambda / 4;
+            let nodesCount = 1;
+            let antinodesCount = 0;
+            let isResonant = false;
+
+            if (boundary === 'fixed-fixed') {
+                // Đầu trái x = 0 là nút. Các nút tiếp theo tại x = k * (λ/2)
+                const internalNodes = Math.floor((L - 1e-4) / halfLambda);
+                // Kiểm tra cộng hưởng: L = k * (λ/2)
+                const ratio = L / halfLambda;
+                isResonant = Math.abs(ratio - Math.round(ratio)) < 0.04 && Math.round(ratio) >= 1;
+                nodesCount = 1 + internalNodes + (isResonant ? 0 : 1);
+                // Số bụng nằm tại x = (2k + 1) * (λ/4) < L
+                antinodesCount = Math.floor((L + quarterLambda - 1e-4) / halfLambda);
+            } else {
+                // 1 cố định (x = 0 là nút), 1 tự do (x = L dao động tự do)
+                const ratio = L / quarterLambda;
+                const nearestOdd = Math.round((ratio - 1) / 2) * 2 + 1;
+                isResonant = nearestOdd >= 1 && Math.abs(ratio - nearestOdd) < 0.06;
+                nodesCount = 1 + Math.floor((L - 1e-4) / halfLambda);
+                antinodesCount = Math.floor((L + quarterLambda + 1e-4) / halfLambda);
+            }
+
+            return { nodesCount, antinodesCount, isResonant };
+        }
+
+        // Chuyển đổi điều kiện biên cho sóng dừng
+        function setBoundary(type) {
+            state.boundary = type;
+            const btnFixed = document.getElementById('btn-fixed-fixed');
+            const btnFree = document.getElementById('btn-fixed-free');
+
+            if (type === 'fixed-fixed') {
+                btnFixed.className = 'px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/50 transition';
+                btnFree.className = 'px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            } else {
+                btnFree.className = 'px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/50 transition';
+                btnFixed.className = 'px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            }
+
+            updateParams();
+        }
+
+        // Tự động điều chỉnh tần số f khớp với họa âm bậc n cho chiều dài dây L hiện tại
+        function snapToHarmonic(n) {
+            const L = state.stringLengthMeters;
+            let targetF = 0.8;
+            if (state.boundary === 'fixed-fixed') {
+                // L = n * (λ/2) => f = n * v / (2L)
+                targetF = (n * STANDING_WAVE_SPEED) / (2 * L);
+            } else {
+                // L = (2n - 1) * (λ/4) => f = (2n - 1) * v / (4L)
+                targetF = ((2 * n - 1) * STANDING_WAVE_SPEED) / (4 * L);
+            }
+
+            const freqSlider = document.getElementById('slider-frequency');
+            freqSlider.value = Math.min(3.0, Math.max(0.1, targetF)).toFixed(2);
+            updateParams();
+            if (!state.isPlaying) {
+                renderFrame();
+            }
+        }
+
+        // Bật / Tạm dừng mô phỏng
+        function togglePlayPause() {
+            state.isPlaying = !state.isPlaying;
+            const icon = document.getElementById('icon-play-pause');
+            const text = document.getElementById('text-play-pause');
+            const stepBtn = document.getElementById('btn-step');
+            const statusDot = document.getElementById('status-dot');
+
+            if (state.isPlaying) {
+                icon.className = 'ph-fill ph-pause text-base';
+                text.textContent = 'Tạm dừng';
+                stepBtn.disabled = true;
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+                state.lastTimestamp = performance.now();
+                requestAnimationFrame(animate);
+            } else {
+                icon.className = 'ph-fill ph-play text-base';
+                text.textContent = 'Tiếp tục';
+                stepBtn.disabled = false;
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+            }
+        }
+
+        // Tiến từng khung hình khi đang tạm dừng
+        function stepFrame() {
+            if (!state.isPlaying) {
+                state.time += 0.03 * state.simSpeed;
+                renderFrame();
+            }
+        }
+
+        // Cập nhật các tùy chọn hiển thị
+        function updateToggles() {
+            state.highlightParticle = document.getElementById('toggle-highlight').checked;
+            state.showVelocity = document.getElementById('toggle-velocity').checked;
+            state.showGrid = document.getElementById('toggle-grid').checked;
+            state.showComponents = document.getElementById('toggle-components').checked;
+            if (!state.isPlaying) {
+                renderFrame();
+            }
+        }
+
+        // Đặt lại thông số mặc định
+        function resetSimulation() {
+            state.time = 0;
+            document.getElementById('slider-amplitude').value = state.mode === 'standing' ? 0.40 : 0.45;
+            document.getElementById('slider-frequency').value = 0.80;
+            document.getElementById('slider-wavelength').value = 2.00;
+            document.getElementById('slider-length').value = 4.00;
+            document.getElementById('slider-speed').value = 1.0;
+            if (state.mode === 'standing') {
+                setBoundary('fixed-fixed');
+            }
+            updateParams();
+            if (!state.isPlaying) {
+                togglePlayPause();
+            }
+        }
+
+        // Hàm tiện ích vẽ mũi tên vector
+        function drawArrow(context, fromX, fromY, toX, toY, color, lineWidth = 2) {
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const length = Math.hypot(dx, dy);
+            if (length < 2) return;
+
+            const headLength = Math.min(10, length * 0.45);
+            const angle = Math.atan2(dy, dx);
+
+            context.save();
+            context.strokeStyle = color;
+            context.fillStyle = color;
+            context.lineWidth = lineWidth;
+            context.lineCap = 'round';
+
+            context.beginPath();
+            context.moveTo(fromX, fromY);
+            context.lineTo(toX, toY);
+            context.stroke();
+
+            context.beginPath();
+            context.moveTo(toX, toY);
+            context.lineTo(
+                toX - headLength * Math.cos(angle - Math.PI / 6),
+                toY - headLength * Math.sin(angle - Math.PI / 6)
+            );
+            context.lineTo(
+                toX - headLength * Math.cos(angle + Math.PI / 6),
+                toY - headLength * Math.sin(angle + Math.PI / 6)
+            );
+            context.closePath();
+            context.fill();
+            context.restore();
+        }
+
+        // Vẽ thước đo mét ở cạnh dưới Canvas
+        function drawMeterRuler(marginX, usableW, h) {
+            if (!state.showGrid) return;
+            const yBase = h - 22;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            ctx.fillStyle = '#94a3b8';
+            ctx.lineWidth = 1;
+            ctx.font = '500 10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+
+            ctx.beginPath();
+            ctx.moveTo(marginX, yBase);
+            ctx.lineTo(marginX + usableW, yBase);
+            ctx.stroke();
+
+            const maxMeters = usableW / PIXELS_PER_METER;
+            for (let m = 0; m <= maxMeters + 0.01; m += 0.5) {
+                const x = marginX + m * PIXELS_PER_METER;
+                if (x > marginX + usableW + 2) break;
+                const isMajor = Math.abs(m - Math.round(m)) < 0.01;
+                const tickH = isMajor ? 7 : 4;
+
+                ctx.beginPath();
+                ctx.moveTo(x, yBase - tickH);
+                ctx.lineTo(x, yBase + 2);
+                ctx.stroke();
+
+                if (isMajor) {
+                    ctx.fillText(`${Math.round(m)}m`, x, yBase + 13);
+                }
+            }
+            ctx.restore();
+        }
+
+        // 1. VẼ SÓNG NGANG (TRANSVERSE WAVE)
+        function drawTransverseWave(w, h) {
+            const centerY = h / 2 + 6;
+            const marginX = 50;
+            const usableW = w - marginX * 2;
+            const ampPx = state.amplitudeMeters * PIXELS_PER_METER;
+            const lambdaPx = state.wavelengthMeters * PIXELS_PER_METER;
+            const k = (2 * Math.PI) / lambdaPx;
+            const omega = 2 * Math.PI * state.frequency;
+
+            drawMeterRuler(marginX, usableW, h);
+
+            // Trục cân bằng
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            ctx.setLineDash([6, 6]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(marginX, centerY);
+            ctx.lineTo(marginX + usableW, centerY);
+            ctx.stroke();
+            ctx.restore();
+
+            // Đánh dấu bước sóng λ
+            if (lambdaPx <= usableW - 20) {
+                const startLamX = marginX + 20;
+                const endLamX = startLamX + lambdaPx;
+                const lamY = 58;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.65)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(startLamX, lamY);
+                ctx.lineTo(endLamX, lamY);
+                ctx.moveTo(startLamX, lamY - 5);
+                ctx.lineTo(startLamX, lamY + 5);
+                ctx.moveTo(endLamX, lamY - 5);
+                ctx.lineTo(endLamX, lamY + 5);
+                ctx.stroke();
+
+                ctx.fillStyle = '#fde047';
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`λ = ${state.wavelengthMeters.toFixed(2)} m`, (startLamX + endLamX) / 2, lamY - 7);
+                ctx.restore();
+            }
+
+            // Đường nối các phần tử dây
+            ctx.save();
+            ctx.shadowColor = 'rgba(56, 189, 248, 0.45)';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let x = 0; x <= usableW; x += 3) {
+                const y = centerY - ampPx * Math.sin(k * x - omega * state.time);
+                if (x === 0) ctx.moveTo(marginX + x, y);
+                else ctx.lineTo(marginX + x, y);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // Các phần tử hạt rời rạc trên dây
+            const spacing = 18;
+            const count = Math.floor(usableW / spacing);
+            const trackIdx = Math.min(Math.floor(count * 0.25), count - 1);
+
+            for (let i = 0; i <= count; i++) {
+                const x = i * spacing;
+                const px = marginX + x;
+                const phase = k * x - omega * state.time;
+                const py = centerY - ampPx * Math.sin(phase);
+
+                if (state.highlightParticle && i === trackIdx) {
+                    // Quỹ đạo dao động thẳng đứng của điểm M
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(244, 63, 94, 0.6)';
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(px, centerY - ampPx - 10);
+                    ctx.lineTo(px, centerY + ampPx + 10);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    if (state.showVelocity) {
+                        const vyMetersPerSec = -omega * state.amplitudeMeters * Math.cos(phase);
+                        const vyPx = Math.cos(phase) * (ampPx * 0.65);
+                        drawArrow(ctx, px, py, px, py + vyPx, '#34d399', 2.5);
+
+                        ctx.fillStyle = '#6ee7b7';
+                        ctx.font = '600 11px "JetBrains Mono", monospace';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(`v_y = ${vyMetersPerSec.toFixed(2)} m/s`, px + 12, py + vyPx / 2);
+                    }
+
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.beginPath();
+                    ctx.arc(px, py, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#fda4af';
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('M', px, centerY - ampPx - 16);
+                } else {
+                    ctx.fillStyle = '#7dd3fc';
+                    ctx.beginPath();
+                    ctx.arc(px, py, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // 2. VẼ SÓNG DỌC (LONGITUDINAL WAVE)
+        function drawLongitudinalWave(w, h) {
+            const centerY = h / 2 + 6;
+            const marginX = 50;
+            const usableW = w - marginX * 2;
+            const ampPx = Math.min(state.amplitudeMeters * PIXELS_PER_METER * 0.55, 48);
+            const lambdaPx = state.wavelengthMeters * PIXELS_PER_METER;
+            const k = (2 * Math.PI) / lambdaPx;
+            const omega = 2 * Math.PI * state.frequency;
+
+            drawMeterRuler(marginX, usableW, h);
+
+            // Trục cân bằng ngang
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+            ctx.setLineDash([6, 6]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(marginX, centerY);
+            ctx.lineTo(marginX + usableW, centerY);
+            ctx.stroke();
+            ctx.restore();
+
+            // Đánh dấu bước sóng λ
+            if (lambdaPx <= usableW - 20) {
+                const startLamX = marginX + 20;
+                const endLamX = startLamX + lambdaPx;
+                const lamY = 58;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.65)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(startLamX, lamY);
+                ctx.lineTo(endLamX, lamY);
+                ctx.moveTo(startLamX, lamY - 5);
+                ctx.lineTo(startLamX, lamY + 5);
+                ctx.moveTo(endLamX, lamY - 5);
+                ctx.lineTo(endLamX, lamY + 5);
+                ctx.stroke();
+
+                ctx.fillStyle = '#fde047';
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`λ = ${state.wavelengthMeters.toFixed(2)} m`, (startLamX + endLamX) / 2, lamY - 7);
+                ctx.restore();
+            }
+
+            // Vẽ các dải phần tử môi trường
+            const spacing = 18;
+            const count = Math.floor(usableW / spacing);
+            const trackIdx = Math.min(Math.floor(count * 0.25), count - 1);
+
+            for (let i = 0; i <= count; i++) {
+                const x0 = i * spacing;
+                const eqX = marginX + x0;
+                const phase = k * x0 - omega * state.time;
+                const displacement = ampPx * Math.sin(phase);
+                const px = eqX + displacement;
+
+                // Vạch đứng mờ mô phỏng mặt sóng nén/dãn
+                ctx.save();
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px, centerY - 26);
+                ctx.lineTo(px, centerY + 26);
+                ctx.stroke();
+                ctx.restore();
+
+                if (state.highlightParticle && i === trackIdx) {
+                    // Vị trí cân bằng và biên độ ngang của điểm M
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(244, 63, 94, 0.65)';
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(eqX - ampPx, centerY + 42);
+                    ctx.lineTo(eqX + ampPx, centerY + 42);
+                    ctx.moveTo(eqX, centerY - 35);
+                    ctx.lineTo(eqX, centerY + 48);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    if (state.showVelocity) {
+                        const vxMetersPerSec = -omega * state.amplitudeMeters * Math.cos(phase);
+                        const vxPx = -Math.cos(phase) * 45;
+                        drawArrow(ctx, px, centerY - 34, px + vxPx, centerY - 34, '#34d399', 2.5);
+
+                        ctx.fillStyle = '#6ee7b7';
+                        ctx.font = '600 11px "JetBrains Mono", monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`v_x = ${vxMetersPerSec.toFixed(2)} m/s`, px, centerY - 46);
+                    }
+
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.beginPath();
+                    ctx.arc(px, centerY, 7.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#fda4af';
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('M', px, centerY + 62);
+                } else {
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath();
+                    ctx.arc(px, centerY, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // 3. VẼ SÓNG DỪNG (STANDING WAVE)
+        function drawStandingWave(w, h) {
+            const centerY = h / 2 + 6;
+            const marginX = 50;
+            const usableW = w - marginX * 2;
+
+            // Tính tỉ lệ hiển thị chiều dài dây L trên màn hình
+            const maxMetersVisible = usableW / PIXELS_PER_METER;
+            const scaleFactor = state.stringLengthMeters > maxMetersVisible
+                ? usableW / (state.stringLengthMeters * PIXELS_PER_METER)
+                : 1;
+            const effectivePxPerMeter = PIXELS_PER_METER * scaleFactor;
+            const stringPx = state.stringLengthMeters * effectivePxPerMeter;
+            const lambdaPx = state.wavelengthMeters * effectivePxPerMeter;
+            const ampPx = Math.min(state.amplitudeMeters * PIXELS_PER_METER, h * 0.24);
+
+            const k = (2 * Math.PI) / lambdaPx;
+            const omega = 2 * Math.PI * state.frequency;
+
+            drawMeterRuler(marginX, usableW, h);
+
+            // Trục cân bằng ngang của dây
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            ctx.setLineDash([6, 6]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(marginX, centerY);
+            ctx.lineTo(marginX + stringPx, centerY);
+            ctx.stroke();
+            ctx.restore();
+
+            // Hiển thị chiều dài dây L phía trên
+            const dimY = 58;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(marginX, dimY);
+            ctx.lineTo(marginX + stringPx, dimY);
+            ctx.moveTo(marginX, dimY - 5);
+            ctx.lineTo(marginX, dimY + 5);
+            ctx.moveTo(marginX + stringPx, dimY - 5);
+            ctx.lineTo(marginX + stringPx, dimY + 5);
+            ctx.stroke();
+
+            ctx.fillStyle = '#fcd34d';
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`L = ${state.stringLengthMeters.toFixed(2)} m  |  λ = ${state.wavelengthMeters.toFixed(2)} m`, marginX + stringPx / 2, dimY - 7);
+            ctx.restore();
+
+            // Đường bao biên độ sóng dừng (Envelope)
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            for (const sign of [-1, 1]) {
+                ctx.beginPath();
+                for (let x = 0; x <= stringPx; x += 3) {
+                    const env = 2 * ampPx * Math.abs(Math.sin(k * x));
+                    const y = centerY + sign * env;
+                    if (x === 0) ctx.moveTo(marginX + x, y);
+                    else ctx.lineTo(marginX + x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // Vẽ 2 sóng thành phần (Sóng tới & Sóng phản xạ) nếu bật tùy chọn
+            if (state.showComponents) {
+                // Sóng tới truyền từ trái sang phải
+                ctx.save();
+                ctx.strokeStyle = 'rgba(192, 132, 252, 0.55)';
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                for (let x = 0; x <= stringPx; x += 3) {
+                    const y = centerY - ampPx * Math.sin(k * x - omega * state.time);
+                    if (x === 0) ctx.moveTo(marginX + x, y);
+                    else ctx.lineTo(marginX + x, y);
+                }
+                ctx.stroke();
+                ctx.restore();
+
+                // Sóng phản xạ truyền ngược lại (đảo pha tại x=0 để tạo nút tại đầu cố định)
+                ctx.save();
+                ctx.strokeStyle = 'rgba(45, 212, 191, 0.55)';
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                for (let x = 0; x <= stringPx; x += 3) {
+                    const y = centerY + ampPx * Math.sin(-k * x - omega * state.time);
+                    if (x === 0) ctx.moveTo(marginX + x, y);
+                    else ctx.lineTo(marginX + x, y);
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Vẽ sóng dừng tổng hợp: y(x, t) = 2A * sin(kx) * cos(ωt)
+            const cosTime = Math.cos(omega * state.time);
+            ctx.save();
+            ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            for (let x = 0; x <= stringPx; x += 2) {
+                const y = centerY - 2 * ampPx * Math.sin(k * x) * cosTime;
+                if (x === 0) ctx.moveTo(marginX + x, y);
+                else ctx.lineTo(marginX + x, y);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // Vẽ giá đỡ cố định đầu trái (x = 0)
+            ctx.save();
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(marginX - 10, centerY - 36, 10, 72);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(marginX - 10, centerY - 36, 10, 72);
+            ctx.restore();
+
+            // Vẽ đầu phải (x = L): Cố định hoặc vòng trượt tự do
+            const rightX = marginX + stringPx;
+            const rightY = centerY - 2 * ampPx * Math.sin(k * stringPx) * cosTime;
+            ctx.save();
+            if (state.boundary === 'fixed-fixed') {
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(rightX, centerY - 36, 10, 72);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(rightX, centerY - 36, 10, 72);
+            } else {
+                // Trục dọc và vòng trượt tự do
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(rightX, centerY - 2 * ampPx - 14);
+                ctx.lineTo(rightX, centerY + 2 * ampPx + 14);
+                ctx.stroke();
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(rightX, rightY, 6.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // Đánh dấu các Nút sóng (N) tại x = m * (λ/2) <= L
+            const halfLamPx = lambdaPx / 2;
+            let nodeIdx = 1;
+            for (let x = 0; x <= stringPx + 0.5; x += halfLamPx) {
+                const nx = marginX + x;
+                ctx.fillStyle = '#f43f5e';
+                ctx.beginPath();
+                ctx.arc(nx, centerY, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fda4af';
+                ctx.font = 'bold 10px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`N${nodeIdx}`, nx, centerY + 18);
+                nodeIdx++;
+            }
+
+            // Đánh dấu các Bụng sóng (B) tại x = (2m + 1) * (λ/4) <= L
+            const quarterLamPx = lambdaPx / 4;
+            let antiIdx = 1;
+            for (let x = quarterLamPx; x <= stringPx + 0.5; x += halfLamPx) {
+                const ax = marginX + x;
+                const ay = centerY - 2 * ampPx * Math.sin(k * x) * cosTime;
+
+                ctx.fillStyle = '#34d399';
+                ctx.beginPath();
+                ctx.arc(ax, ay, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#6ee7b7';
+                ctx.font = 'bold 10px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`B${antiIdx}`, ax, centerY - 2 * ampPx - 10);
+                antiIdx++;
+            }
+        }
+
+        // Vẽ toàn bộ khung hình hiện tại
+        function renderFrame() {
+            const container = canvas.parentElement;
+            if (!container) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (state.mode === 'transverse') {
+                drawTransverseWave(w, h);
+            } else if (state.mode === 'longitudinal') {
+                drawLongitudinalWave(w, h);
+            } else if (state.mode === 'standing') {
+                drawStandingWave(w, h);
+            }
+        }
+
+        // Vòng lặp hoạt ảnh chính
+        function animate(timestamp) {
+            if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+            const deltaSec = Math.min((timestamp - state.lastTimestamp) / 1000, 0.05);
+            state.lastTimestamp = timestamp;
+
+            if (state.isPlaying) {
+                state.time += deltaSec * state.simSpeed;
+                renderFrame();
+                requestAnimationFrame(animate);
+            }
+        }
+
+        // Khởi chạy ứng dụng khi tải trang
+        window.onload = function () {
+            resizeCanvas();
+            switchMode('transverse');
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>

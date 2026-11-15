@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng 3D Ba Định Luật Newton</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        input[type=range] {
+            accent-color: #38bdf8;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.84);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .tab-active {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.35), rgba(37, 99, 235, 0.35));
+            border-color: rgba(56, 189, 248, 0.7);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full">
+
+    <!-- Container 3D Three.js -->
+    <div id="canvas-container"></div>
+
+    <!-- Thanh giải thích trạng thái trực quan siêu gọn ở phía trên -->
+    <div class="fixed top-3 left-1/2 -translate-x-1/2 z-10 w-[94%] max-w-3xl pointer-events-none">
+        <div id="status-banner" class="glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-sky-400 flex items-center justify-between gap-3">
+            <div id="status-text" class="text-[11px] sm:text-xs font-medium text-slate-100 leading-snug">
+                Định luật I (Quán tính): Nhấn "Đẩy xe" để cấp vận tốc đầu v₀ và quan sát chuyển động của xe.
+            </div>
+            <span id="law-formula" class="hidden md:inline-block text-[11px] text-amber-400 font-mono font-bold shrink-0 bg-slate-900/80 px-2.5 py-0.5 rounded border border-slate-700">
+                ΣF = 0 ⇒ v = const
+            </span>
+        </div>
+    </div>
+
+    <!-- Phía Dưới Màn Hình: Thanh Điều Khiển & Thông Số Ngang (Bottom HUD) -->
+    <div class="fixed bottom-3 left-1/2 -translate-x-1/2 z-10 w-[96%] max-w-6xl pointer-events-none">
+        <div class="glass-panel p-2.5 sm:p-3 rounded-2xl shadow-2xl pointer-events-auto flex flex-col gap-2.5">
+            
+            <!-- Hàng 1: Tiêu đề + Nút chọn 3 Định Luật + 4 Ô Thông Số + Nút Góc nhìn / Thu gọn -->
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 pb-2">
+                <!-- Tiêu đề & 3 Tab chọn Định luật -->
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 pr-2 border-r border-slate-700/80">
+                        <div class="w-2 h-5 rounded-full bg-gradient-to-b from-sky-400 to-indigo-500"></div>
+                        <h1 class="text-xs sm:text-sm font-bold tracking-tight text-white whitespace-nowrap">3 Định Luật Newton</h1>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1">
+                        <button id="tab-law-1" class="tab-active px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-slate-700 text-slate-300 transition">
+                            Định luật I: Quán tính
+                        </button>
+                        <button id="tab-law-2" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-slate-700 text-slate-300 hover:bg-slate-800/60 transition">
+                            Định luật II: Gia tốc (a = F/m)
+                        </button>
+                        <button id="tab-law-3" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-slate-700 text-slate-300 hover:bg-slate-800/60 transition">
+                            Định luật III: Lực và phản lực
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Ô Thông Số Thời Gian Thực & Các nút công cụ -->
+                <div class="flex items-center gap-2 ml-auto">
+                    <div class="grid grid-cols-4 gap-1.5 text-center">
+                        <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg py-0.5 px-2 min-w-[68px]">
+                            <div id="lbl-stat-1" class="text-[8px] text-slate-400 uppercase">Hợp lực ΣF</div>
+                            <div id="val-stat-1" class="text-[11px] font-mono font-bold text-amber-400">0.0 N</div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg py-0.5 px-2 min-w-[68px]">
+                            <div id="lbl-stat-2" class="text-[8px] text-slate-400 uppercase">Khối lượng</div>
+                            <div id="val-stat-2" class="text-[11px] font-mono font-bold text-purple-400">4.0 kg</div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg py-0.5 px-2 min-w-[68px]">
+                            <div id="lbl-stat-3" class="text-[8px] text-slate-400 uppercase">Gia tốc a</div>
+                            <div id="val-stat-3" class="text-[11px] font-mono font-bold text-rose-400">0.0 m/s²</div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg py-0.5 px-2 min-w-[68px]">
+                            <div id="lbl-stat-4" class="text-[8px] text-slate-400 uppercase">Vận tốc v</div>
+                            <div id="val-stat-4" class="text-[11px] font-mono font-bold text-emerald-400">0.0 m/s</div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1 pl-1 border-l border-slate-700/80">
+                        <button id="btn-reset-cam" title="Đặt lại góc nhìn 3D" class="text-[10px] bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded-lg border border-slate-600/80 transition whitespace-nowrap">
+                            Góc nhìn
+                        </button>
+                        <button id="btn-toggle-panel" class="text-[10px] bg-slate-800/90 hover:bg-slate-700 text-sky-300 px-2 py-1 rounded-lg border border-slate-600/80 font-semibold transition whitespace-nowrap">
+                            Thu gọn ▼
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hàng 2: Nội dung điều khiển chi tiết nằm ngang (Ẩn được khi nhấn Thu gọn) -->
+            <div id="panel-body" class="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-0.5">
+
+                <!-- ================= ĐIỀU KHIỂN ĐỊNH LUẬT I (Ngang) ================= -->
+                <div id="controls-law-1" class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-slate-300">Bề mặt đường ray:</span>
+                            <span id="val-l1-surface" class="text-sky-400 font-semibold">Mặt băng (μ = 0)</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1">
+                            <button data-mu="0" class="l1-surf-btn py-1 px-1.5 rounded text-[10px] font-semibold bg-sky-500/30 border border-sky-400 text-white">Băng nhẵn (0)</button>
+                            <button data-mu="0.08" class="l1-surf-btn py-1 px-1.5 rounded text-[10px] font-semibold bg-slate-800 border border-slate-700 text-slate-300">Nhẵn (0.08)</button>
+                            <button data-mu="0.25" class="l1-surf-btn py-1 px-1.5 rounded text-[10px] font-semibold bg-slate-800 border border-slate-700 text-slate-300">Nhám (0.25)</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-slate-300">Vận tốc đẩy đầu (v₀):</span>
+                            <span id="val-l1-v0" class="font-mono text-emerald-400 font-semibold">8.0 m/s</span>
+                        </div>
+                        <input id="slider-l1-v0" type="range" min="2" max="14" step="0.5" value="8.0" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-slate-300 text-[10px] mt-1">
+                            <input id="chk-l1-wall" type="checkbox" checked class="rounded accent-sky-400 w-3 h-3">
+                            <span>Tường chắn đàn hồi cuối ray</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="btn-l1-push" class="py-2 px-2.5 rounded-xl font-bold text-[11px] bg-emerald-500/25 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-500/50 transition">
+                            ▶ Đẩy xe (Cấp v₀)
+                        </button>
+                        <button id="btn-l1-brake" class="py-2 px-2.5 rounded-xl font-semibold text-[11px] bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition">
+                            ■ Phanh / Đặt lại
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ================= ĐIỀU KHIỂN ĐỊNH LUẬT II (Ngang) ================= -->
+                <div id="controls-law-2" class="hidden flex-1 grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-slate-300">Lực kéo (F<sub class="text-[9px]">kéo</sub>):</span>
+                            <span id="val-l2-force" class="font-mono text-amber-400 font-semibold">20.0 N</span>
+                        </div>
+                        <input id="slider-l2-force" type="range" min="0" max="50" step="1" value="20" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-slate-300">Khối lượng (m):</span>
+                            <span id="val-l2-mass" class="font-mono text-purple-400 font-semibold">5.0 kg</span>
+                        </div>
+                        <input id="slider-l2-mass" type="range" min="1" max="20" step="0.5" value="5" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-slate-300">Hệ số ma sát (μ):</span>
+                            <span id="val-l2-mu" class="font-mono text-rose-400 font-semibold">0.10</span>
+                        </div>
+                        <input id="slider-l2-mu" type="range" min="0" max="0.5" step="0.02" value="0.10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="btn-l2-toggle" class="py-2 px-2 rounded-xl font-bold text-[11px] bg-amber-500/25 hover:bg-amber-500/35 text-amber-300 border border-amber-500/50 transition">
+                            ▶ Bật lực kéo F
+                        </button>
+                        <button id="btn-l2-reset" class="py-2 px-2 rounded-xl font-semibold text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition">
+                            ↺ Đặt lại vị trí
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ================= ĐIỀU KHIỂN ĐỊNH LUẬT III: LỰC VÀ PHẢN LỰC (Ngang) ================= -->
+                <div id="controls-law-3" class="hidden flex-1 grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-sky-300">Khối lượng xe A (m<sub class="text-[9px]">A</sub>):</span>
+                            <span id="val-l3-ma" class="font-mono text-sky-400 font-bold">4.0 kg</span>
+                        </div>
+                        <input id="slider-l3-ma" type="range" min="1" max="16" step="0.5" value="4" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-rose-300">Khối lượng xe B (m<sub class="text-[9px]">B</sub>):</span>
+                            <span id="val-l3-mb" class="font-mono text-rose-400 font-bold">6.0 kg</span>
+                        </div>
+                        <input id="slider-l3-mb" type="range" min="1" max="16" step="0.5" value="6" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] font-medium mb-1">
+                            <span class="text-slate-300">Tốc độ va chạm đầu:</span>
+                            <span id="val-l3-speed" class="font-mono text-emerald-400 font-semibold">6.0 m/s</span>
+                        </div>
+                        <input id="slider-l3-speed" type="range" min="2" max="10" step="0.5" value="6.0" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-amber-300 font-medium text-[10px] mt-1">
+                            <input id="chk-l3-slowmo" type="checkbox" class="rounded accent-amber-400 w-3 h-3">
+                            <span>Làm chậm (Slow-mo) khi tương tác</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="btn-l3-collide" class="py-2 px-2 rounded-xl font-bold text-[11px] bg-sky-500/25 hover:bg-sky-500/35 text-sky-300 border border-sky-500/50 transition">
+                            ▶ Hai xe va chạm
+                        </button>
+                        <button id="btn-l3-pushapart" class="py-2 px-2 rounded-xl font-semibold text-[11px] bg-purple-500/25 hover:bg-purple-500/35 text-purple-300 border border-purple-500/50 transition">
+                            ⇄ Bung lò xo đẩy
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tùy chọn hiển thị Vector bên phải thanh dưới -->
+                <div class="flex md:flex-col justify-between md:justify-center gap-2 pt-2 md:pt-0 md:pl-3 border-t md:border-t-0 md:border-l border-slate-700/80 text-[11px] shrink-0">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                        <input id="chk-show-vectors" type="checkbox" checked class="rounded accent-sky-400 w-3.5 h-3.5">
+                        <span>Vector lực & vận tốc</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                        <input id="chk-show-pn" type="checkbox" checked class="rounded accent-sky-400 w-3.5 h-3.5">
+                        <span>Trọng lực P & Phản lực N</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // 1. TRẠNG THÁI CHUNG CỦA MÔ PHỎNG BA ĐỊNH LUẬT NEWTON
+        // ============================================================================
+        const G = 9.8; // Gia tốc trọng trường (m/s^2)
+        const TRACK_HALF_LEN = 14.0; // Nửa chiều dài đường ray (-14m đến +14m)
+
+        const state = {
+            currentLaw: 1, // 1: Định luật I, 2: Định luật II, 3: Định luật III
+            showVectors: true,
+            showVerticalForces: true,
+
+            // Định luật I: Quán tính
+            law1: {
+                x: -10.0,
+                v: 0.0,
+                v0: 8.0,
+                mass: 4.0,
+                mu: 0.0, // 0: Mặt băng, 0.08: Nhẵn, 0.25: Nhám
+                hasWall: true,
+                pushFlash: 0 // Hiệu ứng lực đẩy tức thời lúc ban đầu
+            },
+
+            // Định luật II: F = m * a
+            law2: {
+                x: -11.0,
+                v: 0.0,
+                a: 0.0,
+                appliedForce: 20.0,
+                isPulling: false,
+                mass: 5.0,
+                mu: 0.10
+            },
+
+            // Định luật III: Lực và phản lực (F_AB = -F_BA)
+            law3: {
+                xA: -7.0,
+                vA: 0.0,
+                mA: 4.0,
+                xB: 7.0,
+                vB: 0.0,
+                mB: 6.0,
+                initSpeed: 6.0,
+                springK: 260.0, // Độ cứng lò xo đệm va chạm (N/m)
+                interactionForce: 0.0, // Độ lớn |F_AB| = |F_BA|
+                slowMo: false
+            }
+        };
+
+        // ============================================================================
+        // 2. KHỞI TẠO KHÔNG GIAN 3D THREE.JS
+        // ============================================================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b0f19);
+        scene.fog = new THREE.FogExp2(0x0b0f19, 0.014);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 120);
+        camera.position.set(0, 6.2, 19.0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.maxPolarAngle = Math.PI / 2 + 0.05;
+        controls.minDistance = 5;
+        controls.maxDistance = 38;
+        controls.target.set(0, 0.4, 0);
+
+        // Ánh sáng phòng thí nghiệm
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.95);
+        dirLight.position.set(10, 18, 12);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.left = -18;
+        dirLight.shadow.camera.right = 18;
+        dirLight.shadow.camera.top = 10;
+        dirLight.shadow.camera.bottom = -10;
+        scene.add(dirLight);
+
+        // Lưới sàn phòng thí nghiệm
+        const gridHelper = new THREE.GridHelper(44, 44, 0x1e293b, 0x1e293b);
+        gridHelper.position.y = -0.6;
+        scene.add(gridHelper);
+
+        // ============================================================================
+        // 3. XÂY DỰNG ĐƯỜNG RAY THÍ NGHIỆM 3D, VẠCH CHIA MÉT & TƯỜNG CHẮN
+        // ============================================================================
+        const trackGroup = new THREE.Group();
+        scene.add(trackGroup);
+
+        // Mặt đường ray có thể đổi màu/độ nhám theo hệ số ma sát
+        const trackGeo = new THREE.BoxGeometry(TRACK_HALF_LEN * 2 + 4, 0.3, 2.6);
+        const trackMat = new THREE.MeshStandardMaterial({
+            color: 0x38bdf8,
+            roughness: 0.1,
+            metalness: 0.2
+        });
+        const trackMesh = new THREE.Mesh(trackGeo, trackMat);
+        trackMesh.position.y = -0.15;
+        trackMesh.receiveShadow = true;
+        trackGroup.add(trackMesh);
+
+        // 2 thanh chắn dọc theo cạnh đường ray
+        const railGeo = new THREE.BoxGeometry(TRACK_HALF_LEN * 2 + 4, 0.16, 0.14);
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7, roughness: 0.3 });
+        const railBack = new THREE.Mesh(railGeo, railMat);
+        railBack.position.set(0, 0.05, -1.23);
+        trackGroup.add(railBack);
+
+        // Vạch chia tọa độ trên đường ray (-12m đến +12m)
+        function createRulerTickLabel(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 28px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 64, 32);
+            const tex = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(1.1, 0.55, 1);
+            return sprite;
+        }
+
+        for (let x = -12; x <= 12; x += 2) {
+            const tickGeo = new THREE.PlaneGeometry(0.06, x % 4 === 0 ? 0.5 : 0.28);
+            tickGeo.rotateX(-Math.PI / 2);
+            const tickMat = new THREE.MeshBasicMaterial({ color: x === 0 ? 0x38bdf8 : 0x64748b });
+            const tick = new THREE.Mesh(tickGeo, tickMat);
+            tick.position.set(x, 0.01, 1.0);
+            trackGroup.add(tick);
+
+            if (x % 4 === 0) {
+                const lbl = createRulerTickLabel(x + 'm');
+                lbl.position.set(x, -0.25, 1.55);
+                trackGroup.add(lbl);
+            }
+        }
+
+        // Tường chắn đàn hồi ở hai đầu đường ray
+        const rightWallGroup = new THREE.Group();
+        rightWallGroup.position.set(TRACK_HALF_LEN, 0.7, 0);
+        scene.add(rightWallGroup);
+
+        const wallMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 1.6, 2.5),
+            new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.3 })
+        );
+        wallMesh.castShadow = true;
+        rightWallGroup.add(wallMesh);
+
+        const bumperPad = new THREE.Mesh(
+            new THREE.BoxGeometry(0.18, 1.2, 2.0),
+            new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4 })
+        );
+        bumperPad.position.x = -0.3;
+        rightWallGroup.add(bumperPad);
+
+        // ============================================================================
+        // 4. HÀM TẠO XE THÍ NGHIỆM 3D (DYNAMICS CART) & NHÃN SPRITE 3D
+        // ============================================================================
+        function createTextBadgeSprite(text, bgColor, borderColor = '#ffffff') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 96;
+            const ctx = canvas.getContext('2d');
+
+            // Hộp bo góc
+            ctx.fillStyle = bgColor;
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 5;
+            const r = 18;
+            ctx.beginPath();
+            ctx.moveTo(10 + r, 10);
+            ctx.lineTo(246 - r, 10);
+            ctx.quadraticCurveTo(246, 10, 246, 10 + r);
+            ctx.lineTo(246, 86 - r);
+            ctx.quadraticCurveTo(246, 86, 246 - r, 86);
+            ctx.lineTo(10 + r, 86);
+            ctx.quadraticCurveTo(10, 86, 10, 86 - r);
+            ctx.lineTo(10, 10 + r);
+            ctx.quadraticCurveTo(10, 10, 10 + r, 10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 34px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 128, 49);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(1.65, 0.62, 1);
+            return { sprite, canvas, ctx, texture };
+        }
+
+        function updateTextBadge(badgeObj, text, bgColor, borderColor = '#ffffff') {
+            const { ctx, texture } = badgeObj;
+            ctx.clearRect(0, 0, 256, 96);
+            ctx.fillStyle = bgColor;
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 5;
+            const r = 18;
+            ctx.beginPath();
+            ctx.moveTo(10 + r, 10);
+            ctx.lineTo(246 - r, 10);
+            ctx.quadraticCurveTo(246, 10, 246, 10 + r);
+            ctx.lineTo(246, 86 - r);
+            ctx.quadraticCurveTo(246, 86, 246 - r, 86);
+            ctx.lineTo(10 + r, 86);
+            ctx.quadraticCurveTo(10, 86, 10, 86 - r);
+            ctx.lineTo(10, 10 + r);
+            ctx.quadraticCurveTo(10, 10, 10 + r, 10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 32px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 128, 49);
+            texture.needsUpdate = true;
+        }
+
+        function createDynamicsCart(colorHex, labelTitle) {
+            const group = new THREE.Group();
+
+            // Khung thân xe
+            const bodyGeo = new THREE.BoxGeometry(2.2, 0.85, 1.35);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                roughness: 0.28,
+                metalness: 0.35
+            });
+            const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            bodyMesh.position.y = 0.65;
+            bodyMesh.castShadow = true;
+            group.add(bodyMesh);
+
+            // Quả cân đặt trên xe (tăng kích thước theo khối lượng m)
+            const massBlockGeo = new THREE.BoxGeometry(1.5, 0.6, 1.0);
+            const massBlockMat = new THREE.MeshStandardMaterial({
+                color: 0xfacc15,
+                metalness: 0.65,
+                roughness: 0.25
+            });
+            const massBlock = new THREE.Mesh(massBlockGeo, massBlockMat);
+            massBlock.position.y = 1.25;
+            massBlock.castShadow = true;
+            group.add(massBlock);
+
+            // 4 bánh xe quay tròn khi xe di chuyển
+            const wheels = [];
+            const wheelGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.16, 24);
+            wheelGeo.rotateX(Math.PI / 2);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 });
+            const rimGeo = new THREE.BoxGeometry(0.32, 0.06, 0.18);
+            const rimMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+
+            const wheelOffsets = [
+                [-0.7, 0.26, 0.72],
+                [0.7, 0.26, 0.72],
+                [-0.7, 0.26, -0.72],
+                [0.7, 0.26, -0.72]
+            ];
+            wheelOffsets.forEach(([wx, wy, wz]) => {
+                const wGroup = new THREE.Group();
+                wGroup.position.set(wx, wy, wz);
+                const wMesh = new THREE.Mesh(wheelGeo, wheelMat);
+                const rMesh = new THREE.Mesh(rimGeo, rimMat);
+                wGroup.add(wMesh);
+                wGroup.add(rMesh);
+                group.add(wGroup);
+                wheels.push(wGroup);
+            });
+
+            // Nhãn hiển thị khối lượng trên xe
+            const massBadge = createTextBadgeSprite(labelTitle, 'rgba(15, 23, 42, 0.88)', '#38bdf8');
+            massBadge.sprite.position.set(0, 2.05, 0);
+            group.add(massBadge.sprite);
+
+            return { group, bodyMesh, massBlock, wheels, massBadge };
+        }
+
+        // Tạo 2 xe thí nghiệm (Xe A dùng cho cả 3 định luật, Xe B dùng cho Định luật III)
+        const cartA = createDynamicsCart(0x0284c7, 'm = 4.0 kg');
+        scene.add(cartA.group);
+
+        const cartB = createDynamicsCart(0xe11d48, 'mB = 6.0 kg');
+        scene.add(cartB.group);
+
+        // Lò xo đệm giữa Xe A và Xe B (hiển thị trong Định luật III)
+        const springPoints = [];
+        for (let i = 0; i <= 40; i++) springPoints.push(new THREE.Vector3(0, 0, 0));
+        const springCurve = new THREE.CatmullRomCurve3(springPoints);
+        let springGeo = new THREE.TubeGeometry(springCurve, 48, 0.045, 8, false);
+        const springMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.8, roughness: 0.2 });
+        const springMesh = new THREE.Mesh(springGeo, springMat);
+        scene.add(springMesh);
+
+        function updateSpringGeometry(xLeft, xRight) {
+            const coils = 7;
+            const numPts = 45;
+            const pts = [];
+            for (let i = 0; i <= numPts; i++) {
+                const t = i / numPts;
+                const x = xLeft + t * (xRight - xLeft);
+                const angle = t * coils * Math.PI * 2;
+                const r = (i === 0 || i === numPts) ? 0 : 0.24;
+                pts.push(new THREE.Vector3(x, 0.68 + r * Math.cos(angle), r * Math.sin(angle)));
+            }
+            const curve = new THREE.CatmullRomCurve3(pts);
+            springMesh.geometry.dispose();
+            springMesh.geometry = new THREE.TubeGeometry(curve, 50, 0.04, 8, false);
+        }
+
+        // ============================================================================
+        // 5. HỆ THỐNG VECTOR LỰC, VẬN TỐC & GIA TỐC 3D KÈM NHÃN NỔI
+        // ============================================================================
+        function createLabeledArrow(colorHex, labelText, bgColor) {
+            const arrow = new THREE.ArrowHelper(
+                new THREE.Vector3(1, 0, 0),
+                new THREE.Vector3(0, 0, 0),
+                0.001,
+                colorHex,
+                0.42,
+                0.26
+            );
+            scene.add(arrow);
+            const badge = createTextBadgeSprite(labelText, bgColor, '#' + colorHex.toString(16).padStart(6, '0'));
+            scene.add(badge.sprite);
+            return { arrow, badge };
+        }
+
+        const vecVelocityA = createLabeledArrow(0x10b981, 'v', 'rgba(6, 78, 59, 0.9)');
+        const vecVelocityB = createLabeledArrow(0x10b981, 'vB', 'rgba(6, 78, 59, 0.9)');
+        const vecAccelA = createLabeledArrow(0xa855f7, 'a', 'rgba(88, 28, 135, 0.9)');
+        const vecAppliedF = createLabeledArrow(0xf59e0b, 'F kéo', 'rgba(120, 53, 15, 0.9)');
+        const vecFriction = createLabeledArrow(0xef4444, 'F ms', 'rgba(127, 29, 29, 0.9)');
+        const vecGravityP = createLabeledArrow(0xec4899, 'P = m·g', 'rgba(131, 24, 67, 0.9)');
+        const vecNormalN = createLabeledArrow(0x38bdf8, 'N', 'rgba(12, 74, 110, 0.9)');
+
+        // Cặp lực Tác dụng - Phản tác dụng cho Định luật III
+        const vecForceBA = createLabeledArrow(0x38bdf8, 'F BA', 'rgba(12, 74, 110, 0.92)'); // Lực B tác dụng lên A (Hướng sang trái)
+        const vecForceAB = createLabeledArrow(0xf43f5e, 'F AB', 'rgba(136, 19, 55, 0.92)'); // Lực A tác dụng lên B (Hướng sang phải)
+
+        function setLabeledArrow(vecObj, visible, origin, dirVector, length, labelText, labelOffset = new THREE.Vector3(0, 0.42, 0)) {
+            if (!visible || length < 0.08) {
+                vecObj.arrow.visible = false;
+                vecObj.badge.sprite.visible = false;
+                return;
+            }
+            vecObj.arrow.visible = true;
+            vecObj.badge.sprite.visible = true;
+
+            const normDir = dirVector.clone().normalize();
+            const clampedLen = Math.min(4.8, Math.max(0.55, length));
+            vecObj.arrow.position.copy(origin);
+            vecObj.arrow.setDirection(normDir);
+            vecObj.arrow.setLength(clampedLen, 0.42, 0.25);
+
+            if (labelText) {
+                const hexStr = '#' + vecObj.arrow.line.material.color.getHexString();
+                updateTextBadge(vecObj.badge, labelText, 'rgba(15, 23, 42, 0.9)', hexStr);
+            }
+
+            const tipPos = origin.clone().add(normDir.multiplyScalar(clampedLen)).add(labelOffset);
+            vecObj.badge.sprite.position.copy(tipPos);
+        }
+
+        function hideAllVectors() {
+            [vecVelocityA, vecVelocityB, vecAccelA, vecAppliedF, vecFriction, vecGravityP, vecNormalN, vecForceBA, vecForceAB].forEach(v => {
+                v.arrow.visible = false;
+                v.badge.sprite.visible = false;
+            });
+        }
+
+        // ============================================================================
+        // 6. CẬP NHẬT BỀ MẶT ĐƯỜNG RAY THEO HỆ SỐ MA SÁT
+        // ============================================================================
+        function updateTrackSurfaceAppearance(mu) {
+            if (mu <= 0.005) {
+                // Mặt băng không ma sát
+                trackMat.color.setHex(0x38bdf8);
+                trackMat.roughness = 0.08;
+                trackMat.metalness = 0.25;
+            } else if (mu <= 0.12) {
+                // Bề mặt nhẵn
+                trackMat.color.setHex(0x334155);
+                trackMat.roughness = 0.45;
+                trackMat.metalness = 0.15;
+            } else {
+                // Bề mặt nhám
+                trackMat.color.setHex(0x78350f);
+                trackMat.roughness = 0.9;
+                trackMat.metalness = 0.05;
+            }
+        }
+
+        // ============================================================================
+        // 7. MÔ PHỎNG VẬT LÝ CHO TỪNG ĐỊNH LUẬT NEWTON
+        // ============================================================================
+        function updatePhysicsAndVisuals(dt) {
+            if (dt <= 0 || dt > 0.1) dt = 0.016;
+            hideAllVectors();
+
+            const statusBanner = document.getElementById('status-banner');
+            const statusText = document.getElementById('status-text');
+
+            // ------------------------------------------------------------------------
+            // ĐỊNH LUẬT I: QUÁN TÍNH (INERTIA)
+            // ------------------------------------------------------------------------
+            if (state.currentLaw === 1) {
+                const l1 = state.law1;
+                cartB.group.visible = false;
+                springMesh.visible = false;
+                rightWallGroup.visible = l1.hasWall;
+
+                // Tính lực ma sát trượt khi xe đang chuyển động
+                let fFriction = 0;
+                if (Math.abs(l1.v) > 0.02 && l1.mu > 0) {
+                    const dir = Math.sign(l1.v);
+                    fFriction = -dir * l1.mu * l1.mass * G;
+                }
+
+                const accel = fFriction / l1.mass;
+                const nextV = l1.v + accel * dt;
+
+                // Nếu lực ma sát làm vận tốc đổi dấu thì xe dừng hẳn
+                if (Math.sign(nextV) !== Math.sign(l1.v) && l1.mu > 0) {
+                    l1.v = 0;
+                } else {
+                    l1.v = nextV;
+                }
+
+                l1.x += l1.v * dt;
+
+                // Xử lý biên đường ray
+                const limitX = TRACK_HALF_LEN - 1.45;
+                if (l1.hasWall) {
+                    if (l1.x >= limitX) {
+                        l1.x = limitX;
+                        l1.v = -l1.v * 0.92; // Nảy đàn hồi
+                    } else if (l1.x <= -limitX) {
+                        l1.x = -limitX;
+                        l1.v = -l1.v * 0.92;
+                    }
+                } else {
+                    // Tuần hoàn liên tục nếu tắt tường chắn để thấy rõ chuyển động thẳng đều mãi mãi
+                    if (l1.x > TRACK_HALF_LEN + 1.5) l1.x = -TRACK_HALF_LEN - 1.5;
+                    if (l1.x < -TRACK_HALF_LEN - 1.5) l1.x = TRACK_HALF_LEN + 1.5;
+                }
+
+                if (l1.pushFlash > 0) l1.pushFlash = Math.max(0, l1.pushFlash - dt * 2.5);
+
+                // Cập nhật vị trí và bánh xe
+                cartA.group.position.x = l1.x;
+                cartA.massBlock.scale.set(1, 0.85, 1);
+                updateTextBadge(cartA.massBadge, `m = ${l1.mass.toFixed(1)} kg`, 'rgba(15, 23, 42, 0.88)', '#38bdf8');
+                cartA.wheels.forEach(w => { w.rotation.z -= (l1.v * dt) / 0.26; });
+
+                // Hiển thị Vector
+                if (state.showVectors) {
+                    const centerPos = new THREE.Vector3(l1.x, 0.75, 0);
+                    setLabeledArrow(
+                        vecVelocityA,
+                        Math.abs(l1.v) > 0.05,
+                        new THREE.Vector3(l1.x, 1.55, 0),
+                        new THREE.Vector3(Math.sign(l1.v), 0, 0),
+                        Math.abs(l1.v) * 0.35,
+                        `v = ${l1.v.toFixed(1)} m/s`
+                    );
+                    setLabeledArrow(
+                        vecFriction,
+                        Math.abs(fFriction) > 0.05,
+                        new THREE.Vector3(l1.x, 0.25, 0.75),
+                        new THREE.Vector3(Math.sign(fFriction), 0, 0),
+                        Math.abs(fFriction) * 0.22,
+                        `Fms = ${Math.abs(fFriction).toFixed(1)} N`,
+                        new THREE.Vector3(0, -0.35, 0)
+                    );
+                    setLabeledArrow(
+                        vecAppliedF,
+                        l1.pushFlash > 0,
+                        centerPos,
+                        new THREE.Vector3(1, 0, 0),
+                        2.5,
+                        'F đẩy ban đầu'
+                    );
+
+                    if (state.showVerticalForces) {
+                        setLabeledArrow(
+                            vecGravityP,
+                            true,
+                            centerPos,
+                            new THREE.Vector3(0, -1, 0),
+                            1.6,
+                            `P = ${(l1.mass * G).toFixed(0)} N`,
+                            new THREE.Vector3(0.95, 0, 0)
+                        );
+                        setLabeledArrow(
+                            vecNormalN,
+                            true,
+                            new THREE.Vector3(l1.x, 0.1, 0),
+                            new THREE.Vector3(0, 1, 0),
+                            1.6,
+                            `N = ${(l1.mass * G).toFixed(0)} N`,
+                            new THREE.Vector3(-0.95, 0.2, 0)
+                        );
+                    }
+                }
+
+                // Cập nhật HUD
+                document.getElementById('lbl-stat-1').textContent = 'Hợp lực ΣF';
+                document.getElementById('val-stat-1').textContent = fFriction.toFixed(1) + ' N';
+                document.getElementById('lbl-stat-2').textContent = 'Khối lượng';
+                document.getElementById('val-stat-2').textContent = l1.mass.toFixed(1) + ' kg';
+                document.getElementById('lbl-stat-3').textContent = 'Gia tốc a';
+                document.getElementById('val-stat-3').textContent = accel.toFixed(2) + ' m/s²';
+                document.getElementById('lbl-stat-4').textContent = 'Vận tốc v';
+                document.getElementById('val-stat-4').textContent = l1.v.toFixed(2) + ' m/s';
+
+                if (Math.abs(l1.v) < 0.05) {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-slate-400 flex items-center justify-between gap-3';
+                    statusText.textContent = 'Định luật I (Quán tính): Vật đang đứng yên (v = 0). Hợp lực ΣF = P + N = 0 nên vật giữ nguyên trạng thái đứng yên.';
+                } else if (l1.mu === 0) {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-emerald-400 flex items-center justify-between gap-3';
+                    statusText.textContent = `Định luật I (Quán tính): Không ma sát (ΣF = 0) → a = 0 m/s² → Xe chuyển động thẳng đều mãi mãi với v = ${Math.abs(l1.v).toFixed(1)} m/s.`;
+                } else {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-rose-400 flex items-center justify-between gap-3';
+                    statusText.textContent = `Có lực ma sát Fms = ${Math.abs(fFriction).toFixed(1)} N ngược chiều v → Xe chuyển động chậm dần đều (a = ${accel.toFixed(2)} m/s²).`;
+                }
+            }
+
+            // ------------------------------------------------------------------------
+            // ĐỊNH LUẬT II: GIA TỐC (F = m * a)
+            // ------------------------------------------------------------------------
+            else if (state.currentLaw === 2) {
+                const l2 = state.law2;
+                cartB.group.visible = false;
+                springMesh.visible = false;
+                rightWallGroup.visible = true;
+
+                const F_pull = l2.isPulling ? l2.appliedForce : 0;
+                const F_ms_max = l2.mu * l2.mass * G;
+                let F_friction = 0;
+                let F_net = 0;
+
+                if (Math.abs(l2.v) > 0.02) {
+                    // Đang chuyển động: Ma sát trượt ngược chiều vận tốc
+                    F_friction = -Math.sign(l2.v) * F_ms_max;
+                    F_net = F_pull + F_friction;
+                } else {
+                    // Đang đứng yên: Kiểm tra lực kéo có thắng ma sát nghỉ cực đại không
+                    if (F_pull > F_ms_max) {
+                        F_friction = -F_ms_max;
+                        F_net = F_pull + F_friction;
+                    } else {
+                        F_friction = -F_pull;
+                        F_net = 0;
+                        l2.v = 0;
+                    }
+                }
+
+                l2.a = F_net / l2.mass;
+                const nextV = l2.v + l2.a * dt;
+
+                // Nếu tắt lực kéo và ma sát làm dừng xe
+                if (!l2.isPulling && Math.sign(nextV) !== Math.sign(l2.v)) {
+                    l2.v = 0;
+                    l2.a = 0;
+                } else {
+                    l2.v = nextV;
+                }
+
+                l2.x += l2.v * dt;
+
+                // Dừng khi chạm cuối đường ray bên phải
+                const maxRight = TRACK_HALF_LEN - 1.45;
+                if (l2.x >= maxRight) {
+                    l2.x = maxRight;
+                    l2.v = 0;
+                    l2.a = 0;
+                    if (l2.isPulling) toggleLaw2Pull(false);
+                }
+
+                cartA.group.position.x = l2.x;
+                // Thay đổi kích thước khối quả cân theo khối lượng m (1 - 20kg)
+                const massScale = 0.55 + (l2.mass / 20) * 1.15;
+                cartA.massBlock.scale.set(massScale, massScale, massScale);
+                cartA.massBlock.position.y = 1.05 + 0.3 * massScale;
+                cartA.massBadge.sprite.position.y = 1.65 + 0.55 * massScale;
+                updateTextBadge(cartA.massBadge, `m = ${l2.mass.toFixed(1)} kg`, 'rgba(15, 23, 42, 0.88)', '#a855f7');
+
+                cartA.wheels.forEach(w => { w.rotation.z -= (l2.v * dt) / 0.26; });
+
+                // Hiển thị các Vector
+                if (state.showVectors) {
+                    const centerPos = new THREE.Vector3(l2.x, 0.72, 0);
+                    setLabeledArrow(
+                        vecAppliedF,
+                        F_pull > 0.1,
+                        new THREE.Vector3(l2.x + 1.0, 0.72, 0),
+                        new THREE.Vector3(1, 0, 0),
+                        F_pull * 0.09,
+                        `F kéo = ${F_pull.toFixed(0)} N`
+                    );
+                    setLabeledArrow(
+                        vecFriction,
+                        Math.abs(F_friction) > 0.1,
+                        new THREE.Vector3(l2.x - 1.0, 0.3, 0.65),
+                        new THREE.Vector3(-1, 0, 0),
+                        Math.abs(F_friction) * 0.09,
+                        `F ms = ${Math.abs(F_friction).toFixed(1)} N`,
+                        new THREE.Vector3(0, -0.35, 0)
+                    );
+                    setLabeledArrow(
+                        vecAccelA,
+                        Math.abs(l2.a) > 0.05,
+                        new THREE.Vector3(l2.x, 1.45 + 0.45 * massScale, 0),
+                        new THREE.Vector3(Math.sign(l2.a), 0, 0),
+                        Math.abs(l2.a) * 0.35 + 0.4,
+                        `a = ${l2.a.toFixed(2)} m/s²`,
+                        new THREE.Vector3(0, 0.38, 0)
+                    );
+                    setLabeledArrow(
+                        vecVelocityA,
+                        Math.abs(l2.v) > 0.08,
+                        new THREE.Vector3(l2.x, 0.72, -0.75),
+                        new THREE.Vector3(Math.sign(l2.v), 0, 0),
+                        Math.abs(l2.v) * 0.22,
+                        `v = ${l2.v.toFixed(1)} m/s`
+                    );
+
+                    if (state.showVerticalForces) {
+                        const pLen = 1.1 + (l2.mass / 20) * 1.4;
+                        setLabeledArrow(
+                            vecGravityP,
+                            true,
+                            centerPos,
+                            new THREE.Vector3(0, -1, 0),
+                            pLen,
+                            `P = ${(l2.mass * G).toFixed(0)} N`,
+                            new THREE.Vector3(0.95, 0, 0)
+                        );
+                        setLabeledArrow(
+                            vecNormalN,
+                            true,
+                            new THREE.Vector3(l2.x, 0.1, 0),
+                            new THREE.Vector3(0, 1, 0),
+                            pLen,
+                            `N = ${(l2.mass * G).toFixed(0)} N`,
+                            new THREE.Vector3(-0.95, 0.2, 0)
+                        );
+                    }
+                }
+
+                // Cập nhật HUD
+                document.getElementById('lbl-stat-1').textContent = 'Hợp lực Fhl';
+                document.getElementById('val-stat-1').textContent = F_net.toFixed(1) + ' N';
+                document.getElementById('lbl-stat-2').textContent = 'Khối lượng m';
+                document.getElementById('val-stat-2').textContent = l2.mass.toFixed(1) + ' kg';
+                document.getElementById('lbl-stat-3').textContent = 'Gia tốc a';
+                document.getElementById('val-stat-3').textContent = l2.a.toFixed(2) + ' m/s²';
+                document.getElementById('lbl-stat-4').textContent = 'Vận tốc v';
+                document.getElementById('val-stat-4').textContent = l2.v.toFixed(2) + ' m/s';
+
+                if (l2.isPulling && F_net === 0 && l2.v === 0) {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-rose-400 flex items-center justify-between gap-3';
+                    statusText.textContent = `Lực kéo F (${F_pull} N) chưa thắng được ma sát nghỉ cực đại (${F_ms_max.toFixed(1)} N) → a = 0 m/s². Hãy tăng F hoặc giảm m, μ!`;
+                } else if (l2.isPulling) {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-amber-400 flex items-center justify-between gap-3';
+                    statusText.textContent = `Định luật II (Gia tốc): a = F_hl / m = (${F_pull.toFixed(0)} - ${Math.abs(F_friction).toFixed(1)}) / ${l2.mass.toFixed(1)} = ${l2.a.toFixed(2)} m/s² (Cùng hướng với hợp lực).`;
+                } else {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-sky-400 flex items-center justify-between gap-3';
+                    statusText.textContent = 'Định luật II (Gia tốc): Điều chỉnh Lực kéo F, Khối lượng m và nhấn "Bật lực kéo F" để quan sát gia tốc a = F_hl / m.';
+                }
+            }
+
+            // ------------------------------------------------------------------------
+            // ĐỊNH LUẬT III: LỰC VÀ PHẢN LỰC (F_AB = -F_BA)
+            // ------------------------------------------------------------------------
+            else if (state.currentLaw === 3) {
+                const l3 = state.law3;
+                cartB.group.visible = true;
+                rightWallGroup.visible = true;
+
+                // Khoảng cách tiếp xúc lò xo giữa tâm Xe A và tâm Xe B
+                const contactDist = 3.2;
+                const dist = l3.xB - l3.xA;
+                const inContact = dist < contactDist;
+
+                // Làm chậm thời gian khi 2 xe đang ép lò xo va chạm nếu bật Chuyển động chậm
+                const effDt = (inContact && l3.slowMo) ? dt * 0.22 : dt;
+
+                // Chia nhỏ bước tích phân (sub-stepping) để lực đàn hồi lò xo chính xác tuyệt đối
+                const subSteps = 6;
+                const subDt = effDt / subSteps;
+
+                for (let s = 0; s < subSteps; s++) {
+                    const currentDist = l3.xB - l3.xA;
+                    if (currentDist < contactDist) {
+                        const compression = contactDist - currentDist;
+                        l3.interactionForce = l3.springK * compression;
+                        // F_BA tác dụng lên A hướng sang trái (-x), F_AB tác dụng lên B hướng sang phải (+x)
+                        const aA = -l3.interactionForce / l3.mA;
+                        const aB = l3.interactionForce / l3.mB;
+                        l3.vA += aA * subDt;
+                        l3.vB += aB * subDt;
+                    } else {
+                        l3.interactionForce = 0;
+                    }
+
+                    l3.xA += l3.vA * subDt;
+                    l3.xB += l3.vB * subDt;
+
+                    // Nảy tường hai đầu
+                    const wallLimit = TRACK_HALF_LEN - 1.45;
+                    if (l3.xA < -wallLimit) { l3.xA = -wallLimit; l3.vA = -l3.vA * 0.85; }
+                    if (l3.xB > wallLimit) { l3.xB = wallLimit; l3.vB = -l3.vB * 0.85; }
+                }
+
+                // Cập nhật vị trí & kích thước 2 xe A và B
+                cartA.group.position.x = l3.xA;
+                const scaleA = 0.55 + (l3.mA / 16) * 1.0;
+                cartA.massBlock.scale.set(scaleA, scaleA, scaleA);
+                cartA.massBlock.position.y = 1.05 + 0.3 * scaleA;
+                updateTextBadge(cartA.massBadge, `Xe A: ${l3.mA.toFixed(1)}kg`, 'rgba(12, 74, 110, 0.9)', '#38bdf8');
+                cartA.wheels.forEach(w => { w.rotation.z -= (l3.vA * effDt) / 0.26; });
+
+                cartB.group.position.x = l3.xB;
+                const scaleB = 0.55 + (l3.mB / 16) * 1.0;
+                cartB.massBlock.scale.set(scaleB, scaleB, scaleB);
+                cartB.massBlock.position.y = 1.05 + 0.3 * scaleB;
+                updateTextBadge(cartB.massBadge, `Xe B: ${l3.mB.toFixed(1)}kg`, 'rgba(136, 19, 55, 0.9)', '#f43f5e');
+                cartB.wheels.forEach(w => { w.rotation.z -= (l3.vB * effDt) / 0.26; });
+
+                // Hiển thị lò xo đệm ở giữa
+                springMesh.visible = true;
+                const springRightEnd = inContact ? (l3.xB - 1.1) : (l3.xA + 2.1);
+                updateSpringGeometry(l3.xA + 1.1, springRightEnd);
+
+                // Hiển thị các Vector
+                if (state.showVectors) {
+                    const midX = (l3.xA + l3.xB) / 2;
+                    const forceLen = l3.interactionForce * 0.012 + 0.6;
+
+                    setLabeledArrow(
+                        vecForceBA,
+                        l3.interactionForce > 1.0,
+                        new THREE.Vector3(midX, 0.95, 0),
+                        new THREE.Vector3(-1, 0, 0),
+                        forceLen,
+                        `FBA = -${l3.interactionForce.toFixed(0)} N`,
+                        new THREE.Vector3(-0.3, 0.52, 0)
+                    );
+                    setLabeledArrow(
+                        vecForceAB,
+                        l3.interactionForce > 1.0,
+                        new THREE.Vector3(midX, 0.95, 0),
+                        new THREE.Vector3(1, 0, 0),
+                        forceLen,
+                        `FAB = +${l3.interactionForce.toFixed(0)} N`,
+                        new THREE.Vector3(0.3, 0.52, 0)
+                    );
+
+                    setLabeledArrow(
+                        vecVelocityA,
+                        Math.abs(l3.vA) > 0.08,
+                        new THREE.Vector3(l3.xA, 0.65, 0.8),
+                        new THREE.Vector3(Math.sign(l3.vA), 0, 0),
+                        Math.abs(l3.vA) * 0.28,
+                        `vA = ${l3.vA.toFixed(1)} m/s`,
+                        new THREE.Vector3(0, -0.35, 0)
+                    );
+                    setLabeledArrow(
+                        vecVelocityB,
+                        Math.abs(l3.vB) > 0.08,
+                        new THREE.Vector3(l3.xB, 0.65, 0.8),
+                        new THREE.Vector3(Math.sign(l3.vB), 0, 0),
+                        Math.abs(l3.vB) * 0.28,
+                        `vB = ${l3.vB.toFixed(1)} m/s`,
+                        new THREE.Vector3(0, -0.35, 0)
+                    );
+                }
+
+                // Cập nhật HUD
+                document.getElementById('lbl-stat-1').textContent = '|FAB| = |FBA|';
+                document.getElementById('val-stat-1').textContent = l3.interactionForce.toFixed(0) + ' N';
+                document.getElementById('lbl-stat-2').textContent = 'mA / mB';
+                document.getElementById('val-stat-2').textContent = `${l3.mA}/${l3.mB}kg`;
+                document.getElementById('lbl-stat-3').textContent = 'Vận tốc vA';
+                document.getElementById('val-stat-3').textContent = l3.vA.toFixed(1) + ' m/s';
+                document.getElementById('lbl-stat-4').textContent = 'Vận tốc vB';
+                document.getElementById('val-stat-4').textContent = l3.vB.toFixed(1) + ' m/s';
+
+                if (l3.interactionForce > 1.0) {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-rose-400 flex items-center justify-between gap-3';
+                    statusText.textContent = `LỰC VÀ PHẢN LỰC: |FAB| = |FBA| = ${l3.interactionForce.toFixed(0)} N (Cùng độ lớn, ngược chiều). Gia tốc: |aA| = ${(l3.interactionForce / l3.mA).toFixed(1)} m/s², |aB| = ${(l3.interactionForce / l3.mB).toFixed(1)} m/s².`;
+                } else {
+                    statusBanner.className = 'glass-panel px-3.5 py-1.5 rounded-xl shadow-lg pointer-events-auto transition-all duration-200 border-l-4 border-l-sky-400 flex items-center justify-between gap-3';
+                    statusText.textContent = 'Định luật III (Lực và phản lực): Khi A tác dụng lên B lực FAB thì B cũng tác dụng lại A phản lực FBA = -FAB.';
+                }
+            }
+        }
+
+        // ============================================================================
+        // 8. SỰ KIỆN GIAO DIỆN NGƯỜI DÙNG (UI CONTROLS)
+        // ============================================================================
+        const tabLaw1 = document.getElementById('tab-law-1');
+        const tabLaw2 = document.getElementById('tab-law-2');
+        const tabLaw3 = document.getElementById('tab-law-3');
+        const ctrlLaw1 = document.getElementById('controls-law-1');
+        const ctrlLaw2 = document.getElementById('controls-law-2');
+        const ctrlLaw3 = document.getElementById('controls-law-3');
+        const lawFormula = document.getElementById('law-formula');
+
+        function switchLaw(lawNum) {
+            state.currentLaw = lawNum;
+            [tabLaw1, tabLaw2, tabLaw3].forEach((btn, idx) => {
+                if (idx + 1 === lawNum) {
+                    btn.classList.add('tab-active');
+                } else {
+                    btn.classList.remove('tab-active');
+                }
+            });
+
+            ctrlLaw1.classList.toggle('hidden', lawNum !== 1);
+            ctrlLaw1.classList.toggle('grid', lawNum === 1);
+            ctrlLaw2.classList.toggle('hidden', lawNum !== 2);
+            ctrlLaw2.classList.toggle('grid', lawNum === 2);
+            ctrlLaw3.classList.toggle('hidden', lawNum !== 3);
+            ctrlLaw3.classList.toggle('grid', lawNum === 3);
+
+            if (lawNum === 1) {
+                lawFormula.textContent = 'Định luật I: ΣF = 0 ⇒ v = const';
+                updateTrackSurfaceAppearance(state.law1.mu);
+                state.law1.x = -10.0;
+                state.law1.v = state.law1.v0;
+                state.law1.pushFlash = 1.0;
+            } else if (lawNum === 2) {
+                lawFormula.textContent = 'Định luật II: a = F/m';
+                updateTrackSurfaceAppearance(state.law2.mu);
+                state.law2.x = -11.0;
+                state.law2.v = 0;
+                state.law2.a = 0;
+                toggleLaw2Pull(false);
+            } else if (lawNum === 3) {
+                lawFormula.textContent = 'Định luật III: F_AB = -F_BA (Lực & Phản lực)';
+                updateTrackSurfaceAppearance(0);
+                startLaw3Collision();
+            }
+        }
+
+        tabLaw1.addEventListener('click', () => switchLaw(1));
+        tabLaw2.addEventListener('click', () => switchLaw(2));
+        tabLaw3.addEventListener('click', () => switchLaw(3));
+
+        // --- Sự kiện Định luật I ---
+        const surfBtns = document.querySelectorAll('.l1-surf-btn');
+        surfBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const muVal = parseFloat(btn.getAttribute('data-mu'));
+                state.law1.mu = muVal;
+                updateTrackSurfaceAppearance(muVal);
+
+                surfBtns.forEach(b => {
+                    b.className = 'l1-surf-btn py-1 px-1.5 rounded text-[10px] font-semibold bg-slate-800 border border-slate-700 text-slate-300';
+                });
+                btn.className = 'l1-surf-btn py-1 px-1.5 rounded text-[10px] font-semibold bg-sky-500/30 border border-sky-400 text-white';
+
+                const labelMap = { '0': 'Mặt băng (μ = 0)', '0.08': 'Nhẵn (μ = 0.08)', '0.25': 'Nhám (μ = 0.25)' };
+                document.getElementById('val-l1-surface').textContent = labelMap[btn.getAttribute('data-mu')];
+            });
+        });
+
+        document.getElementById('slider-l1-v0').addEventListener('input', (e) => {
+            state.law1.v0 = parseFloat(e.target.value);
+            document.getElementById('val-l1-v0').textContent = state.law1.v0.toFixed(1) + ' m/s';
+        });
+
+        document.getElementById('chk-l1-wall').addEventListener('change', (e) => {
+            state.law1.hasWall = e.target.checked;
+        });
+
+        document.getElementById('btn-l1-push').addEventListener('click', () => {
+            if (state.law1.x > 6) state.law1.x = -10.5;
+            state.law1.v = state.law1.v0;
+            state.law1.pushFlash = 1.0;
+        });
+
+        document.getElementById('btn-l1-brake').addEventListener('click', () => {
+            state.law1.x = -10.0;
+            state.law1.v = 0;
+            state.law1.pushFlash = 0;
+        });
+
+        // --- Sự kiện Định luật II ---
+        const btnL2Toggle = document.getElementById('btn-l2-toggle');
+        function toggleLaw2Pull(forceState) {
+            state.law2.isPulling = forceState !== undefined ? forceState : !state.law2.isPulling;
+            if (state.law2.isPulling) {
+                if (state.law2.x >= TRACK_HALF_LEN - 2.0) {
+                    state.law2.x = -11.0;
+                    state.law2.v = 0;
+                }
+                btnL2Toggle.textContent = '⏸ Ngừng lực kéo F';
+                btnL2Toggle.className = 'py-1.5 px-2 rounded-lg font-bold text-[11px] bg-rose-500/25 hover:bg-rose-500/35 text-rose-300 border border-rose-500/50 transition';
+            } else {
+                btnL2Toggle.textContent = '▶ Bật lực kéo F';
+                btnL2Toggle.className = 'py-1.5 px-2 rounded-lg font-bold text-[11px] bg-amber-500/25 hover:bg-amber-500/35 text-amber-300 border border-amber-500/50 transition';
+            }
+        }
+
+        document.getElementById('slider-l2-force').addEventListener('input', (e) => {
+            state.law2.appliedForce = parseFloat(e.target.value);
+            document.getElementById('val-l2-force').textContent = state.law2.appliedForce.toFixed(1) + ' N';
+        });
+
+        document.getElementById('slider-l2-mass').addEventListener('input', (e) => {
+            state.law2.mass = parseFloat(e.target.value);
+            document.getElementById('val-l2-mass').textContent = state.law2.mass.toFixed(1) + ' kg';
+        });
+
+        document.getElementById('slider-l2-mu').addEventListener('input', (e) => {
+            state.law2.mu = parseFloat(e.target.value);
+            document.getElementById('val-l2-mu').textContent = state.law2.mu.toFixed(2);
+            updateTrackSurfaceAppearance(state.law2.mu);
+        });
+
+        btnL2Toggle.addEventListener('click', () => toggleLaw2Pull());
+
+        document.getElementById('btn-l2-reset').addEventListener('click', () => {
+            toggleLaw2Pull(false);
+            state.law2.x = -11.0;
+            state.law2.v = 0;
+            state.law2.a = 0;
+        });
+
+        // --- Sự kiện Định luật III ---
+        function startLaw3Collision() {
+            state.law3.xA = -7.5;
+            state.law3.xB = 7.5;
+            state.law3.vA = state.law3.initSpeed;
+            state.law3.vB = -state.law3.initSpeed * 0.65;
+            state.law3.interactionForce = 0;
+        }
+
+        function startLaw3PushApart() {
+            // Đặt 2 xe ép sát lò xo ở tâm và thả ra để lò xo bung đẩy 2 xe về 2 phía
+            state.law3.xA = -1.05;
+            state.law3.xB = 1.05;
+            state.law3.vA = 0;
+            state.law3.vB = 0;
+        }
+
+        document.getElementById('slider-l3-ma').addEventListener('input', (e) => {
+            state.law3.mA = parseFloat(e.target.value);
+            document.getElementById('val-l3-ma').textContent = state.law3.mA.toFixed(1) + ' kg';
+        });
+
+        document.getElementById('slider-l3-mb').addEventListener('input', (e) => {
+            state.law3.mB = parseFloat(e.target.value);
+            document.getElementById('val-l3-mb').textContent = state.law3.mB.toFixed(1) + ' kg';
+        });
+
+        document.getElementById('slider-l3-speed').addEventListener('input', (e) => {
+            state.law3.initSpeed = parseFloat(e.target.value);
+            document.getElementById('val-l3-speed').textContent = state.law3.initSpeed.toFixed(1) + ' m/s';
+        });
+
+        document.getElementById('chk-l3-slowmo').addEventListener('change', (e) => {
+            state.law3.slowMo = e.target.checked;
+        });
+
+        document.getElementById('btn-l3-collide').addEventListener('click', startLaw3Collision);
+        document.getElementById('btn-l3-pushapart').addEventListener('click', startLaw3PushApart);
+
+        // --- Nút chung trên Bottom HUD ---
+        const btnTogglePanel = document.getElementById('btn-toggle-panel');
+        const panelBody = document.getElementById('panel-body');
+        let isCollapsed = false;
+        btnTogglePanel.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            panelBody.classList.toggle('hidden', isCollapsed);
+            btnTogglePanel.textContent = isCollapsed ? 'Mở rộng ▲' : 'Thu gọn ▼';
+        });
+
+        document.getElementById('btn-reset-cam').addEventListener('click', () => {
+            camera.position.set(0, 6.2, 19.0);
+            controls.target.set(0, 0.4, 0);
+            controls.update();
+        });
+
+        document.getElementById('chk-show-vectors').addEventListener('change', (e) => {
+            state.showVectors = e.target.checked;
+        });
+
+        document.getElementById('chk-show-pn').addEventListener('change', (e) => {
+            state.showVerticalForces = e.target.checked;
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ============================================================================
+        // 9. VÒNG LẶP HOẠT HỌA CHÍNH
+        // ============================================================================
+        let lastTime = performance.now();
+
+        function animate(now) {
+            requestAnimationFrame(animate);
+            const dt = (now - lastTime) / 1000;
+            lastTime = now;
+
+            updatePhysicsAndVisuals(dt);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function () {
+            // Khởi động mặc định với Định luật I và đẩy xe để người dùng thấy chuyển động ngay
+            switchLaw(1);
+            animate(performance.now());
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Sóng Mặt Nước & Giao Thoa Sóng - Vật Lý 11 (KNTT)</title>
+    <!-- Tải Tailwind CSS, Font chữ Inter & JetBrains Mono, Icon Phosphor -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .font-mono-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Thanh trượt tùy chỉnh */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 999px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            border: 2px solid #0f172a;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #7dd3fc;
+        }
+        .led-box {
+            background: linear-gradient(180deg, #090d16 0%, #0f172a 100%);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.85);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+
+    <!-- Thanh tiêu đề & chọn thí nghiệm (SGK Vật lí 11 - Kết nối tri thức) -->
+    <header class="border-b border-slate-800/80 bg-slate-900/85 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <i class="ph-bold ph-waves text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">TN Sóng & Giao thoa sóng</h1>
+                    <p class="text-xs text-slate-400">Mô phỏng SGK Vật lí 11 — Kết nối tri thức với cuộc sống</p>
+                </div>
+            </div>
+
+            <!-- 2 Tab tương ứng Bài 8 & Bài 12 SGK Vật lí 11 -->
+            <nav class="flex p-1 bg-slate-950/90 border border-slate-800 rounded-xl w-full lg:w-auto justify-between gap-1.5" role="tablist">
+                <button id="tab-single" onclick="switchMode('single')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-sky-500 text-slate-950 shadow-md">
+                    1. Sóng mặt nước (Sóng tròn / Phẳng)
+                </button>
+                <button id="tab-interference" onclick="switchMode('interference')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                    2. Giao thoa sóng mặt nước (S₁, S₂)
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Nội dung chính -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            
+            <!-- CỘT TRÁI (7 cột): Khay tạo sóng (Ripple Tank) nhìn từ trên xuống -->
+            <section class="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <h2 id="tank-title" class="text-sm sm:text-base font-bold text-sky-300">Khay tạo sóng mặt nước (Nhìn từ trên xuống)</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 flex items-center gap-1">
+                        <i class="ph-bold ph-hand-pointing text-sky-400"></i>
+                        Chạm / Kéo điểm M trên mặt nước để đo
+                    </span>
+                </div>
+
+                <!-- Khung vẽ khay nước -->
+                <div class="relative w-full h-[350px] sm:h-[400px] bg-slate-950 border border-slate-800 rounded-xl overflow-hidden cursor-crosshair select-none">
+                    <canvas id="rippleCanvas" class="w-full h-full block"></canvas>
+
+                    <!-- Chú thích màu sắc gợn sóng góc trên trái -->
+                    <div class="absolute top-3 left-3 flex flex-wrap items-center gap-3 bg-slate-950/80 backdrop-blur-md border border-slate-800/90 px-3 py-1.5 rounded-xl text-[11px] text-slate-300 pointer-events-none">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-300"></span>Gợn lồi (Đỉnh sóng)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-600"></span>Gợn lõm (Hõm sóng)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Điểm khảo sát M</span>
+                    </div>
+
+                    <!-- Thanh nút điều khiển nhanh góc dưới Canvas -->
+                    <div class="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 z-10">
+                        <div class="flex items-center gap-2">
+                            <button id="btn-play" onclick="togglePlay()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition active:scale-95">
+                                <i id="icon-play" class="ph-fill ph-pause text-base"></i>
+                                <span id="text-play">Tạm dừng</span>
+                            </button>
+
+                            <!-- Chọn dạng nguồn sóng ở chế độ 1 (Sóng tròn / Sóng phẳng) -->
+                            <div id="single-source-selector" class="flex p-1 bg-slate-900/95 border border-slate-700 rounded-xl">
+                                <button id="btn-wave-circular" onclick="setSingleWaveType('circular')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950 transition">
+                                    Sóng tròn
+                                </button>
+                                <button id="btn-wave-plane" onclick="setSingleWaveType('plane')" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition">
+                                    Sóng phẳng
+                                </button>
+                            </div>
+
+                            <!-- Chọn độ lệch pha 2 nguồn ở chế độ Giao thoa -->
+                            <div id="phase-diff-selector" class="hidden p-1 bg-slate-900/95 border border-slate-700 rounded-xl">
+                                <button id="btn-phase-same" onclick="setPhaseMode('same')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition">
+                                    Cùng pha (Δφ = 0)
+                                </button>
+                                <button id="btn-phase-opp" onclick="setPhaseMode('opposite')" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition">
+                                    Ngược pha (Δφ = π)
+                                </button>
+                            </div>
+                        </div>
+
+                        <button onclick="resetSimulation()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800/95 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs sm:text-sm transition active:scale-95" title="Đặt lại thí nghiệm">
+                            <i class="ph-bold ph-arrow-counter-clockwise text-base"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Đồng hồ đo thông số sóng vật lý -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="led-box border border-slate-800 rounded-xl p-3 flex flex-col">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Bước sóng (λ)</span>
+                        <span id="readout-lambda" class="text-lg sm:text-xl font-bold font-mono-code text-yellow-300 mt-1">2.00 cm</span>
+                    </div>
+
+                    <div class="led-box border border-slate-800 rounded-xl p-3 flex flex-col">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Tốc độ sóng (v)</span>
+                        <span id="readout-speed" class="text-lg sm:text-xl font-bold font-mono-code text-sky-400 mt-1">20.0 cm/s</span>
+                    </div>
+
+                    <div class="led-box border border-slate-800 rounded-xl p-3 flex flex-col">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Tần số rung (f)</span>
+                        <span id="readout-freq" class="text-lg sm:text-xl font-bold font-mono-code text-emerald-400 mt-1">10.0 Hz</span>
+                    </div>
+
+                    <div class="led-box border border-slate-800 rounded-xl p-3 flex flex-col">
+                        <span id="readout-extra-label" class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Chu kì (T)</span>
+                        <span id="readout-extra-val" class="text-lg sm:text-xl font-bold font-mono-code text-purple-400 mt-1">0.10 s</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CỘT PHẢI (5 cột): Mặt cắt dao động & Phân tích điểm M trên mặt nước -->
+            <section class="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4 shadow-2xl">
+                <!-- Đồ thị mặt cắt sóng & dao động của phao tại M -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 id="cross-title" class="text-sm sm:text-base font-bold text-slate-100">Mặt cắt sóng & Dao động tại điểm M</h3>
+                        <span id="m-state-badge" class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                            Đang dao động
+                        </span>
+                    </div>
+                    <div class="w-full h-[185px] bg-slate-950/90 border border-slate-800 rounded-xl overflow-hidden">
+                        <canvas id="crossSectionCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bảng đo tọa độ, hiệu đường đi d2 - d1 & điều kiện cực đại/cực tiểu tại điểm M -->
+                <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5 text-xs">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                            <i class="ph-bold ph-ruler text-sky-400"></i>
+                            Phép đo tại điểm M trên mặt nước:
+                        </span>
+                        <span id="m-formula-tag" class="font-mono-code font-bold text-amber-300">d₂ - d₁ = k·λ</span>
+                    </div>
+
+                    <!-- Chi tiết cho chế độ 1 nguồn -->
+                    <div id="probe-single-info" class="grid grid-cols-2 gap-2.5 pt-1">
+                        <div class="bg-slate-900/90 border border-slate-800 p-2.5 rounded-lg">
+                            <span class="text-slate-400 block">Khoảng cách tới nguồn (d):</span>
+                            <span id="val-d-single" class="text-sm font-mono-code font-bold text-sky-400 mt-0.5 block">6.00 cm (3.00 λ)</span>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-800 p-2.5 rounded-lg">
+                            <span class="text-slate-400 block">Li độ dao động u_M(t):</span>
+                            <span id="val-u-single" class="text-sm font-mono-code font-bold text-rose-400 mt-0.5 block">+0.00 mm</span>
+                        </div>
+                    </div>
+
+                    <!-- Chi tiết cho chế độ Giao thoa 2 nguồn S1, S2 -->
+                    <div id="probe-inter-info" class="hidden flex-col gap-2 pt-1">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-lg text-center">
+                                <span class="text-[11px] text-slate-400 block">d₁ (MS₁)</span>
+                                <span id="val-d1" class="text-xs sm:text-sm font-mono-code font-bold text-cyan-300">7.00 cm</span>
+                            </div>
+                            <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-lg text-center">
+                                <span class="text-[11px] text-slate-400 block">d₂ (MS₂)</span>
+                                <span id="val-d2" class="text-xs sm:text-sm font-mono-code font-bold text-cyan-300">7.00 cm</span>
+                            </div>
+                            <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-lg text-center">
+                                <span class="text-[11px] text-slate-400 block">Hiệu Δd = d₂ - d₁</span>
+                                <span id="val-dd" class="text-xs sm:text-sm font-mono-code font-bold text-amber-300">0.00 cm</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-800 p-2.5 rounded-lg flex items-center justify-between">
+                            <span class="text-slate-300">Tỉ số <span class="font-mono-code text-amber-300">(d₂ - d₁) / λ</span>:</span>
+                            <span id="val-k-ratio" class="font-mono-code font-bold text-emerald-400 text-sm">k = 0.00 (Cực đại trung tâm)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Các thanh trượt điều chỉnh thông số khay sóng -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-3">
+                    <!-- Tần số cần rung f -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between items-center">
+                            <label for="slider-freq" class="text-xs font-medium text-slate-300">Tần số cần rung (f)</label>
+                            <span id="label-freq" class="text-xs font-mono-code font-bold text-sky-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">10.0 Hz</span>
+                        </div>
+                        <input id="slider-freq" type="range" min="4.0" max="20.0" step="0.5" value="10.0" oninput="updateControls()">
+                    </div>
+
+                    <!-- Tốc độ truyền sóng v trên mặt nước -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between items-center">
+                            <label for="slider-wave-speed" class="text-xs font-medium text-slate-300">Tốc độ truyền sóng (v)</label>
+                            <span id="label-wave-speed" class="text-xs font-mono-code font-bold text-emerald-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">20.0 cm/s</span>
+                        </div>
+                        <input id="slider-wave-speed" type="range" min="10.0" max="36.0" step="1.0" value="20.0" oninput="updateControls()">
+                    </div>
+
+                    <!-- Khoảng cách hai nguồn S1S2 (chỉ hiện ở chế độ Giao thoa) -->
+                    <div id="control-source-dist" class="hidden flex-col gap-1.5">
+                        <div class="flex justify-between items-center">
+                            <label for="slider-s1s2" class="text-xs font-medium text-slate-300">Khoảng cách hai nguồn (S₁S₂)</label>
+                            <span id="label-s1s2" class="text-xs font-mono-code font-bold text-amber-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">8.0 cm</span>
+                        </div>
+                        <input id="slider-s1s2" type="range" min="3.0" max="14.0" step="0.5" value="8.0" oninput="updateControls()">
+                    </div>
+
+                    <!-- Tùy chọn hiển thị vân cực đại / cực tiểu lý thuyết -->
+                    <div id="interference-overlays" class="hidden pt-1 border-t border-slate-800/80 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input id="chk-maxima" type="checkbox" checked onchange="renderAll()" class="w-4 h-4 rounded accent-amber-400 cursor-pointer">
+                            <span>Đường cực đại (nét liền)</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input id="chk-minima" type="checkbox" checked onchange="renderAll()" class="w-4 h-4 rounded accent-sky-400 cursor-pointer">
+                            <span>Đường cực tiểu (nét đứt)</span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const rippleCanvas = document.getElementById('rippleCanvas');
+        const rCtx = rippleCanvas.getContext('2d');
+
+        const crossCanvas = document.getElementById('crossSectionCanvas');
+        const cCtx = crossCanvas.getContext('2d');
+
+        // Offscreen buffer độ phân giải vừa phải để render trường sóng 2D siêu mượt 60fps
+        const offCanvas = document.createElement('canvas');
+        const offCtx = offCanvas.getContext('2d');
+        const FIELD_W = 340;
+        const FIELD_H = 220;
+        offCanvas.width = FIELD_W;
+        offCanvas.height = FIELD_H;
+        const imgData = offCtx.createImageData(FIELD_W, FIELD_H);
+
+        // Tỉ lệ quy đổi trên khay sóng: 1 cm = 22 pixel trên buffer FIELD_W
+        const CM_TO_BUF_PX = 20;
+
+        // Trạng thái toàn cục của mô phỏng khay sóng
+        const state = {
+            mode: 'single',             // 'single' | 'interference'
+            singleWaveType: 'circular', // 'circular' | 'plane'
+            phaseMode: 'same',          // 'same' (Δφ = 0) | 'opposite' (Δφ = π)
+            isPlaying: true,
+            time: 0,
+            lastTime: 0,
+            freq: 10.0,                 // Tần số f (Hz)
+            waveSpeed: 20.0,            // Tốc độ truyền sóng v (cm/s)
+            sourceDistCm: 8.0,          // Khoảng cách S1S2 (cm)
+            // Tọa độ chuẩn hóa [0, 1] của điểm khảo sát M trên mặt nước
+            probeNormX: 0.65,
+            probeNormY: 0.42,
+            isDraggingProbe: false
+        };
+
+        function resizeCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            [rippleCanvas, crossCanvas].forEach(c => {
+                const rect = c.parentElement.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    c.width = rect.width * dpr;
+                    c.height = rect.height * dpr;
+                    c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+            });
+            renderAll();
+        }
+        window.addEventListener('resize', resizeCanvases);
+
+        // Chuyển đổi giữa chế độ 1 (Sóng mặt nước) và chế độ 2 (Giao thoa sóng mặt nước)
+        function switchMode(mode) {
+            state.mode = mode;
+            const tab1 = document.getElementById('tab-single');
+            const tab2 = document.getElementById('tab-interference');
+
+            const singleSelector = document.getElementById('single-source-selector');
+            const phaseSelector = document.getElementById('phase-diff-selector');
+            const sourceDistCtrl = document.getElementById('control-source-dist');
+            const interOverlays = document.getElementById('interference-overlays');
+            const probeSingle = document.getElementById('probe-single-info');
+            const probeInter = document.getElementById('probe-inter-info');
+
+            if (mode === 'single') {
+                tab1.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-sky-500 text-slate-950 shadow-md';
+                tab2.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white';
+
+                singleSelector.classList.remove('hidden');
+                singleSelector.classList.add('flex');
+                phaseSelector.classList.add('hidden');
+                phaseSelector.classList.remove('flex');
+                sourceDistCtrl.classList.add('hidden');
+                sourceDistCtrl.classList.remove('flex');
+                interOverlays.classList.add('hidden');
+                interOverlays.classList.remove('flex');
+
+                probeSingle.classList.remove('hidden');
+                probeSingle.classList.add('grid');
+                probeInter.classList.add('hidden');
+                probeInter.classList.remove('flex');
+
+                document.getElementById('m-formula-tag').textContent = 'u_M = A·cos(ωt - 2πd/λ)';
+            } else {
+                tab2.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-amber-500 text-slate-950 shadow-md';
+                tab1.className = 'flex-1 lg:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-300 hover:text-white';
+
+                singleSelector.classList.add('hidden');
+                singleSelector.classList.remove('flex');
+                phaseSelector.classList.remove('hidden');
+                phaseSelector.classList.add('flex');
+                sourceDistCtrl.classList.remove('hidden');
+                sourceDistCtrl.classList.add('flex');
+                interOverlays.classList.remove('hidden');
+                interOverlays.classList.add('flex');
+
+                probeSingle.classList.add('hidden');
+                probeSingle.classList.remove('grid');
+                probeInter.classList.remove('hidden');
+                probeInter.classList.add('flex');
+
+                document.getElementById('m-formula-tag').textContent = state.phaseMode === 'same'
+                    ? 'Cực đại: d₂ - d₁ = k·λ'
+                    : 'Cực đại: d₂ - d₁ = (k + ½)·λ';
+            }
+
+            updateControls();
+            renderAll();
+        }
+
+        function setSingleWaveType(type) {
+            state.singleWaveType = type;
+            const btnCirc = document.getElementById('btn-wave-circular');
+            const btnPlane = document.getElementById('btn-wave-plane');
+            if (type === 'circular') {
+                btnCirc.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950 transition';
+                btnPlane.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition';
+            } else {
+                btnPlane.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950 transition';
+                btnCirc.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition';
+            }
+            renderAll();
+        }
+
+        function setPhaseMode(mode) {
+            state.phaseMode = mode;
+            const btnSame = document.getElementById('btn-phase-same');
+            const btnOpp = document.getElementById('btn-phase-opp');
+            if (mode === 'same') {
+                btnSame.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition';
+                btnOpp.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition';
+                document.getElementById('m-formula-tag').textContent = 'Cực đại: d₂ - d₁ = k·λ';
+            } else {
+                btnOpp.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition';
+                btnSame.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition';
+                document.getElementById('m-formula-tag').textContent = 'Cực đại: d₂ - d₁ = (k + ½)·λ';
+            }
+            updateControls();
+            renderAll();
+        }
+
+        function updateControls() {
+            state.freq = parseFloat(document.getElementById('slider-freq').value);
+            state.waveSpeed = parseFloat(document.getElementById('slider-wave-speed').value);
+            state.sourceDistCm = parseFloat(document.getElementById('slider-s1s2').value);
+
+            const lambdaCm = state.waveSpeed / state.freq;
+            const period = 1 / state.freq;
+
+            document.getElementById('label-freq').textContent = `${state.freq.toFixed(1)} Hz`;
+            document.getElementById('label-wave-speed').textContent = `${state.waveSpeed.toFixed(1)} cm/s`;
+            document.getElementById('label-s1s2').textContent = `${state.sourceDistCm.toFixed(1)} cm`;
+
+            document.getElementById('readout-lambda').textContent = `${lambdaCm.toFixed(2)} cm`;
+            document.getElementById('readout-speed').textContent = `${state.waveSpeed.toFixed(1)} cm/s`;
+            document.getElementById('readout-freq').textContent = `${state.freq.toFixed(1)} Hz`;
+
+            if (state.mode === 'single') {
+                document.getElementById('readout-extra-label').textContent = 'Chu kì (T)';
+                document.getElementById('readout-extra-val').textContent = `${period.toFixed(2)} s`;
+            } else {
+                // Tính số dãy cực đại giao thoa giữa S1 và S2: -S1S2/λ < k < S1S2/λ
+                const maxOrder = Math.floor((state.sourceDistCm - 1e-4) / lambdaCm);
+                const totalMaximaLines = state.phaseMode === 'same'
+                    ? (2 * maxOrder + 1)
+                    : (2 * Math.floor((state.sourceDistCm / lambdaCm) - 0.5 + 1e-4) + 2);
+                document.getElementById('readout-extra-label').textContent = 'Số dãy cực đại';
+                document.getElementById('readout-extra-val').textContent = `${Math.max(0, totalMaximaLines)} dãy`;
+            }
+
+            if (!state.isPlaying) {
+                renderAll();
+            }
+        }
+
+        function togglePlay() {
+            state.isPlaying = !state.isPlaying;
+            const icon = document.getElementById('icon-play');
+            const text = document.getElementById('text-play');
+            const dot = document.getElementById('status-dot');
+            if (state.isPlaying) {
+                icon.className = 'ph-fill ph-pause text-base';
+                text.textContent = 'Tạm dừng';
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+                state.lastTime = performance.now();
+                requestAnimationFrame(loop);
+            } else {
+                icon.className = 'ph-fill ph-play text-base';
+                text.textContent = 'Tiếp tục';
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+            }
+        }
+
+        function resetSimulation() {
+            state.time = 0;
+            state.probeNormX = 0.65;
+            state.probeNormY = 0.42;
+            document.getElementById('slider-freq').value = 10.0;
+            document.getElementById('slider-wave-speed').value = 20.0;
+            document.getElementById('slider-s1s2').value = 8.0;
+            updateControls();
+            renderAll();
+        }
+
+        // Xử lý kéo thả điểm M trực tiếp trên khay nước bằng chuột hoặc cảm ứng
+        function updateProbeFromEvent(clientX, clientY) {
+            const rect = rippleCanvas.getBoundingClientRect();
+            const nx = Math.max(0.06, Math.min(0.94, (clientX - rect.left) / rect.width));
+            const ny = Math.max(0.08, Math.min(0.86, (clientY - rect.top) / rect.height));
+            state.probeNormX = nx;
+            state.probeNormY = ny;
+            renderAll();
+        }
+
+        rippleCanvas.addEventListener('mousedown', (e) => {
+            state.isDraggingProbe = true;
+            updateProbeFromEvent(e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (state.isDraggingProbe) {
+                updateProbeFromEvent(e.clientX, e.clientY);
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            state.isDraggingProbe = false;
+        });
+
+        rippleCanvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                state.isDraggingProbe = true;
+                updateProbeFromEvent(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+        rippleCanvas.addEventListener('touchmove', (e) => {
+            if (state.isDraggingProbe && e.touches.length > 0) {
+                updateProbeFromEvent(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+        window.addEventListener('touchend', () => {
+            state.isDraggingProbe = false;
+        });
+
+        // =========================================================================
+        // TÍNH TOÁN & VẼ TRƯỜNG SÓNG MẶT NƯỚC 2D (RIPPLE TANK)
+        // =========================================================================
+        function computeWaveField() {
+            const data = imgData.data;
+            const lambdaCm = state.waveSpeed / state.freq;
+            const lambdaPx = lambdaCm * CM_TO_BUF_PX;
+            const k = (2 * Math.PI) / lambdaPx;
+            // Tốc độ pha hiển thị vừa mắt người quan sát
+            const omega = 2 * Math.PI * (state.freq * 0.35);
+            const phase = omega * state.time;
+
+            if (state.mode === 'single') {
+                if (state.singleWaveType === 'circular') {
+                    // Nguồn điểm S ở trung tâm khay nước
+                    const sx = FIELD_W * 0.5;
+                    const sy = FIELD_H * 0.5;
+
+                    for (let y = 0; y < FIELD_H; y++) {
+                        const dy = y - sy;
+                        const dy2 = dy * dy;
+                        for (let x = 0; x < FIELD_W; x++) {
+                            const dx = x - sx;
+                            const r = Math.sqrt(dx * dx + dy2);
+                            // Suy giảm biên độ nhẹ theo khoảng cách r
+                            const atten = 1 / (1 + r * 0.006);
+                            const u = atten * Math.cos(phase - k * r);
+
+                            const idx = (y * FIELD_W + x) * 4;
+                            // Ánh xạ u [-1, 1] sang màu nước xanh ngọc (gợn lồi sáng, gợn lõm tối)
+                            const norm = (u + 1) * 0.5; // [0, 1]
+                            data[idx]     = Math.round(6 + Math.pow(norm, 2.2) * 145);   // R
+                            data[idx + 1] = Math.round(35 + Math.pow(norm, 1.35) * 205); // G
+                            data[idx + 2] = Math.round(75 + norm * 180);                 // B
+                            data[idx + 3] = 255;
+                        }
+                    }
+                } else {
+                    // Sóng phẳng phát ra từ thanh rung thẳng đứng bên trái (x = 32)
+                    const startX = 32;
+                    for (let y = 0; y < FIELD_H; y++) {
+                        for (let x = 0; x < FIELD_W; x++) {
+                            const d = Math.max(0, x - startX);
+                            const u = Math.cos(phase - k * d);
+                            const idx = (y * FIELD_W + x) * 4;
+                            const norm = (u + 1) * 0.5;
+                            data[idx]     = Math.round(6 + Math.pow(norm, 2.2) * 145);
+                            data[idx + 1] = Math.round(35 + Math.pow(norm, 1.35) * 205);
+                            data[idx + 2] = Math.round(75 + norm * 180);
+                            data[idx + 3] = 255;
+                        }
+                    }
+                }
+            } else {
+                // Chế độ Giao thoa 2 nguồn kết hợp S1, S2 đối xứng qua tâm khay nước
+                const halfSepPx = (state.sourceDistCm * CM_TO_BUF_PX) * 0.5;
+                const cx = FIELD_W * 0.5;
+                const cy = FIELD_H * 0.54;
+                const s1x = cx - halfSepPx;
+                const s2x = cx + halfSepPx;
+                const deltaPhi = state.phaseMode === 'same' ? 0 : Math.PI;
+
+                for (let y = 0; y < FIELD_H; y++) {
+                    const dy = y - cy;
+                    const dy2 = dy * dy;
+                    for (let x = 0; x < FIELD_W; x++) {
+                        const dx1 = x - s1x;
+                        const dx2 = x - s2x;
+                        const r1 = Math.sqrt(dx1 * dx1 + dy2);
+                        const r2 = Math.sqrt(dx2 * dx2 + dy2);
+
+                        const u1 = Math.cos(phase - k * r1);
+                        const u2 = Math.cos(phase - k * r2 + deltaPhi);
+                        // Sóng tổng hợp u = (u1 + u2) / 2 trong miền [-1, 1]
+                        const u = (u1 + u2) * 0.5;
+
+                        const idx = (y * FIELD_W + x) * 4;
+                        const norm = (u + 1) * 0.5;
+                        data[idx]     = Math.round(8 + Math.pow(norm, 2.3) * 170);
+                        data[idx + 1] = Math.round(32 + Math.pow(norm, 1.4) * 210);
+                        data[idx + 2] = Math.round(70 + norm * 185);
+                        data[idx + 3] = 255;
+                    }
+                }
+            }
+
+            offCtx.putImageData(imgData, 0, 0);
+        }
+
+        // Vẽ khay nước, nguồn rung, vân giao thoa hypebol & điểm M lên Canvas chính
+        function drawRippleTank() {
+            const w = rippleCanvas.parentElement.clientWidth;
+            const h = rippleCanvas.parentElement.clientHeight;
+            rCtx.clearRect(0, 0, w, h);
+
+            // Vẽ ảnh trường sóng đã tính toán lên toàn bộ khung khay
+            rCtx.drawImage(offCanvas, 0, 0, w, h);
+
+            const scaleX = w / FIELD_W;
+            const scaleY = h / FIELD_H;
+            const lambdaCm = state.waveSpeed / state.freq;
+            const omega = 2 * Math.PI * (state.freq * 0.35);
+            const phase = omega * state.time;
+
+            // Tọa độ điểm M trên màn hình & trong hệ quy chiếu cm
+            const mx = state.probeNormX * w;
+            const my = state.probeNormY * h;
+            const mBufX = state.probeNormX * FIELD_W;
+            const mBufY = state.probeNormY * FIELD_H;
+
+            if (state.mode === 'single') {
+                if (state.singleWaveType === 'circular') {
+                    const sx = w * 0.5;
+                    const sy = h * 0.5;
+                    const sBufX = FIELD_W * 0.5;
+                    const sBufY = FIELD_H * 0.5;
+
+                    // Đường nối từ nguồn S tới điểm M
+                    rCtx.save();
+                    rCtx.strokeStyle = 'rgba(251, 191, 36, 0.8)';
+                    rCtx.setLineDash([5, 5]);
+                    rCtx.lineWidth = 1.8;
+                    rCtx.beginPath();
+                    rCtx.moveTo(sx, sy);
+                    rCtx.lineTo(mx, my);
+                    rCtx.stroke();
+                    rCtx.restore();
+
+                    // Tính khoảng cách d (cm)
+                    const distBufPx = Math.hypot(mBufX - sBufX, mBufY - sBufY);
+                    const dCm = distBufPx / CM_TO_BUF_PX;
+                    const uM = 5.0 * Math.cos(phase - (2 * Math.PI * dCm) / lambdaCm);
+
+                    document.getElementById('val-d-single').textContent = `${dCm.toFixed(2)} cm (${(dCm / lambdaCm).toFixed(2)} λ)`;
+                    document.getElementById('val-u-single').textContent = `${uM >= 0 ? '+' : ''}${uM.toFixed(2)} mm`;
+                    document.getElementById('m-state-badge').textContent = uM > 0.5 ? 'Đang ở gợn lồi' : (uM < -0.5 ? 'Đang ở gợn lõm' : 'Qua vị trí cân bằng');
+
+                    // Vẽ cần rung nguồn điểm S
+                    drawDipperSource(sx, sy, 'S');
+                } else {
+                    // Thanh rung sóng phẳng bên trái
+                    const barX = (32 / FIELD_W) * w;
+                    rCtx.save();
+                    rCtx.fillStyle = '#e2e8f0';
+                    rCtx.strokeStyle = '#0f172a';
+                    rCtx.lineWidth = 2;
+                    rCtx.fillRect(barX - 5, 24, 10, h - 48);
+                    rCtx.strokeRect(barX - 5, 24, 10, h - 48);
+                    rCtx.restore();
+
+                    // Đường vuông góc từ thanh nguồn tới M
+                    rCtx.save();
+                    rCtx.strokeStyle = 'rgba(251, 191, 36, 0.8)';
+                    rCtx.setLineDash([5, 5]);
+                    rCtx.lineWidth = 1.8;
+                    rCtx.beginPath();
+                    rCtx.moveTo(barX, my);
+                    rCtx.lineTo(mx, my);
+                    rCtx.stroke();
+                    rCtx.restore();
+
+                    const dCm = Math.max(0, (mBufX - 32) / CM_TO_BUF_PX);
+                    const uM = 5.0 * Math.cos(phase - (2 * Math.PI * dCm) / lambdaCm);
+                    document.getElementById('val-d-single').textContent = `${dCm.toFixed(2)} cm (${(dCm / lambdaCm).toFixed(2)} λ)`;
+                    document.getElementById('val-u-single').textContent = `${uM >= 0 ? '+' : ''}${uM.toFixed(2)} mm`;
+                    document.getElementById('m-state-badge').textContent = uM > 0.5 ? 'Đang ở gợn lồi' : (uM < -0.5 ? 'Đang ở gợn lõm' : 'Qua vị trí cân bằng');
+                }
+            } else {
+                // CHẾ ĐỘ GIAO THOA 2 NGUỒN S1, S2
+                const halfSepBuf = (state.sourceDistCm * CM_TO_BUF_PX) * 0.5;
+                const cxBuf = FIELD_W * 0.5;
+                const cyBuf = FIELD_H * 0.54;
+                const s1BufX = cxBuf - halfSepBuf;
+                const s2BufX = cxBuf + halfSepBuf;
+
+                const s1x = s1BufX * scaleX;
+                const s2x = s2BufX * scaleX;
+                const sy = cyBuf * scaleY;
+
+                // Vẽ các họ đường hypebol cực đại / cực tiểu lý thuyết nếu người dùng bật
+                const showMax = document.getElementById('chk-maxima').checked;
+                const showMin = document.getElementById('chk-minima').checked;
+                if (showMax || showMin) {
+                    drawHyperbolaFamilies(s1x, s2x, sy, state.sourceDistCm * CM_TO_BUF_PX * scaleX, lambdaCm * CM_TO_BUF_PX * scaleX, showMax, showMin);
+                }
+
+                // Vẽ 2 tia d1 = MS1 và d2 = MS2
+                rCtx.save();
+                rCtx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+                rCtx.setLineDash([4, 4]);
+                rCtx.lineWidth = 1.8;
+                rCtx.beginPath();
+                rCtx.moveTo(s1x, sy);
+                rCtx.lineTo(mx, my);
+                rCtx.lineTo(s2x, sy);
+                rCtx.stroke();
+                rCtx.restore();
+
+                // Tính d1, d2 (cm) và hiệu đường đi d2 - d1
+                const d1Cm = Math.hypot(mBufX - s1BufX, mBufY - cyBuf) / CM_TO_BUF_PX;
+                const d2Cm = Math.hypot(mBufX - s2BufX, mBufY - cyBuf) / CM_TO_BUF_PX;
+                const deltaD = d2Cm - d1Cm;
+                const ratioK = deltaD / lambdaCm;
+
+                document.getElementById('val-d1').textContent = `${d1Cm.toFixed(2)} cm`;
+                document.getElementById('val-d2').textContent = `${d2Cm.toFixed(2)} cm`;
+                document.getElementById('val-dd').textContent = `${deltaD >= 0 ? '+' : ''}${deltaD.toFixed(2)} cm`;
+
+                // Phân loại điểm M thuộc cực đại hay cực tiểu giao thoa
+                const badgeEl = document.getElementById('m-state-badge');
+                const kTextEl = document.getElementById('val-k-ratio');
+                const frac = Math.abs(ratioK - Math.round(ratioK));
+                const halfFrac = Math.abs(Math.abs(ratioK - Math.floor(ratioK)) - 0.5);
+
+                const isMax = state.phaseMode === 'same' ? (frac < 0.12) : (halfFrac < 0.12);
+                const isMin = state.phaseMode === 'same' ? (halfFrac < 0.12) : (frac < 0.12);
+
+                if (isMax) {
+                    const order = state.phaseMode === 'same' ? Math.round(ratioK) : Math.floor(ratioK);
+                    badgeEl.className = 'px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50';
+                    badgeEl.textContent = `Cực đại giao thoa (k = ${order})`;
+                    kTextEl.className = 'font-mono-code font-bold text-amber-300 text-sm';
+                    kTextEl.textContent = `${ratioK.toFixed(2)} λ ⇒ Cực đại bậc ${order}`;
+                } else if (isMin) {
+                    badgeEl.className = 'px-2.5 py-0.5 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-500/50';
+                    badgeEl.textContent = 'Cực tiểu giao thoa (Đứng yên)';
+                    kTextEl.className = 'font-mono-code font-bold text-sky-300 text-sm';
+                    kTextEl.textContent = `${ratioK.toFixed(2)} λ ⇒ Cực tiểu (Triệt tiêu)`;
+                } else {
+                    badgeEl.className = 'px-2.5 py-0.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700';
+                    badgeEl.textContent = 'Vân trung gian';
+                    kTextEl.className = 'font-mono-code font-bold text-slate-300 text-sm';
+                    kTextEl.textContent = `${ratioK.toFixed(2)} λ (Trung gian)`;
+                }
+
+                // Vẽ 2 cần rung S1, S2
+                drawDipperSource(s1x, sy, 'S₁');
+                drawDipperSource(s2x, sy, 'S₂');
+            }
+
+            // Vẽ điểm khảo sát M (phao nổi đỏ nổi bật trên mặt nước)
+            rCtx.save();
+            rCtx.shadowColor = '#f43f5e';
+            rCtx.shadowBlur = 12;
+            rCtx.fillStyle = '#f43f5e';
+            rCtx.beginPath();
+            rCtx.arc(mx, my, 7.5, 0, Math.PI * 2);
+            rCtx.fill();
+            rCtx.strokeStyle = '#ffffff';
+            rCtx.lineWidth = 2;
+            rCtx.stroke();
+
+            rCtx.fillStyle = '#ffffff';
+            rCtx.font = 'bold 12px Inter, sans-serif';
+            rCtx.textAlign = 'left';
+            rCtx.fillText('M', mx + 11, my + 4);
+            rCtx.restore();
+        }
+
+        // Vẽ đầu cần rung tạo sóng
+        function drawDipperSource(x, y, label) {
+            rCtx.save();
+            rCtx.fillStyle = '#fbbf24';
+            rCtx.strokeStyle = '#0f172a';
+            rCtx.lineWidth = 2;
+            rCtx.beginPath();
+            rCtx.arc(x, y, 7, 0, Math.PI * 2);
+            rCtx.fill();
+            rCtx.stroke();
+
+            rCtx.fillStyle = '#fef08a';
+            rCtx.font = 'bold 12px "JetBrains Mono", monospace';
+            rCtx.textAlign = 'center';
+            rCtx.fillText(label, x, y - 12);
+            rCtx.restore();
+        }
+
+        // Vẽ họ đường Hypebol cực đại (nét liền vàng) và cực tiểu (nét đứt xanh nhạt)
+        function drawHyperbolaFamilies(s1x, s2x, sy, distPx, lambdaPx, showMax, showMin) {
+            const cx = (s1x + s2x) * 0.5;
+            const cFocus = distPx * 0.5; // Tiêu cự c = S1S2 / 2
+            const w = rippleCanvas.parentElement.clientWidth;
+            const h = rippleCanvas.parentElement.clientHeight;
+
+            rCtx.save();
+            // Duyệt các hiệu đường đi Δd = m * (λ / 2)
+            const maxHalfSteps = Math.floor(distPx / (lambdaPx * 0.5));
+            for (let m = -maxHalfSteps; m <= maxHalfSteps; m++) {
+                const isEven = (Math.abs(m) % 2 === 0);
+                const isMaxLine = (state.phaseMode === 'same') ? isEven : !isEven;
+
+                if (isMaxLine && !showMax) continue;
+                if (!isMaxLine && !showMin) continue;
+
+                const deltaR = m * (lambdaPx * 0.5);
+                const a = Math.abs(deltaR) * 0.5; // Bán trục thực a = |d2 - d1| / 2
+                if (a >= cFocus - 1) continue;
+
+                rCtx.strokeStyle = isMaxLine
+                    ? 'rgba(251, 191, 36, 0.55)'
+                    : 'rgba(125, 211, 252, 0.45)';
+                rCtx.lineWidth = isMaxLine ? 1.5 : 1.2;
+                rCtx.setLineDash(isMaxLine ? [] : [4, 4]);
+
+                rCtx.beginPath();
+                if (a < 0.5) {
+                    // Đường trung trực thẳng đứng
+                    rCtx.moveTo(cx, 12);
+                    rCtx.lineTo(cx, h - 42);
+                } else {
+                    const b = Math.sqrt(cFocus * cFocus - a * a);
+                    const sign = deltaR >= 0 ? -1 : 1; // d2 > d1 => gần S1 hơn (bên trái)
+                    let started = false;
+                    for (let py = 12; py <= h - 42; py += 4) {
+                        const dy = py - sy;
+                        const px = cx + sign * a * Math.sqrt(1 + (dy * dy) / (b * b));
+                        if (px >= 10 && px <= w - 10) {
+                            if (!started) {
+                                rCtx.moveTo(px, py);
+                                started = true;
+                            } else {
+                                rCtx.lineTo(px, py);
+                            }
+                        }
+                    }
+                }
+                rCtx.stroke();
+            }
+            rCtx.restore();
+        }
+
+        // =========================================================================
+        // VẼ MẶT CẮT NGANG & DAO ĐỘNG CỦA PHAO NỔI TẠI ĐIỂM M
+        // =========================================================================
+        function drawCrossSection() {
+            const w = crossCanvas.parentElement.clientWidth;
+            const h = crossCanvas.parentElement.clientHeight;
+            cCtx.clearRect(0, 0, w, h);
+
+            const midY = h * 0.54;
+            const padX = 28;
+            const plotW = w - padX * 2;
+            const ampPx = 36;
+
+            // Mặt nước tĩnh (mực cân bằng)
+            cCtx.save();
+            cCtx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            cCtx.setLineDash([5, 5]);
+            cCtx.lineWidth = 1.2;
+            cCtx.beginPath();
+            cCtx.moveTo(padX, midY);
+            cCtx.lineTo(padX + plotW, midY);
+            cCtx.stroke();
+            cCtx.restore();
+
+            const lambdaCm = state.waveSpeed / state.freq;
+            const omega = 2 * Math.PI * (state.freq * 0.35);
+            const phase = omega * state.time;
+
+            if (state.mode === 'single') {
+                // Vẽ mặt cắt ngang theo phương truyền sóng từ nguồn tới qua M
+                const maxRangeCm = 14.0;
+                const kCm = (2 * Math.PI) / lambdaCm;
+
+                cCtx.save();
+                cCtx.strokeStyle = '#38bdf8';
+                cCtx.lineWidth = 2.8;
+                cCtx.beginPath();
+                for (let px = 0; px <= plotW; px += 2) {
+                    const d = (px / plotW) * maxRangeCm;
+                    const y = midY - ampPx * Math.cos(phase - kCm * d);
+                    if (px === 0) cCtx.moveTo(padX + px, y);
+                    else cCtx.lineTo(padX + px, y);
+                }
+                cCtx.stroke();
+                cCtx.restore();
+
+                // Vị trí điểm M trên mặt cắt
+                const mBufX = state.probeNormX * FIELD_W;
+                const mBufY = state.probeNormY * FIELD_H;
+                const dCm = state.singleWaveType === 'circular'
+                    ? Math.hypot(mBufX - FIELD_W * 0.5, mBufY - FIELD_H * 0.5) / CM_TO_BUF_PX
+                    : Math.max(0, (mBufX - 32) / CM_TO_BUF_PX);
+
+                const mxPlot = padX + Math.min(1, dCm / maxRangeCm) * plotW;
+                const myPlot = midY - ampPx * Math.cos(phase - kCm * dCm);
+
+                // Thanh dẫn thẳng đứng của phao M
+                cCtx.save();
+                cCtx.strokeStyle = 'rgba(244, 63, 94, 0.5)';
+                cCtx.setLineDash([3, 3]);
+                cCtx.beginPath();
+                cCtx.moveTo(mxPlot, midY - ampPx - 10);
+                cCtx.lineTo(mxPlot, midY + ampPx + 10);
+                cCtx.stroke();
+                cCtx.restore();
+
+                cCtx.fillStyle = '#f43f5e';
+                cCtx.beginPath();
+                cCtx.arc(mxPlot, myPlot, 6, 0, Math.PI * 2);
+                cCtx.fill();
+                cCtx.strokeStyle = '#ffffff';
+                cCtx.lineWidth = 1.8;
+                cCtx.stroke();
+
+                cCtx.fillStyle = '#fda4af';
+                cCtx.font = 'bold 11px Inter, sans-serif';
+                cCtx.textAlign = 'center';
+                cCtx.fillText('Phao M', mxPlot, midY - ampPx - 15);
+            } else {
+                // Ở chế độ giao thoa: vẽ trực quan 2 sóng thành phần từ S1, S2 tới M và sóng tổng hợp tại M
+                const halfSepBuf = (state.sourceDistCm * CM_TO_BUF_PX) * 0.5;
+                const s1BufX = FIELD_W * 0.5 - halfSepBuf;
+                const s2BufX = FIELD_W * 0.5 + halfSepBuf;
+                const cyBuf = FIELD_H * 0.54;
+                const mBufX = state.probeNormX * FIELD_W;
+                const mBufY = state.probeNormY * FIELD_H;
+
+                const d1Cm = Math.hypot(mBufX - s1BufX, mBufY - cyBuf) / CM_TO_BUF_PX;
+                const d2Cm = Math.hypot(mBufX - s2BufX, mBufY - cyBuf) / CM_TO_BUF_PX;
+                const deltaPhi = state.phaseMode === 'same' ? 0 : Math.PI;
+                const kCm = (2 * Math.PI) / lambdaCm;
+
+                // Vẽ đồ thị dao động theo thời gian tại điểm M: u1(t), u2(t) và tổng hợp u_M(t)
+                cCtx.save();
+                // Sóng 1 từ S1 tới M (nét mảnh cyan)
+                cCtx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                cCtx.lineWidth = 1.5;
+                cCtx.beginPath();
+                for (let px = 0; px <= plotW; px += 3) {
+                    const tShift = (px / plotW) * (Math.PI * 4);
+                    const y = midY - (ampPx * 0.55) * Math.cos(phase - tShift - kCm * d1Cm);
+                    if (px === 0) cCtx.moveTo(padX + px, y);
+                    else cCtx.lineTo(padX + px, y);
+                }
+                cCtx.stroke();
+
+                // Sóng 2 từ S2 tới M (nét mảnh tím)
+                cCtx.strokeStyle = 'rgba(192, 132, 252, 0.55)';
+                cCtx.beginPath();
+                for (let px = 0; px <= plotW; px += 3) {
+                    const tShift = (px / plotW) * (Math.PI * 4);
+                    const y = midY - (ampPx * 0.55) * Math.cos(phase - tShift - kCm * d2Cm + deltaPhi);
+                    if (px === 0) cCtx.moveTo(padX + px, y);
+                    else cCtx.lineTo(padX + px, y);
+                }
+                cCtx.stroke();
+
+                // Sóng giao thoa tổng hợp tại M (đường đậm vàng/đỏ)
+                cCtx.strokeStyle = '#fbbf24';
+                cCtx.lineWidth = 2.8;
+                cCtx.beginPath();
+                for (let px = 0; px <= plotW; px += 2) {
+                    const tShift = (px / plotW) * (Math.PI * 4);
+                    const u1 = Math.cos(phase - tShift - kCm * d1Cm);
+                    const u2 = Math.cos(phase - tShift - kCm * d2Cm + deltaPhi);
+                    const y = midY - (ampPx * 0.55) * (u1 + u2);
+                    if (px === 0) cCtx.moveTo(padX + px, y);
+                    else cCtx.lineTo(padX + px, y);
+                }
+                cCtx.stroke();
+                cCtx.restore();
+
+                // Phao tại M ở đầu bên phải đồ thị
+                const u1Now = Math.cos(phase - kCm * d1Cm);
+                const u2Now = Math.cos(phase - kCm * d2Cm + deltaPhi);
+                const yNow = midY - (ampPx * 0.55) * (u1Now + u2Now);
+
+                cCtx.fillStyle = '#f43f5e';
+                cCtx.beginPath();
+                cCtx.arc(padX + plotW, yNow, 6, 0, Math.PI * 2);
+                cCtx.fill();
+                cCtx.strokeStyle = '#ffffff';
+                cCtx.lineWidth = 1.8;
+                cCtx.stroke();
+
+                // Chú thích nhỏ trên góc đồ thị mặt cắt
+                cCtx.fillStyle = '#94a3b8';
+                cCtx.font = '10px Inter, sans-serif';
+                cCtx.textAlign = 'left';
+                cCtx.fillText('Vàng: Dao động tổng hợp tại M   |   Xanh & Tím: 2 sóng thành phần từ S₁, S₂', padX, 16);
+            }
+        }
+
+        function renderAll() {
+            computeWaveField();
+            drawRippleTank();
+            drawCrossSection();
+        }
+
+        function loop(timestamp) {
+            if (!state.lastTime) state.lastTime = timestamp;
+            const dt = Math.min((timestamp - state.lastTime) / 1000, 0.05);
+            state.lastTime = timestamp;
+
+            if (state.isPlaying) {
+                state.time += dt;
+                renderAll();
+                requestAnimationFrame(loop);
+            }
+        }
+
+        window.onload = function () {
+            resizeCanvases();
+            switchMode('interference');
+            requestAnimationFrame(loop);
+        };
+    </script>
+</body>
+</html>

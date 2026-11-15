@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng 3D Cảm Ứng Điện Từ - Định Luật Faraday & Lenz</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        /* Thanh cuộn tùy chỉnh cho UI */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        input[type=range] {
+            accent-color: #38bdf8;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+    </style>
+</head>
+<body class="relative w-full h-full">
+
+    <!-- Container 3D Three.js -->
+    <div id="canvas-container"></div>
+
+    <!-- Header & Trạng thái Định luật Lenz siêu gọn góc trái trên -->
+    <div class="fixed top-3 left-3 z-10 pointer-events-none flex flex-col gap-1.5 max-w-xs sm:max-w-md">
+        <div class="glass-panel px-3 py-2 rounded-xl shadow-lg pointer-events-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-5 rounded-full bg-gradient-to-b from-red-500 to-blue-500"></div>
+                <div>
+                    <h1 class="text-xs sm:text-sm font-bold tracking-tight text-white leading-tight">Cảm Ứng Điện Từ 3D</h1>
+                    <p class="text-[10px] text-slate-300">Faraday: <span class="text-amber-400 font-mono font-semibold">e = -N·dΦ/dt</span></p>
+                </div>
+            </div>
+            <div class="hidden sm:flex items-center gap-2 text-[10px] text-slate-300 border-l border-slate-700/80 pl-2.5">
+                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>Kéo nam châm</span>
+                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Hạt e⁻</span>
+            </div>
+        </div>
+
+        <!-- Trạng thái Định luật Lenz trực quan gọn nhẹ -->
+        <div id="lenz-banner" class="glass-panel px-3 py-1.5 rounded-xl shadow-md pointer-events-auto transition-all duration-200 border-l-4 border-l-slate-500">
+            <div id="lenz-text" class="text-[11px] font-medium text-slate-100 leading-snug">Nam châm đứng yên → dΦ/dt = 0 → e = 0 V.</div>
+        </div>
+    </div>
+
+    <!-- Bảng Điều Khiển HUD Nhỏ Gọn Góc Phải Trên (Có thể thu gọn) -->
+    <div class="fixed top-3 right-3 z-10 w-64 sm:w-72 flex flex-col gap-2">
+        <div class="glass-panel p-3 rounded-xl shadow-2xl flex flex-col gap-2.5">
+            <!-- Thanh tiêu đề HUD + Nút Đặt lại góc nhìn + Nút Thu gọn -->
+            <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5">
+                <span class="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-sky-400"></span>Điều Khiển
+                </span>
+                <div class="flex items-center gap-1">
+                    <button id="btn-reset-cam" title="Đặt lại góc nhìn 3D" class="text-[10px] bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-2 py-0.5 rounded border border-slate-600/80 transition">
+                        Góc nhìn
+                    </button>
+                    <button id="btn-toggle-panel" title="Thu gọn / Mở rộng bảng điều khiển" class="text-[10px] bg-slate-800/90 hover:bg-slate-700 text-sky-300 px-2 py-0.5 rounded border border-slate-600/80 font-semibold transition">
+                        Thu gọn ▲
+                    </button>
+                </div>
+            </div>
+
+            <!-- Số liệu thời gian thực luôn hiển thị cực gọn -->
+            <div class="grid grid-cols-3 gap-1.5 text-center">
+                <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg py-1 px-1">
+                    <div class="text-[9px] text-slate-400 uppercase">Từ thông Φ</div>
+                    <div id="stat-phi" class="text-[11px] font-mono font-bold text-cyan-400">0.00 Wb</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg py-1 px-1">
+                    <div class="text-[9px] text-slate-400 uppercase">Suất ĐĐ e</div>
+                    <div id="stat-emf" class="text-[11px] font-mono font-bold text-amber-400">0.00 V</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg py-1 px-1">
+                    <div class="text-[9px] text-slate-400 uppercase">Dòng điện I</div>
+                    <div id="stat-curr" class="text-[11px] font-mono font-bold text-emerald-400">0.00 A</div>
+                </div>
+            </div>
+
+            <!-- Phần nội dung điều khiển chi tiết (Có thể ẩn đi khi thu gọn) -->
+            <div id="panel-body" class="flex flex-col gap-2.5 pt-0.5">
+                <!-- Vị trí nam châm -->
+                <div>
+                    <div class="flex justify-between text-[11px] font-medium mb-0.5">
+                        <span class="text-slate-300">Vị trí nam châm (X):</span>
+                        <span id="val-pos" class="font-mono text-sky-400 font-semibold">-4.50 m</span>
+                    </div>
+                    <input id="slider-pos" type="range" min="-8" max="8" step="0.02" value="-4.5" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- Chế độ dao động tự động & Đảo cực -->
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button id="btn-auto" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg font-semibold text-[11px] bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition">
+                        <span id="auto-dot" class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        <span id="auto-label">Tự động: TẮT</span>
+                    </button>
+                    <button id="btn-flip" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg font-semibold text-[11px] bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition">
+                        <span>⇄ Cực:</span>
+                        <span id="pole-label" class="font-bold text-white">S - N</span>
+                    </button>
+                </div>
+
+                <!-- Tốc độ dao động tự động -->
+                <div id="speed-control-group" class="opacity-60 transition-opacity">
+                    <div class="flex justify-between text-[11px] font-medium mb-0.5">
+                        <span class="text-slate-300">Tần số dao động (ω):</span>
+                        <span id="val-speed" class="font-mono text-sky-400 font-semibold">2.0 rad/s</span>
+                    </div>
+                    <input id="slider-speed" type="range" min="0.5" max="5.0" step="0.1" value="2.0" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- Số vòng dây N -->
+                <div>
+                    <div class="flex justify-between text-[11px] font-medium mb-0.5">
+                        <span class="text-slate-300">Số vòng dây (N):</span>
+                        <span id="val-turns" class="font-mono text-amber-400 font-semibold">12 vòng</span>
+                    </div>
+                    <input id="slider-turns" type="range" min="4" max="26" step="1" value="12" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- Bật/tắt đường sức từ & Vector cảm ứng -->
+                <div class="flex items-center justify-between pt-1 border-t border-slate-800 text-[11px]">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                        <input id="chk-field" type="checkbox" checked class="rounded accent-sky-400 w-3 h-3">
+                        <span>Đường sức từ</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                        <input id="chk-vectors" type="checkbox" checked class="rounded accent-sky-400 w-3 h-3">
+                        <span>Vector B & B<sub class="text-[9px]">cư</sub></span>
+                    </label>
+                </div>
+
+                <!-- Đồng hồ Điện kế 2D mini đồng bộ với 3D -->
+                <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg p-1.5 flex items-center justify-between gap-2">
+                    <div class="flex flex-col pl-1">
+                        <span class="text-[10px] font-semibold text-slate-200">Điện kế (R = 2Ω)</span>
+                        <span id="galvo-dir-label" class="text-[10px] text-slate-400 leading-tight">Kim chỉ 0</span>
+                    </div>
+                    <canvas id="gauge-canvas" width="96" height="50" class="bg-slate-950 rounded border border-slate-800 shrink-0"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // 1. TRẠNG THÁI VẬT LÝ & CẤU HÌNH MÔ PHỎNG
+        // ============================================================================
+        const state = {
+            magnetX: -4.5,          // Vị trí hiện tại của thanh nam châm dọc trục X
+            prevMagnetX: -4.5,      // Vị trí ở khung hình trước để tính vận tốc
+            velocity: 0,            // Vận tốc dx/dt
+            polarity: 1,            // 1: Cực Bắc (N - Đỏ) bên phải hướng vào cuộn dây, -1: Cực Nam (S - Xanh) bên phải
+            turns: 12,              // Số vòng dây N
+            coilRadius: 1.85,       // Bán kính cuộn dây (m)
+            coilLength: 4.2,        // Chiều dài cuộn dây (m)
+            resistance: 2.0,        // Điện trở mạch (Ohm)
+            autoMode: false,        // Chế độ dao động điều hòa tự động
+            autoSpeed: 2.0,         // Tần số góc dao động (rad/s)
+            autoPhase: 0,           // Pha dao động hiện tại
+            showFieldLines: true,   // Hiển thị đường sức từ
+            showVectors: true,      // Hiển thị mũi tên vector từ trường B và B_cảm_ứng
+            // Đại lượng vật lý đầu ra
+            fluxSingle: 0,          // Từ thông qua 1 vòng dây
+            totalFlux: 0,           // Từ thông toàn phần N * Phi
+            emf: 0,                 // Suất điện động cảm ứng e = -N * dPhi/dt
+            current: 0,             // Cường độ dòng điện cảm ứng I = e / R
+            smoothedEmf: 0          // Làm mượt để hiển thị đồng hồ ổn định
+        };
+
+        // ============================================================================
+        // 2. KHỞI TẠO KHÔNG GIAN 3D THREE.JS
+        // ============================================================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b0f19);
+        scene.fog = new THREE.FogExp2(0x0b0f19, 0.018);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 6.2, 14.5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.maxPolarAngle = Math.PI / 2 + 0.15;
+        controls.minDistance = 5;
+        controls.maxDistance = 28;
+        controls.target.set(0, 0.6, 0);
+
+        // Hệ thống ánh sáng
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        dirLight.position.set(8, 15, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        const pointLightCoil = new THREE.PointLight(0xffaa00, 0, 8);
+        pointLightCoil.position.set(0, 0, 0);
+        scene.add(pointLightCoil);
+
+        // Mặt phẳng lưới tọa độ phòng thí nghiệm
+        const gridHelper = new THREE.GridHelper(32, 32, 0x1e293b, 0x1e293b);
+        gridHelper.position.y = -3.2;
+        scene.add(gridHelper);
+
+        // Trục tâm quang học của cuộn dây
+        const axisGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-12, 0, 0),
+            new THREE.Vector3(12, 0, 0)
+        ]);
+        const axisMat = new THREE.LineDashedMaterial({ color: 0x475569, dashSize: 0.3, gapSize: 0.2 });
+        const axisLine = new THREE.Line(axisGeo, axisMat);
+        axisLine.computeLineDistances();
+        scene.add(axisLine);
+
+        // ============================================================================
+        // 3. TẠO TEXTURE CHỮ N, S VÀ MẶT ĐỒNG HỒ ĐIỆN KẾ 3D
+        // ============================================================================
+        function createLabelTexture(text, bgColor, textColor = '#ffffff') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Viền nhẹ
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(4, 4, 248, 248);
+
+            ctx.fillStyle = textColor;
+            ctx.font = 'bold 150px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 128, 134);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = 4;
+            return texture;
+        }
+
+        function createGalvanometerDialTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            // Nền mặt đồng hồ
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, 512, 512);
+
+            // Vòng cung chia độ
+            const cx = 256, cy = 380, radius = 220;
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, Math.PI * 1.2, Math.PI * 1.8);
+            ctx.stroke();
+
+            // Vạch chia độ từ -5 đến +5
+            for (let i = -5; i <= 5; i++) {
+                const angle = Math.PI * 1.5 + (i / 5) * (Math.PI * 0.28);
+                const x1 = cx + Math.cos(angle) * (radius - 18);
+                const y1 = cy + Math.sin(angle) * (radius - 18);
+                const x2 = cx + Math.cos(angle) * (radius + (i % 5 === 0 ? 18 : 8));
+                const y2 = cy + Math.sin(angle) * (radius + (i % 5 === 0 ? 18 : 8));
+
+                ctx.strokeStyle = i === 0 ? '#0284c7' : (i < 0 ? '#dc2626' : '#16a34a');
+                ctx.lineWidth = i % 5 === 0 ? 6 : 3;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                if (i % 5 === 0 || i === 0) {
+                    const lx = cx + Math.cos(angle) * (radius - 48);
+                    const ly = cy + Math.sin(angle) * (radius - 48);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = 'bold 34px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(i === 0 ? '0' : (i > 0 ? '+' + i : i.toString()), lx, ly);
+                }
+            }
+
+            // Chữ G (Galvanometer)
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 64px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('G', cx, 265);
+            ctx.font = 'bold 24px Inter, sans-serif';
+            ctx.fillStyle = '#475569';
+            ctx.fillText('ĐIỆN KẾ (mA)', cx, 305);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // ============================================================================
+        // 4. XÂY DỰNG THANH NAM CHÂM 3D & ĐƯỜNG SỨC TỪ
+        // ============================================================================
+        const magnetGroup = new THREE.Group();
+        scene.add(magnetGroup);
+
+        const magnetBodyGroup = new THREE.Group();
+        magnetGroup.add(magnetBodyGroup);
+
+        const texN = createLabelTexture('N', '#dc2626');
+        const texS = createLabelTexture('S', '#2563eb');
+
+        // Cực Bắc (Đỏ) - Mặc định nằm bên phải (+X)
+        const northGeo = new THREE.BoxGeometry(1.4, 0.9, 0.9);
+        const northMat = [
+            new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3, metalness: 0.2 }), // +X
+            new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3, metalness: 0.2 }), // -X
+            new THREE.MeshStandardMaterial({ map: texN, roughness: 0.3, metalness: 0.2 }),       // +Y
+            new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3, metalness: 0.2 }), // -Y
+            new THREE.MeshStandardMaterial({ map: texN, roughness: 0.3, metalness: 0.2 }),       // +Z
+            new THREE.MeshStandardMaterial({ map: texN, roughness: 0.3, metalness: 0.2 })        // -Z
+        ];
+        const northMesh = new THREE.Mesh(northGeo, northMat);
+        northMesh.position.x = 0.7;
+        northMesh.castShadow = true;
+        magnetBodyGroup.add(northMesh);
+
+        // Cực Nam (Xanh dương) - Mặc định nằm bên trái (-X)
+        const southGeo = new THREE.BoxGeometry(1.4, 0.9, 0.9);
+        const southMat = [
+            new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.2 }),
+            new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.2 }),
+            new THREE.MeshStandardMaterial({ map: texS, roughness: 0.3, metalness: 0.2 }),
+            new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.2 }),
+            new THREE.MeshStandardMaterial({ map: texS, roughness: 0.3, metalness: 0.2 }),
+            new THREE.MeshStandardMaterial({ map: texS, roughness: 0.3, metalness: 0.2 })
+        ];
+        const southMesh = new THREE.Mesh(southGeo, southMat);
+        southMesh.position.x = -0.7;
+        southMesh.castShadow = true;
+        magnetBodyGroup.add(southMesh);
+
+        // Viền kim loại giữa N và S
+        const dividerMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.06, 0.92, 0.92),
+            new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.2 })
+        );
+        magnetBodyGroup.add(dividerMesh);
+
+        // Hệ thống đường sức từ 3D bao quanh nam châm (di chuyển và xoay cùng nam châm)
+        const fieldLinesGroup = new THREE.Group();
+        magnetBodyGroup.add(fieldLinesGroup);
+
+        const fieldArrowCones = [];
+
+        function buildMagneticFieldLines() {
+            const azimuthAngles = [0, Math.PI / 3, (2 * Math.PI) / 3, Math.PI, (4 * Math.PI) / 3, (5 * Math.PI) / 3];
+            const loopRadii = [1.35, 2.35];
+
+            const lineMat = new THREE.LineBasicMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.45
+            });
+            const coneGeo = new THREE.ConeGeometry(0.11, 0.32, 12);
+            const coneMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+            azimuthAngles.forEach((phi) => {
+                loopRadii.forEach((R) => {
+                    const pts = [];
+                    const numPts = 64;
+                    const a = 1.45 + R * 0.65; // Bán trục dọc X
+                    const b = R;               // Bán trục ngang
+
+                    for (let i = 0; i <= numPts; i++) {
+                        const t = (i / numPts) * Math.PI; // Từ 0 (cực Bắc +X) đến PI (cực Nam -X)
+                        const x = a * Math.cos(t);
+                        const r = b * Math.sin(t) + 0.2 * Math.pow(Math.sin(t), 3);
+                        const y = r * Math.cos(phi);
+                        const z = r * Math.sin(phi);
+                        pts.push(new THREE.Vector3(x, y, z));
+                    }
+
+                    const curve = new THREE.CatmullRomCurve3(pts);
+                    const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(60));
+                    const line = new THREE.Line(geo, lineMat);
+                    fieldLinesGroup.add(line);
+
+                    // Thêm mũi tên chỉ hướng đường sức từ: Đi ra từ cực Bắc (+X) và đi vào cực Nam (-X)
+                    [0.28, 0.72].forEach((u) => {
+                        const pos = curve.getPointAt(u);
+                        const tangent = curve.getTangentAt(u).normalize();
+                        const cone = new THREE.Mesh(coneGeo, coneMat);
+                        cone.position.copy(pos);
+                        cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+                        fieldLinesGroup.add(cone);
+                        fieldArrowCones.push({ mesh: cone, curve: curve, baseU: u });
+                    });
+                });
+            });
+        }
+        buildMagneticFieldLines();
+
+        // ============================================================================
+        // 5. XÂY DỰNG CUỘN DÂY DẪN (SOLENOID), HẠT ELECTRON & ĐIỆN KẾ 3D
+        // ============================================================================
+        let coilMesh = null;
+        let currentCurve = null;
+        const electronsGroup = new THREE.Group();
+        scene.add(electronsGroup);
+        const electronMeshes = [];
+        const NUM_ELECTRONS = 55;
+
+        // Khởi tạo các hạt mang điện phát sáng
+        const electronGeo = new THREE.SphereGeometry(0.11, 12, 12);
+        const electronMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+        for (let i = 0; i < NUM_ELECTRONS; i++) {
+            const el = new THREE.Mesh(electronGeo, electronMat);
+            electronsGroup.add(el);
+            electronMeshes.push({
+                mesh: el,
+                u: i / NUM_ELECTRONS
+            });
+        }
+
+        // Khung đỡ cuộn dây trong suốt (Ống thủy tinh / nhựa acrylic)
+        const bobbinGeo = new THREE.CylinderGeometry(state.coilRadius - 0.08, state.coilRadius - 0.08, state.coilLength + 0.4, 36, 1, true);
+        bobbinGeo.rotateZ(Math.PI / 2);
+        const bobbinMat = new THREE.MeshPhysicalMaterial({
+            color: 0x94a3b8,
+            transparent: true,
+            opacity: 0.16,
+            roughness: 0.1,
+            metalness: 0.1,
+            side: THREE.DoubleSide
+        });
+        const bobbinMesh = new THREE.Mesh(bobbinGeo, bobbinMat);
+        scene.add(bobbinMesh);
+
+        // Hàm tạo đường cong 3D khép kín gồm cuộn dây xoắn ốc + 2 dây dẫn nối lên Điện kế 3D
+        function rebuildSolenoid(turns) {
+            if (coilMesh) {
+                scene.remove(coilMesh);
+                coilMesh.geometry.dispose();
+            }
+
+            const points = [];
+            const R = state.coilRadius;
+            const L = state.coilLength;
+            const startX = -L / 2;
+            const endX = L / 2;
+
+            // Điểm đầu từ chốt trái của Điện kế 3D (đặt tại y = 3.2, z = -2.2)
+            const galvoLeft = new THREE.Vector3(-0.7, 3.1, -2.2);
+            const galvoRight = new THREE.Vector3(0.7, 3.1, -2.2);
+
+            points.push(galvoLeft);
+            points.push(new THREE.Vector3(-L / 2, 2.4, -2.0));
+            points.push(new THREE.Vector3(-L / 2, R, 0));
+
+            // Các vòng xoắn ốc
+            const totalSteps = turns * 28;
+            for (let i = 0; i <= totalSteps; i++) {
+                const t = i / totalSteps;
+                const angle = t * turns * Math.PI * 2;
+                const x = startX + t * L;
+                const y = R * Math.cos(angle);
+                const z = R * Math.sin(angle);
+                points.push(new THREE.Vector3(x, y, z));
+            }
+
+            // Dây dẫn từ đầu phải cuộn dây về chốt phải Điện kế 3D
+            points.push(new THREE.Vector3(endX, 2.4, -2.0));
+            points.push(galvoRight);
+
+            currentCurve = new THREE.CatmullRomCurve3(points);
+
+            const tubeGeo = new THREE.TubeGeometry(currentCurve, turns * 32 + 40, 0.065, 12, false);
+            const copperMat = new THREE.MeshStandardMaterial({
+                color: 0xd97706,
+                metalness: 0.82,
+                roughness: 0.25
+            });
+
+            coilMesh = new THREE.Mesh(tubeGeo, copperMat);
+            coilMesh.castShadow = true;
+            scene.add(coilMesh);
+        }
+
+        rebuildSolenoid(state.turns);
+
+        // Xây dựng Điện kế 3D (Galvanometer) phía trên cuộn dây
+        const galvoGroup = new THREE.Group();
+        galvoGroup.position.set(0, 4.1, -2.2);
+        scene.add(galvoGroup);
+
+        // Thân hộp điện kế
+        const boxGeo = new THREE.BoxGeometry(3.0, 2.3, 0.9);
+        const boxMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.5 });
+        const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+        boxMesh.castShadow = true;
+        galvoGroup.add(boxMesh);
+
+        // Mặt đồng hồ điện kế
+        const dialGeo = new THREE.PlaneGeometry(2.6, 1.9);
+        const dialMat = new THREE.MeshBasicMaterial({ map: createGalvanometerDialTexture() });
+        const dialMesh = new THREE.Mesh(dialGeo, dialMat);
+        dialMesh.position.z = 0.46;
+        galvoGroup.add(dialMesh);
+
+        // Kim điện kế 3D
+        const needlePivot = new THREE.Group();
+        needlePivot.position.set(0, -0.55, 0.48);
+        galvoGroup.add(needlePivot);
+
+        const needleGeo = new THREE.ConeGeometry(0.06, 1.35, 8);
+        needleGeo.translate(0, 0.65, 0);
+        const needleMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+        const needleMesh = new THREE.Mesh(needleGeo, needleMat);
+        needlePivot.add(needleMesh);
+
+        const pinCap = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16).rotateX(Math.PI / 2),
+            new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8 })
+        );
+        needlePivot.add(pinCap);
+
+        // Hai chốt cắm dây âm/dương dưới đáy điện kế
+        const termGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.35, 16);
+        const termLeft = new THREE.Mesh(termGeo, new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
+        termLeft.position.set(-0.7, -1.2, 0);
+        galvoGroup.add(termLeft);
+
+        const termRight = new THREE.Mesh(termGeo, new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+        termRight.position.set(0.7, -1.2, 0);
+        galvoGroup.add(termRight);
+
+        // ============================================================================
+        // 6. MŨI TÊN VECTOR TỪ TRƯỜNG BAN ĐẦU (B) & TỪ TRƯỜNG CẢM ỨNG (B_cảm_ứng)
+        // ============================================================================
+        const vectorGroup = new THREE.Group();
+        scene.add(vectorGroup);
+
+        // Mũi tên B của nam châm tại tâm cuộn dây (Màu xanh cyan)
+        const arrowB = new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(0, -2.35, 0),
+            0.001,
+            0x06b6d4,
+            0.4,
+            0.25
+        );
+        vectorGroup.add(arrowB);
+
+        // Mũi tên B cảm ứng của cuộn dây chống lại biến thiên từ thông (Màu hồng tím)
+        const arrowBInd = new THREE.ArrowHelper(
+            new THREE.Vector3(-1, 0, 0),
+            new THREE.Vector3(0, -2.85, 0),
+            0.001,
+            0xf43f5e,
+            0.4,
+            0.25
+        );
+        vectorGroup.add(arrowBInd);
+
+        // ============================================================================
+        // 7. TƯƠNG TÁC KÉO THẢ NAM CHÂM TRỰC TIẾP TRÊN KHÔNG GIAN 3D (RAYCASTER)
+        // ============================================================================
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const intersectPoint = new THREE.Vector3();
+        let isDraggingMagnet = false;
+        let dragOffsetX = 0;
+
+        function updatePointer(e) {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            pointer.x = (clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onPointerDown(e) {
+            if (e.target !== renderer.domElement) return;
+            updatePointer(e);
+            raycaster.setFromCamera(pointer, camera);
+            const hits = raycaster.intersectObjects([northMesh, southMesh, dividerMesh]);
+            if (hits.length > 0) {
+                isDraggingMagnet = true;
+                controls.enabled = false;
+                if (state.autoMode) toggleAutoMode(false);
+
+                // Cập nhật mặt phẳng kéo song song với camera
+                const camDir = new THREE.Vector3();
+                camera.getWorldDirection(camDir);
+                camDir.y = 0;
+                camDir.normalize();
+                dragPlane.setFromNormalAndCoplanarPoint(camDir, magnetGroup.position);
+
+                if (raycaster.ray.intersectPlane(dragPlane, intersectPoint)) {
+                    dragOffsetX = state.magnetX - intersectPoint.x;
+                }
+                document.body.style.cursor = 'grabbing';
+            }
+        }
+
+        function onPointerMove(e) {
+            updatePointer(e);
+            raycaster.setFromCamera(pointer, camera);
+
+            if (isDraggingMagnet) {
+                if (raycaster.ray.intersectPlane(dragPlane, intersectPoint)) {
+                    const newX = Math.max(-8, Math.min(8, intersectPoint.x + dragOffsetX));
+                    state.magnetX = newX;
+                    document.getElementById('slider-pos').value = newX.toFixed(2);
+                    document.getElementById('val-pos').textContent = newX.toFixed(2) + ' m';
+                }
+            } else {
+                const hits = raycaster.intersectObjects([northMesh, southMesh, dividerMesh]);
+                document.body.style.cursor = hits.length > 0 ? 'grab' : 'default';
+            }
+        }
+
+        function onPointerUp() {
+            if (isDraggingMagnet) {
+                isDraggingMagnet = false;
+                controls.enabled = true;
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        window.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchstart', onPointerDown, { passive: true });
+        window.addEventListener('touchmove', onPointerMove, { passive: true });
+        window.addEventListener('touchend', onPointerUp);
+
+        // ============================================================================
+        // 8. TÍNH TOÁN VẬT LÝ: ĐỊNH LUẬT FARADAY & ĐỊNH LUẬT LENZ
+        // ============================================================================
+        // Hàm tính từ thông trung bình qua 1 vòng dây dựa trên vị trí nam châm x
+        function computeSingleTurnFlux(magnetX, polarity) {
+            // Mô hình lưỡng cực từ xuyên qua cuộn dây có chiều dài L và bán kính R
+            // Đạt cực đại khi tâm nam châm ở tâm cuộn dây (x = 0)
+            const sigma = 2.15;
+            const B0 = 0.85; // Biên độ từ thông cực đại qua 1 vòng (Wb)
+            return polarity * B0 * Math.exp(-(magnetX * magnetX) / (2 * sigma * sigma));
+        }
+
+        // Đạo hàm giải tích dPhi_1 / dx giúp phép tính suất điện động cực kỳ mượt
+        function computeDFluxDx(magnetX, polarity) {
+            const sigma = 2.15;
+            const B0 = 0.85;
+            const phi = polarity * B0 * Math.exp(-(magnetX * magnetX) / (2 * sigma * sigma));
+            return phi * (-magnetX / (sigma * sigma));
+        }
+
+        function updatePhysics(dt) {
+            if (dt <= 0 || dt > 0.1) dt = 0.016;
+
+            // Nếu chế độ tự động bật: Dao động điều hòa x(t) = A * sin(omega * t)
+            if (state.autoMode) {
+                state.autoPhase += state.autoSpeed * dt;
+                const amplitude = 5.2;
+                state.magnetX = amplitude * Math.sin(state.autoPhase);
+                state.velocity = amplitude * state.autoSpeed * Math.cos(state.autoPhase);
+
+                // Đồng bộ thanh trượt
+                document.getElementById('slider-pos').value = state.magnetX.toFixed(2);
+                document.getElementById('val-pos').textContent = state.magnetX.toFixed(2) + ' m';
+            } else {
+                const rawVel = (state.magnetX - state.prevMagnetX) / dt;
+                state.velocity = THREE.MathUtils.lerp(state.velocity, rawVel, 0.35);
+            }
+            state.prevMagnetX = state.magnetX;
+
+            // 1. Từ thông qua 1 vòng dây và qua N vòng dây
+            state.fluxSingle = computeSingleTurnFlux(state.magnetX, state.polarity);
+            state.totalFlux = state.turns * state.fluxSingle;
+
+            // 2. Suất điện động cảm ứng Faraday: e = -N * dPhi/dt = -N * (dPhi/dx) * (dx/dt)
+            const dPhiDx = computeDFluxDx(state.magnetX, state.polarity);
+            const rawEmf = -state.turns * dPhiDx * state.velocity;
+            state.emf = rawEmf;
+            state.smoothedEmf = THREE.MathUtils.lerp(state.smoothedEmf, rawEmf, 0.25);
+
+            // 3. Dòng điện cảm ứng I = e / R
+            state.current = state.smoothedEmf / state.resistance;
+        }
+
+        // ============================================================================
+        // 9. CẬP NHẬT HIỂN THỊ 3D & ĐỒNG HỒ ĐIỆN KẾ 2D
+        // ============================================================================
+        const gaugeCanvas = document.getElementById('gauge-canvas');
+        const gaugeCtx = gaugeCanvas.getContext('2d');
+
+        function draw2DGauge(currentVal) {
+            const w = gaugeCanvas.width;
+            const h = gaugeCanvas.height;
+            gaugeCtx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h - 7;
+            const r = 35;
+
+            // Cung chia độ
+            gaugeCtx.strokeStyle = '#334155';
+            gaugeCtx.lineWidth = 3;
+            gaugeCtx.beginPath();
+            gaugeCtx.arc(cx, cy, r, Math.PI * 1.15, Math.PI * 1.85);
+            gaugeCtx.stroke();
+
+            // Vạch chia
+            for (let i = -4; i <= 4; i++) {
+                const ang = Math.PI * 1.5 + (i / 4) * (Math.PI * 0.32);
+                const x1 = cx + Math.cos(ang) * (r - 4);
+                const y1 = cy + Math.sin(ang) * (r - 4);
+                const x2 = cx + Math.cos(ang) * (r + 3);
+                const y2 = cy + Math.sin(ang) * (r + 3);
+                gaugeCtx.strokeStyle = i === 0 ? '#38bdf8' : '#64748b';
+                gaugeCtx.lineWidth = i === 0 ? 2 : 1;
+                gaugeCtx.beginPath();
+                gaugeCtx.moveTo(x1, y1);
+                gaugeCtx.lineTo(x2, y2);
+                gaugeCtx.stroke();
+            }
+
+            // Góc lệch kim
+            const clampedI = Math.max(-8, Math.min(8, currentVal));
+            const needleAngle = Math.PI * 1.5 + (clampedI / 8) * (Math.PI * 0.34);
+
+            gaugeCtx.strokeStyle = Math.abs(currentVal) < 0.08 ? '#94a3b8' : (currentVal > 0 ? '#34d399' : '#f87171');
+            gaugeCtx.lineWidth = 2.2;
+            gaugeCtx.beginPath();
+            gaugeCtx.moveTo(cx, cy);
+            gaugeCtx.lineTo(cx + Math.cos(needleAngle) * (r - 3), cy + Math.sin(needleAngle) * (r - 3));
+            gaugeCtx.stroke();
+
+            // Tâm kim
+            gaugeCtx.fillStyle = '#f8fafc';
+            gaugeCtx.beginPath();
+            gaugeCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+            gaugeCtx.fill();
+        }
+
+        function updateVisualsAndUI(dt) {
+            // 1. Vị trí nam châm
+            magnetGroup.position.x = state.magnetX;
+
+            // 2. Xoay cực nam châm mượt mà khi đảo cực
+            const targetRotY = state.polarity === 1 ? 0 : Math.PI;
+            magnetBodyGroup.rotation.y = THREE.MathUtils.lerp(magnetBodyGroup.rotation.y, targetRotY, 0.18);
+
+            // 3. Di chuyển các hạt electron dọc theo cuộn dây dựa trên cường độ dòng điện cảm ứng I
+            if (currentCurve) {
+                const speedFactor = state.current * 0.045;
+                const glowIntensity = Math.min(1, Math.abs(state.current) / 4.5);
+
+                electronMat.color.setHSL(0.13, 1.0, 0.5 + glowIntensity * 0.35);
+                pointLightCoil.intensity = glowIntensity * 1.6;
+
+                electronMeshes.forEach((item) => {
+                    item.u = (item.u + speedFactor * dt + 1) % 1;
+                    const pt = currentCurve.getPointAt(item.u);
+                    item.mesh.position.copy(pt);
+                    const scale = 0.75 + glowIntensity * 0.65;
+                    item.mesh.scale.setScalar(scale);
+                });
+            }
+
+            // 4. Góc quay kim điện kế 3D
+            const maxAngle = 0.75; // rad
+            const normalizedCurrent = Math.max(-1, Math.min(1, state.current / 8));
+            needlePivot.rotation.z = -normalizedCurrent * maxAngle;
+
+            // 5. Cập nhật mũi tên Vector từ trường B và B_cảm_ứng (Định luật Lenz)
+            vectorGroup.visible = state.showVectors;
+            if (state.showVectors) {
+                // Từ trường B của nam châm dọc trục
+                const bVal = state.fluxSingle;
+                const bLen = Math.min(3.2, Math.abs(bVal) * 3.2);
+                arrowB.setDirection(new THREE.Vector3(bVal >= 0 ? 1 : -1, 0, 0));
+                arrowB.setLength(Math.max(0.001, bLen), 0.35, 0.22);
+
+                // Từ trường cảm ứng B_ind sinh ra bởi dòng cảm ứng chống lại sự biến thiên từ thông
+                const bIndVal = state.smoothedEmf * 0.22;
+                const bIndLen = Math.min(3.2, Math.abs(bIndVal));
+                arrowBInd.setDirection(new THREE.Vector3(bIndVal >= 0 ? 1 : -1, 0, 0));
+                arrowBInd.setLength(Math.max(0.001, bIndLen), 0.35, 0.22);
+            }
+
+            // 6. Cập nhật số liệu trên UI
+            document.getElementById('stat-phi').textContent = state.totalFlux.toFixed(2) + ' Wb';
+            document.getElementById('stat-emf').textContent = state.smoothedEmf.toFixed(2) + ' V';
+            document.getElementById('stat-curr').textContent = state.current.toFixed(2) + ' A';
+
+            const galvoLabel = document.getElementById('galvo-dir-label');
+            if (Math.abs(state.current) < 0.05) {
+                galvoLabel.textContent = 'Kim chỉ 0 (Cân bằng)';
+                galvoLabel.className = 'text-[10px] text-slate-400 leading-tight';
+            } else if (state.current > 0) {
+                galvoLabel.textContent = 'Lệch PHẢI (Chiều +)';
+                galvoLabel.className = 'text-[10px] text-emerald-400 font-medium leading-tight';
+            } else {
+                galvoLabel.textContent = 'Lệch TRÁI (Chiều -)';
+                galvoLabel.className = 'text-[10px] text-rose-400 font-medium leading-tight';
+            }
+
+            // 7. Giải thích Định luật Lenz theo thời gian thực
+            const lenzBanner = document.getElementById('lenz-banner');
+            const lenzText = document.getElementById('lenz-text');
+            if (Math.abs(state.velocity) < 0.08 || Math.abs(state.smoothedEmf) < 0.08) {
+                lenzBanner.className = 'glass-panel px-3 py-1.5 rounded-xl shadow-md pointer-events-auto transition-all duration-200 border-l-4 border-l-slate-500';
+                lenzText.textContent = 'Nam châm đứng yên → Từ thông Φ không đổi (dΦ/dt = 0) → e = 0 V.';
+            } else {
+                const movingCloser = (state.magnetX < 0 && state.velocity > 0) || (state.magnetX > 0 && state.velocity < 0);
+                if (movingCloser) {
+                    lenzBanner.className = 'glass-panel px-3 py-1.5 rounded-xl shadow-md pointer-events-auto transition-all duration-200 border-l-4 border-l-amber-400';
+                    lenzText.textContent = 'LẠI GẦN cuộn dây → |Φ| tăng → B cảm ứng ngược chiều B để chống lại sự tăng.';
+                } else {
+                    lenzBanner.className = 'glass-panel px-3 py-1.5 rounded-xl shadow-md pointer-events-auto transition-all duration-200 border-l-4 border-l-sky-400';
+                    lenzText.textContent = 'RỜI XA cuộn dây → |Φ| giảm → B cảm ứng cùng chiều B để chống lại sự giảm.';
+                }
+            }
+
+            // 8. Vẽ đồng hồ 2D
+            draw2DGauge(state.current);
+        }
+
+        // ============================================================================
+        // 10. SỰ KIỆN GIAO DIỆN NGƯỜI DÙNG (UI CONTROLS)
+        // ============================================================================
+        const sliderPos = document.getElementById('slider-pos');
+        const sliderSpeed = document.getElementById('slider-speed');
+        const sliderTurns = document.getElementById('slider-turns');
+        const btnAuto = document.getElementById('btn-auto');
+        const btnFlip = document.getElementById('btn-flip');
+        const btnResetCam = document.getElementById('btn-reset-cam');
+        const btnTogglePanel = document.getElementById('btn-toggle-panel');
+        const panelBody = document.getElementById('panel-body');
+        const chkField = document.getElementById('chk-field');
+        const chkVectors = document.getElementById('chk-vectors');
+        let isPanelCollapsed = false;
+
+        btnTogglePanel.addEventListener('click', () => {
+            isPanelCollapsed = !isPanelCollapsed;
+            if (isPanelCollapsed) {
+                panelBody.classList.add('hidden');
+                btnTogglePanel.textContent = 'Mở rộng ▼';
+            } else {
+                panelBody.classList.remove('hidden');
+                btnTogglePanel.textContent = 'Thu gọn ▲';
+            }
+        });
+
+        function toggleAutoMode(forceState) {
+            state.autoMode = forceState !== undefined ? forceState : !state.autoMode;
+            const dot = document.getElementById('auto-dot');
+            const label = document.getElementById('auto-label');
+            const speedGroup = document.getElementById('speed-control-group');
+
+            if (state.autoMode) {
+                // Tính pha khớp với vị trí hiện tại để không bị giật
+                const clampedRatio = Math.max(-1, Math.min(1, state.magnetX / 5.2));
+                state.autoPhase = Math.asin(clampedRatio);
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping';
+                label.textContent = 'Tự động: BẬT';
+                btnAuto.className = 'flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg font-semibold text-[11px] bg-emerald-500/25 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-500/50 transition';
+                speedGroup.classList.remove('opacity-60');
+            } else {
+                state.velocity = 0;
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
+                label.textContent = 'Tự động: TẮT';
+                btnAuto.className = 'flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg font-semibold text-[11px] bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition';
+                speedGroup.classList.add('opacity-60');
+            }
+        }
+
+        sliderPos.addEventListener('input', (e) => {
+            if (state.autoMode) toggleAutoMode(false);
+            state.magnetX = parseFloat(e.target.value);
+            document.getElementById('val-pos').textContent = state.magnetX.toFixed(2) + ' m';
+        });
+
+        btnAuto.addEventListener('click', () => toggleAutoMode());
+
+        sliderSpeed.addEventListener('input', (e) => {
+            state.autoSpeed = parseFloat(e.target.value);
+            document.getElementById('val-speed').textContent = state.autoSpeed.toFixed(1) + ' rad/s';
+            if (!state.autoMode) toggleAutoMode(true);
+        });
+
+        btnFlip.addEventListener('click', () => {
+            state.polarity *= -1;
+            document.getElementById('pole-label').textContent = state.polarity === 1 ? 'S - N' : 'N - S';
+        });
+
+        sliderTurns.addEventListener('input', (e) => {
+            state.turns = parseInt(e.target.value, 10);
+            document.getElementById('val-turns').textContent = state.turns + ' vòng';
+            rebuildSolenoid(state.turns);
+        });
+
+        chkField.addEventListener('change', (e) => {
+            state.showFieldLines = e.target.checked;
+            fieldLinesGroup.visible = state.showFieldLines;
+        });
+
+        chkVectors.addEventListener('change', (e) => {
+            state.showVectors = e.target.checked;
+        });
+
+        btnResetCam.addEventListener('click', () => {
+            camera.position.set(0, 6.2, 14.5);
+            controls.target.set(0, 0.6, 0);
+            controls.update();
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ============================================================================
+        // 11. VÒNG LẶP HOẠT HỌA CHÍNH (ANIMATION LOOP)
+        // ============================================================================
+        let lastTime = performance.now();
+
+        function animate(now) {
+            requestAnimationFrame(animate);
+            const dt = (now - lastTime) / 1000;
+            lastTime = now;
+
+            updatePhysics(dt);
+            updateVisualsAndUI(dt);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function () {
+            // Bắt đầu ở chế độ dao động tự động nhẹ để người dùng thấy ngay hiện tượng
+            toggleAutoMode(true);
+            animate(performance.now());
+        };
+    </script>
+</body>
+</html>

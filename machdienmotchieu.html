@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phòng Thí Nghiệm Mạch Điện Một Chiều (DC Circuit Lab)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            overflow: hidden;
+        }
+        .font-mono-lcd {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Hiệu ứng màn hình LCD đồng hồ đo */
+        .lcd-screen {
+            background: linear-gradient(145deg, #1a261d, #111a13);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 2px solid #2d3748;
+        }
+        .lcd-text-green {
+            color: #4ade80;
+            text-shadow: 0 0 8px rgba(74, 222, 128, 0.45);
+        }
+        .lcd-text-amber {
+            color: #fbbf24;
+            text-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
+        }
+        .lcd-text-cyan {
+            color: #38bdf8;
+            text-shadow: 0 0 8px rgba(56, 189, 248, 0.45);
+        }
+        .lcd-text-red {
+            color: #f87171;
+            text-shadow: 0 0 10px rgba(248, 113, 113, 0.7);
+        }
+        /* Thanh cuộn tinh gọn */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col">
+
+    <!-- HEADER / THANH CÔNG CỤ TRÊN -->
+    <header class="bg-slate-900 border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0 z-20 shadow-md">
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-sm md:text-base font-bold tracking-tight text-white leading-tight">PHÒNG THÍ NGHIỆM MẠCH ĐIỆN DC</h1>
+                <p class="text-[11px] text-slate-400 hidden sm:block">Mô phỏng giải mạch MNA & Thiết bị đo I, U, P tách rời</p>
+            </div>
+        </div>
+
+        <!-- Nút mạch mẫu & Tác vụ nhanh -->
+        <div class="flex flex-wrap items-center gap-1.5">
+            <button onclick="loadPreset('series')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-amber-300 transition flex items-center gap-1.5 shadow-sm" title="Tải mạch nối tiếp cơ bản">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                Mạch nối tiếp mẫu
+            </button>
+            <button onclick="loadPreset('parallel')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-sky-300 transition flex items-center gap-1.5 shadow-sm" title="Tải mạch song song 2 nhánh">
+                <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                Mạch song song mẫu
+            </button>
+            <button onclick="loadPreset('mixed')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-emerald-300 transition flex items-center gap-1.5 shadow-sm" title="Tải mạch hỗn hợp có bóng đèn">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                Mạch hỗn hợp
+            </button>
+            <button onclick="clearCircuit()" class="px-2.5 py-1.5 rounded-lg bg-rose-950/70 hover:bg-rose-900/80 border border-rose-800/70 text-xs font-medium text-rose-200 transition flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Xóa mạch
+            </button>
+            <div class="h-5 w-px bg-slate-700 mx-0.5 hidden md:block"></div>
+            <button onclick="toggleHelpModal(true)" class="px-2.5 py-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/70 text-xs font-medium text-indigo-200 transition flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="hidden sm:inline">Hướng dẫn</span>
+            </button>
+            <button onclick="downloadHTML()" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition flex items-center gap-1 shadow">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span class="hidden md:inline">Tải HTML</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- KHU VỰC CHÍNH: 3 CỘT -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- CỘT TRÁI: KHO LINH KIỆN & THUỘC TÍNH -->
+        <aside class="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-row lg:flex-col justify-between shrink-0 z-10 overflow-x-auto lg:overflow-y-auto">
+            <div class="p-3 flex lg:flex-col gap-3 w-full">
+                <!-- Nhóm công cụ & linh kiện -->
+                <div class="min-w-[260px] lg:min-w-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Kho Linh Kiện & Thao Tác</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Click chọn -> Đặt</span>
+                    </div>
+
+                    <div class="grid grid-cols-3 lg:grid-cols-2 gap-1.5" id="palette-buttons">
+                        <!-- Công cụ chọn / di chuyển -->
+                        <button data-tool="select" onclick="setTool('select')" class="tool-btn active flex flex-col items-center justify-center p-2 rounded-xl border border-amber-500 bg-amber-500/15 text-amber-300 transition">
+                            <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+                            <span class="text-[11px] font-semibold">Chọn / Bật K</span>
+                        </button>
+
+                        <!-- Dây dẫn -->
+                        <button data-tool="wire" onclick="setTool('wire')" class="tool-btn flex flex-col items-center justify-center p-2 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-200 transition">
+                            <svg class="w-5 h-5 mb-1 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><line x1="7.5" y1="12" x2="16.5" y2="12"/></svg>
+                            <span class="text-[11px] font-semibold">Dây dẫn</span>
+                        </button>
+
+                        <!-- Nguồn điện DC -->
+                        <button data-tool="battery" onclick="setTool('battery')" class="tool-btn flex flex-col items-center justify-center p-2 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-200 transition">
+                            <svg class="w-5 h-5 mb-1 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="12" x2="9" y2="12"/><line x1="9" y1="6" x2="9" y2="18" stroke-width="2.5"/><line x1="14" y1="9" x2="14" y2="15" stroke-width="3"/><line x1="14" y1="12" x2="22" y2="12"/><text x="4" y="8" font-size="7" fill="#f87171" stroke="none">+</text></svg>
+                            <span class="text-[11px] font-semibold">Nguồn DC (E)</span>
+                        </button>
+
+                        <!-- Điện trở -->
+                        <button data-tool="resistor" onclick="setTool('resistor')" class="tool-btn flex flex-col items-center justify-center p-2 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-200 transition">
+                            <svg class="w-5 h-5 mb-1 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l1.5-4 3 8 3-8 3 8 1.5-4h4"/></svg>
+                            <span class="text-[11px] font-semibold">Điện trở (R)</span>
+                        </button>
+
+                        <!-- Bóng đèn -->
+                        <button data-tool="bulb" onclick="setTool('bulb')" class="tool-btn flex flex-col items-center justify-center p-2 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-200 transition">
+                            <svg class="w-5 h-5 mb-1 text-yellow-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5M2 12h4M18 12h4"/></svg>
+                            <span class="text-[11px] font-semibold">Bóng đèn</span>
+                        </button>
+
+                        <!-- Công tắc K -->
+                        <button data-tool="switch" onclick="setTool('switch')" class="tool-btn flex flex-col items-center justify-center p-2 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-200 transition">
+                            <svg class="w-5 h-5 mb-1 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="15" x2="8" y2="15"/><circle cx="8" cy="15" r="1.5"/><line x1="8" y1="15" x2="16" y2="8"/><circle cx="16" cy="15" r="1.5"/><line x1="16" y1="15" x2="22" y2="15"/></svg>
+                            <span class="text-[11px] font-semibold">Công tắc (K)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bảng chỉnh thông số linh kiện đang chọn -->
+                <div id="inspector-panel" class="min-w-[230px] lg:min-w-0 bg-slate-800/60 border border-slate-700/80 rounded-xl p-3 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Thông Số Linh Kiện</span>
+                            <span id="selected-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Chưa chọn</span>
+                        </div>
+
+                        <div id="inspector-empty" class="text-xs text-slate-400 py-3 text-center leading-relaxed">
+                            Nhấn chọn một linh kiện trên bảng mạch để chỉnh giá trị (V, Ω), xoay chiều hoặc xóa.
+                        </div>
+
+                        <div id="inspector-controls" class="hidden space-y-2.5">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-slate-400">Ký hiệu:</span>
+                                <span id="prop-label" class="font-bold text-white font-mono-lcd">R1</span>
+                            </div>
+
+                            <!-- Thanh trượt giá trị -->
+                            <div id="prop-value-group">
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span id="prop-value-name" class="text-slate-300">Điện trở:</span>
+                                    <span id="prop-value-display" class="font-bold text-amber-400 font-mono-lcd">10 Ω</span>
+                                </div>
+                                <input id="prop-slider" type="range" min="1" max="100" step="1" value="10" oninput="updateSelectedValue(this.value)" class="w-full accent-amber-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
+                                <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                                    <span id="prop-min">1Ω</span>
+                                    <span id="prop-max">100Ω</span>
+                                </div>
+                            </div>
+
+                            <!-- Trạng thái công tắc -->
+                            <div id="prop-switch-group" class="hidden">
+                                <button id="prop-switch-btn" onclick="toggleSelectedSwitch()" class="w-full py-1.5 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition">
+                                    Đóng / Ngắt Công Tắc
+                                </button>
+                            </div>
+
+                            <!-- Thông số đo thực tế tức thời qua linh kiện -->
+                            <div class="bg-slate-900/90 rounded-lg p-2 border border-slate-700/70 text-[11px] space-y-1">
+                                <div class="text-slate-400 font-semibold border-b border-slate-800 pb-0.5 mb-1">Trạng thái thực tế:</div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Hiệu điện thế U:</span>
+                                    <span id="live-u" class="font-mono-lcd text-sky-400">0.00 V</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Dòng điện I:</span>
+                                    <span id="live-i" class="font-mono-lcd text-emerald-400">0.00 A</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Công suất P:</span>
+                                    <span id="live-p" class="font-mono-lcd text-amber-400">0.00 W</span>
+                                </div>
+                            </div>
+
+                            <!-- Nút xoay & Xóa -->
+                            <div class="grid grid-cols-2 gap-1.5 pt-1">
+                                <button onclick="rotateSelected()" class="py-1.5 px-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-medium text-white flex items-center justify-center gap-1 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                    Xoay 90°
+                                </button>
+                                <button onclick="deleteSelected()" class="py-1.5 px-2 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-xs font-medium text-white flex items-center justify-center gap-1 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tùy chọn hiển thị -->
+            <div class="hidden lg:block p-3 border-t border-slate-800 space-y-2 text-xs">
+                <label class="flex items-center justify-between cursor-pointer text-slate-300">
+                    <span>Hiển thị dòng điện quy ước</span>
+                    <input id="toggle-current-anim" type="checkbox" checked class="accent-amber-500 rounded cursor-pointer">
+                </label>
+                <label class="flex items-center justify-between cursor-pointer text-slate-300">
+                    <span>Hiển thị điện thế nút (V)</span>
+                    <input id="toggle-node-volt" type="checkbox" class="accent-sky-500 rounded cursor-pointer">
+                </label>
+            </div>
+        </aside>
+
+        <!-- CỘT GIỮA: BẢNG MẠCH ĐIỆN TƯƠNG TÁC (CANVAS) -->
+        <section class="flex-1 relative bg-[#0b1120] overflow-hidden flex flex-col" id="canvas-container">
+            <!-- Thanh trạng thái nổi trên bảng mạch -->
+            <div class="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-10">
+                <div id="mode-banner" class="px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 backdrop-blur text-xs text-slate-200 shadow-lg flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="mode-text">Chế độ Chọn: Nhấn công tắc K để đóng/mở, hoặc kéo thả đầu que đo từ bàn đồng hồ bên phải.</span>
+                </div>
+
+                <!-- Cảnh báo ngắn mạch -->
+                <div id="short-circuit-alert" class="hidden px-3 py-1.5 rounded-full bg-rose-600 text-white text-xs font-bold shadow-lg shadow-rose-600/40 animate-bounce flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span id="short-circuit-msg">CẢNH BÁO NGẮN MẠCH!</span>
+                </div>
+            </div>
+
+            <canvas id="circuit-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+            <!-- Chú thích nhanh góc dưới -->
+            <div class="absolute bottom-2.5 left-3 right-3 flex flex-wrap items-center justify-between text-[11px] text-slate-400 pointer-events-none">
+                <div class="bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800/80 backdrop-blur">
+                    Mẹo: Kéo các <span class="text-rose-400 font-semibold">que đo đỏ (+)</span> và <span class="text-slate-200 font-semibold">đen (-)</span> từ cột phải thả vào các nút tròn trên mạch để đo.
+                </div>
+                <div id="circuit-status-pill" class="bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800/80 backdrop-blur font-mono-lcd text-emerald-400">
+                    Mạch sẵn sàng
+                </div>
+            </div>
+        </section>
+
+        <!-- CỘT PHẢI: BÀN THIẾT BỊ ĐO TÁCH RỜI (VÔN KẾ, AMPE KẾ, OÁT KẾ) -->
+        <aside class="w-full lg:w-80 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 p-3 overflow-y-auto shrink-0 z-10 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        Bàn Thiết Bị Đo Tách Rời
+                    </h2>
+                    <p class="text-[10px] text-slate-400">Mặc định ngắt khỏi mạch • Kéo que đo khi cần đo</p>
+                </div>
+                <button onclick="disconnectAllMeters()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700 transition" title="Rút toàn bộ que đo về bàn">
+                    Rút hết que
+                </button>
+            </div>
+
+            <!-- 1. VÔN KẾ (ĐO HIỆU ĐIỆN THẾ U) -->
+            <div class="bg-slate-800/80 border border-sky-900/60 rounded-xl p-2.5 shadow-inner relative">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-full bg-sky-500/20 border border-sky-400 text-sky-300 font-bold text-xs flex items-center justify-center">V</span>
+                        <div>
+                            <div class="text-xs font-bold text-white leading-none">VÔN KẾ (Voltmeter)</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Mắc song song • R<sub>V</sub> = 10<sup>9</sup> Ω</div>
+                        </div>
+                    </div>
+                    <span id="vm-status" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">Chưa nối</span>
+                </div>
+
+                <!-- Màn hình LCD Vôn kế -->
+                <div class="lcd-screen rounded-lg px-3 py-2 flex items-baseline justify-between mb-2">
+                    <span class="text-[10px] text-slate-500 font-mono-lcd">DC VOLTS</span>
+                    <div class="text-right">
+                        <span id="vm-reading" class="font-mono-lcd text-2xl font-bold lcd-text-cyan">---</span>
+                        <span class="font-mono-lcd text-xs text-sky-400 ml-1">V</span>
+                    </div>
+                </div>
+
+                <!-- Đầu cắm que đo Vôn kế -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="probe-btn-vm-pos" onmousedown="startProbeDrag('vm', 'pos', event)" ontouchstart="startProbeDrag('vm', 'pos', event)"
+                        class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/60 text-xs text-rose-200 cursor-grab active:cursor-grabbing transition">
+                        <span class="flex items-center gap-1.5 font-semibold">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow shadow-rose-500"></span>
+                            Que Đỏ (+)
+                        </span>
+                        <span id="vm-pos-node" class="text-[10px] font-mono-lcd text-rose-300">Rời</span>
+                    </button>
+
+                    <button id="probe-btn-vm-neg" onmousedown="startProbeDrag('vm', 'neg', event)" ontouchstart="startProbeDrag('vm', 'neg', event)"
+                        class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-500/60 text-xs text-slate-200 cursor-grab active:cursor-grabbing transition">
+                        <span class="flex items-center gap-1.5 font-semibold">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                            Que Đen (-)
+                        </span>
+                        <span id="vm-neg-node" class="text-[10px] font-mono-lcd text-slate-400">Rời</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. AMPE KẾ (ĐO CƯỜNG ĐỘ DÒNG ĐIỆN I) -->
+            <div id="ammeter-card" class="bg-slate-800/80 border border-emerald-900/60 rounded-xl p-2.5 shadow-inner relative transition-colors">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-bold text-xs flex items-center justify-center">A</span>
+                        <div>
+                            <div class="text-xs font-bold text-white leading-none">AMPE KẾ (Ammeter)</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Mắc nối tiếp • R<sub>A</sub> = 10<sup>-5</sup> Ω</div>
+                        </div>
+                    </div>
+                    <span id="am-status" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">Chưa nối</span>
+                </div>
+
+                <!-- Màn hình LCD Ampe kế -->
+                <div class="lcd-screen rounded-lg px-3 py-2 flex items-baseline justify-between mb-2">
+                    <span class="text-[10px] text-slate-500 font-mono-lcd">DC AMPS</span>
+                    <div class="text-right">
+                        <span id="am-reading" class="font-mono-lcd text-2xl font-bold lcd-text-green">---</span>
+                        <span class="font-mono-lcd text-xs text-emerald-400 ml-1">A</span>
+                    </div>
+                </div>
+
+                <!-- Cảnh báo cháy cầu chì Ampe kế -->
+                <div id="am-fuse-blown" class="hidden mb-2 p-2 rounded-lg bg-rose-950 border border-rose-500 text-[11px] text-rose-200 flex items-center justify-between gap-2">
+                    <span>🔥 Cháy cầu chì! (Mắc song song nguồn)</span>
+                    <button onclick="resetAmmeterFuse()" class="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold shrink-0">Reset</button>
+                </div>
+
+                <!-- Đầu cắm que đo Ampe kế & Chế độ chèn nối tiếp tiện lợi -->
+                <div class="grid grid-cols-2 gap-2 mb-1.5">
+                    <button id="probe-btn-am-pos" onmousedown="startProbeDrag('am', 'pos', event)" ontouchstart="startProbeDrag('am', 'pos', event)"
+                        class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/60 text-xs text-rose-200 cursor-grab active:cursor-grabbing transition">
+                        <span class="flex items-center gap-1.5 font-semibold">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                            Dây Đỏ (+)
+                        </span>
+                        <span id="am-pos-node" class="text-[10px] font-mono-lcd text-rose-300">Rời</span>
+                    </button>
+
+                    <button id="probe-btn-am-neg" onmousedown="startProbeDrag('am', 'neg', event)" ontouchstart="startProbeDrag('am', 'neg', event)"
+                        class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-500/60 text-xs text-slate-200 cursor-grab active:cursor-grabbing transition">
+                        <span class="flex items-center gap-1.5 font-semibold">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                            Dây Đen (-)
+                        </span>
+                        <span id="am-neg-node" class="text-[10px] font-mono-lcd text-slate-400">Rời</span>
+                    </button>
+                </div>
+
+                <!-- Nút chèn nhanh Ampe kế nối tiếp vào 1 đoạn dây -->
+                <button id="btn-insert-ammeter" onclick="toggleInsertAmmeterMode()" class="w-full py-1.5 px-2.5 rounded-lg bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-600/60 text-[11px] font-medium text-emerald-300 flex items-center justify-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    <span id="insert-am-label">Chèn Ampe kế nối tiếp vào đoạn dây</span>
+                </button>
+            </div>
+
+            <!-- 3. OÁT KẾ (ĐO CÔNG SUẤT ĐIỆN P = U × I) -->
+            <div class="bg-slate-800/80 border border-amber-900/60 rounded-xl p-2.5 shadow-inner relative">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs flex items-center justify-center">W</span>
+                        <div>
+                            <div class="text-xs font-bold text-white leading-none">OÁT KẾ (Wattmeter)</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Đo công suất P = U × I (W)</div>
+                        </div>
+                    </div>
+                    <span id="wm-status" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">Chưa nối</span>
+                </div>
+
+                <!-- Màn hình LCD Oát kế -->
+                <div class="lcd-screen rounded-lg px-3 py-2 mb-2">
+                    <div class="flex items-baseline justify-between">
+                        <span class="text-[10px] text-slate-500 font-mono-lcd">POWER</span>
+                        <div class="text-right">
+                            <span id="wm-reading" class="font-mono-lcd text-2xl font-bold lcd-text-amber">---</span>
+                            <span class="font-mono-lcd text-xs text-amber-400 ml-1">W</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-[10px] font-mono-lcd text-slate-400 border-t border-slate-800/90 pt-1 mt-1">
+                        <span>U: <b id="wm-u-val" class="text-sky-400">---</b> V</span>
+                        <span>I: <b id="wm-i-val" class="text-emerald-400">---</b> A</span>
+                    </div>
+                </div>
+
+                <!-- Chế độ 1: Kẹp đo trực tiếp trên 1 linh kiện (Tiện lợi & trực quan) -->
+                <button id="btn-clamp-wattmeter" onclick="toggleClampWattmeterMode()" class="w-full mb-2 py-1.5 px-2.5 rounded-lg bg-amber-950/90 hover:bg-amber-900 border border-amber-600/60 text-[11px] font-medium text-amber-300 flex items-center justify-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    <span id="clamp-wm-label">Kẹp Oát kế vào linh kiện trên mạch</span>
+                </button>
+
+                <!-- Chế độ 2: 4 đầu đo chuẩn (I+, I- mắc nối tiếp; U+, U- mắc song song) -->
+                <details class="text-[11px] text-slate-300 bg-slate-900/60 rounded-lg p-1.5 border border-slate-700/70">
+                    <summary class="cursor-pointer font-medium text-slate-400 hover:text-slate-200 px-1">4 đầu dây đo rời (I+, I-, U+, U-)</summary>
+                    <div class="grid grid-cols-2 gap-1.5 mt-2">
+                        <button onmousedown="startProbeDrag('wm', 'ipos', event)" ontouchstart="startProbeDrag('wm', 'ipos', event)"
+                            class="flex items-center justify-between px-2 py-1 rounded bg-emerald-950/70 border border-emerald-600/50 text-[10px] text-emerald-200 cursor-grab">
+                            <span>● Dòng I+</span>
+                            <span id="wm-ipos-node" class="font-mono-lcd">Rời</span>
+                        </button>
+                        <button onmousedown="startProbeDrag('wm', 'ineg', event)" ontouchstart="startProbeDrag('wm', 'ineg', event)"
+                            class="flex items-center justify-between px-2 py-1 rounded bg-emerald-950/40 border border-emerald-700/50 text-[10px] text-emerald-300 cursor-grab">
+                            <span>● Dòng I-</span>
+                            <span id="wm-ineg-node" class="font-mono-lcd">Rời</span>
+                        </button>
+                        <button onmousedown="startProbeDrag('wm', 'upos', event)" ontouchstart="startProbeDrag('wm', 'upos', event)"
+                            class="flex items-center justify-between px-2 py-1 rounded bg-sky-950/70 border border-sky-600/50 text-[10px] text-sky-200 cursor-grab">
+                            <span>● Áp U+</span>
+                            <span id="wm-upos-node" class="font-mono-lcd">Rời</span>
+                        </button>
+                        <button onmousedown="startProbeDrag('wm', 'uneg', event)" ontouchstart="startProbeDrag('wm', 'uneg', event)"
+                            class="flex items-center justify-between px-2 py-1 rounded bg-sky-950/40 border border-sky-700/50 text-[10px] text-sky-300 cursor-grab">
+                            <span>● Áp U-</span>
+                            <span id="wm-uneg-node" class="font-mono-lcd">Rời</span>
+                        </button>
+                    </div>
+                </details>
+            </div>
+        </aside>
+    </main>
+
+    <!-- MODAL HƯỚNG DẪN SỬ DỤNG -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">?</span>
+                    Hướng Dẫn Sử Dụng Phòng Thí Nghiệm Mạch Điện DC
+                </h3>
+                <button onclick="toggleHelpModal(false)" class="text-slate-400 hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-300 leading-relaxed max-h-[65vh] overflow-y-auto pr-1">
+                <div class="bg-slate-800/70 p-3 rounded-xl border border-slate-700/70">
+                    <div class="font-bold text-amber-400 mb-1">1. Lắp ráp mạch nối tiếp & song song</div>
+                    <ul class="list-disc pl-4 space-y-1">
+                        <li>Chọn nhanh <b>Mạch nối tiếp mẫu</b> hoặc <b>Mạch song song mẫu</b> ở thanh trên để quan sát ngay.</li>
+                        <li>Để tự lắp mạch: chọn linh kiện ở cột trái (<b>Nguồn DC, Điện trở, Bóng đèn, Công tắc</b>) rồi nhấn vào khoảng trống giữa 2 điểm nút lưới trên bảng mạch.</li>
+                        <li>Chọn <b>Dây dẫn</b> và kéo nối giữa 2 điểm nút bất kỳ để tạo nhánh nối tiếp hoặc rẽ nhánh song song.</li>
+                        <li>Ở chế độ <b>Chọn / Bật K</b>: nhấn vào công tắc K để đóng/ngắt mạch; nhấn vào linh kiện để sửa giá trị (V, Ω), xoay 90° hoặc xóa.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800/70 p-3 rounded-xl border border-slate-700/70">
+                    <div class="font-bold text-sky-400 mb-1">2. Sử dụng Vôn kế (Đo hiệu điện thế U)</div>
+                    <p>Vôn kế mắc <b>song song</b> với đoạn mạch cần đo. Kéo nút <b>Que Đỏ (+)</b> và <b>Que Đen (-)</b> ở khung Vôn kế bên phải thả vào 2 điểm nút ở hai đầu linh kiện hoặc nguồn điện.</p>
+                </div>
+
+                <div class="bg-slate-800/70 p-3 rounded-xl border border-slate-700/70">
+                    <div class="font-bold text-emerald-400 mb-1">3. Sử dụng Ampe kế (Đo cường độ dòng điện I)</div>
+                    <p>Ampe kế phải mắc <b>nối tiếp</b> trong mạch:</p>
+                    <ul class="list-disc pl-4 space-y-1 mt-1">
+                        <li><b>Cách nhanh:</b> Nhấn nút <b>"Chèn Ampe kế nối tiếp vào đoạn dây"</b> rồi nhấn vào một đoạn dây dẫn trên mạch — hệ thống tự động tách nút và mắc nối tiếp Ampe kế vào nhánh đó!</li>
+                        <li><b>Cách thủ công:</b> Mở một công tắc K (hoặc xóa 1 đoạn dây) rồi nối 2 dây Đỏ (+), Đen (-) của Ampe kế vào 2 đầu hở đó.</li>
+                        <li><i>Lưu ý an toàn:</i> Nếu nối trực tiếp 2 đầu Ampe kế song song với nguồn điện, dòng ngắn mạch cực lớn sẽ làm <b>cháy cầu chì Ampe kế</b> (nhấn Reset để khôi phục).</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800/70 p-3 rounded-xl border border-slate-700/70">
+                    <div class="font-bold text-amber-300 mb-1">4. Sử dụng Oát kế (Đo công suất P = U × I)</div>
+                    <p>Nhấn nút <b>"Kẹp Oát kế vào linh kiện trên mạch"</b> rồi chọn một điện trở, bóng đèn hoặc nguồn điện để đo đồng thời U, I và công suất tiêu thụ/phát P (W), hoặc dùng 4 đầu đo rời (I+, I-, U+, U-).</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+                <button onclick="toggleHelpModal(false)" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+                    Đã hiểu, bắt đầu thí nghiệm
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * ============================================================================
+ * PHÒNG THÍ NGHIỆM MẠCH ĐIỆN MỘT CHIỀU (DC CIRCUIT SIMULATOR)
+ * Bộ giải mạch chính xác bằng phương pháp Phân tích Nút Cải Tiến (MNA)
+ * ============================================================================
+ */
+
+const canvas = document.getElementById('circuit-canvas');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('canvas-container');
+
+// Cấu hình lưới tọa độ (Grid Nodes)
+const GRID_SIZE = 56; // Khoảng cách giữa 2 nút lưới (px)
+let gridCols = 14;
+let gridRows = 10;
+let offsetX = 40;
+let offsetY = 55;
+
+// Trạng thái ứng dụng
+const state = {
+    tool: 'select', // 'select', 'wire', 'battery', 'resistor', 'bulb', 'switch', 'insert_ammeter', 'clamp_wattmeter'
+    components: [], // Danh sách linh kiện & dây dẫn
+    selectedId: null,
+    hoveredNode: null, // {gx, gy}
+    hoveredCompId: null,
+    dragWireStart: null, // {gx, gy}
+    dragWireCurrent: null, // {x, y}
+    draggingComp: null, // {id, offsetGx, offsetGy}
+    draggingProbe: null, // {meter: 'vm'|'am'|'wm', pin: string, x, y}
+    animPhase: 0,
+    shortCircuit: false,
+    shortCircuitReason: '',
+    nextCounters: { battery: 1, resistor: 1, bulb: 1, switch: 1, wire: 1 }
+};
+
+// Trạng thái thiết bị đo tách rời (mặc định chưa nối vào mạch)
+const meters = {
+    vm: {
+        pos: null, // {gx, gy} hoặc null
+        neg: null,
+        voltage: null
+    },
+    am: {
+        pos: null,
+        neg: null,
+        current: null,
+        blown: false,
+        insertedFromWire: null // Lưu đoạn dây gốc nếu dùng chức năng chèn nhanh
+    },
+    wm: {
+        clampedCompId: null, // Kẹp trực tiếp vào linh kiện
+        ipos: null,
+        ineg: null,
+        upos: null,
+        uneg: null,
+        power: null,
+        u: null,
+        i: null
+    }
+};
+
+// Kết quả giải mạch MNA mới nhất
+let solution = {
+    nodeVoltages: new Map(), // key "gx,gy" -> Voltage (V)
+    compCurrents: new Map(), // comp.id -> Current from n1 to n2 (A)
+    compVoltages: new Map(), // comp.id -> V(n1) - V(n2) (V)
+    compPowers: new Map()    // comp.id -> Power (W)
+};
+
+// ============================================================================
+// QUẢN LÝ KÍCH THƯỚC CANVAS & TỌA ĐỘ LƯỚI
+// ============================================================================
+function resizeCanvas() {
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    gridCols = Math.max(8, Math.floor((rect.width - 60) / GRID_SIZE));
+    gridRows = Math.max(6, Math.floor((rect.height - 90) / GRID_SIZE));
+    offsetX = Math.floor((rect.width - (gridCols - 1) * GRID_SIZE) / 2);
+    offsetY = Math.floor((rect.height - (gridRows - 1) * GRID_SIZE) / 2) + 8;
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+function gridToScreen(gx, gy) {
+    return {
+        x: offsetX + gx * GRID_SIZE,
+        y: offsetY + gy * GRID_SIZE
+    };
+}
+
+function screenToGrid(x, y) {
+    const gx = Math.round((x - offsetX) / GRID_SIZE);
+    const gy = Math.round((y - offsetY) / GRID_SIZE);
+    if (gx >= 0 && gx < gridCols && gy >= 0 && gy < gridRows) {
+        const pt = gridToScreen(gx, gy);
+        const dist = Math.hypot(pt.x - x, pt.y - y);
+        if (dist <= GRID_SIZE * 0.45) {
+            return { gx, gy };
+        }
+    }
+    return null;
+}
+
+function nodeKey(gx, gy) {
+    return `${gx},${gy}`;
+}
+
+function sameNode(a, b) {
+    return a && b && a.gx === b.gx && a.gy === b.gy;
+}
+
+// ============================================================================
+// BỘ GIẢI MẠCH ĐIỆN MNA (MODIFIED NODAL ANALYSIS)
+// Giải chính xác mọi mạch nối tiếp, song song, hỗn hợp, cầu Wheatstone, nhiều nguồn
+// ============================================================================
+function solveCircuit() {
+    solution.nodeVoltages.clear();
+    solution.compCurrents.clear();
+    solution.compVoltages.clear();
+    solution.compPowers.clear();
+    state.shortCircuit = false;
+    state.shortCircuitReason = '';
+
+    // Thu thập tất cả các phần tử dẫn điện: linh kiện + nhánh nội trở của thiết bị đo đang nối vào mạch
+    const branches = [];
+
+    for (const c of state.components) {
+        if (c.type === 'wire') {
+            branches.push({ id: c.id, kind: 'resistor', n1: c.n1, n2: c.n2, r: 1e-6, comp: c });
+        } else if (c.type === 'switch') {
+            if (c.closed) {
+                branches.push({ id: c.id, kind: 'resistor', n1: c.n1, n2: c.n2, r: 1e-6, comp: c });
+            } else {
+                // Công tắc hở: điện trở rất lớn để giữ ổn định số học nếu nút cô lập
+                branches.push({ id: c.id, kind: 'resistor', n1: c.n1, n2: c.n2, r: 1e12, comp: c });
+            }
+        } else if (c.type === 'resistor') {
+            branches.push({ id: c.id, kind: 'resistor', n1: c.n1, n2: c.n2, r: Math.max(0.1, c.value), comp: c });
+        } else if (c.type === 'bulb') {
+            branches.push({ id: c.id, kind: 'resistor', n1: c.n1, n2: c.n2, r: Math.max(0.1, c.value), comp: c });
+        } else if (c.type === 'battery') {
+            // Nguồn áp lý tưởng nối tiếp điện trở trong nhỏ r_int = 0.05 Ohm để chống suy biến ma trận khi mắc song song nguồn
+            branches.push({ id: c.id, kind: 'vsource', n1: c.n1, n2: c.n2, v: c.value, rInt: 0.02, comp: c });
+        }
+    }
+
+    // Thêm Vôn kế nếu cả 2 que đo đều đang cắm vào nút (nội trở 10^9 Ohm)
+    if (meters.vm.pos && meters.vm.neg && !sameNode(meters.vm.pos, meters.vm.neg)) {
+        branches.push({ id: '__vm__', kind: 'resistor', n1: meters.vm.pos, n2: meters.vm.neg, r: 1e9 });
+    }
+
+    // Thêm Ampe kế nếu cả 2 dây đo đều cắm vào nút và cầu chì chưa cháy (nội trở 10^-5 Ohm)
+    if (meters.am.pos && meters.am.neg && !sameNode(meters.am.pos, meters.am.neg) && !meters.am.blown) {
+        branches.push({ id: '__am__', kind: 'resistor', n1: meters.am.pos, n2: meters.am.neg, r: 1e-5 });
+    }
+
+    // Thêm Oát kế 4 đầu dây nếu đang dùng chế độ 4 dây
+    if (!meters.wm.clampedCompId) {
+        if (meters.wm.ipos && meters.wm.ineg && !sameNode(meters.wm.ipos, meters.wm.ineg)) {
+            branches.push({ id: '__wm_i__', kind: 'resistor', n1: meters.wm.ipos, n2: meters.wm.ineg, r: 1e-5 });
+        }
+        if (meters.wm.upos && meters.wm.uneg && !sameNode(meters.wm.upos, meters.wm.uneg)) {
+            branches.push({ id: '__wm_u__', kind: 'resistor', n1: meters.wm.upos, n2: meters.wm.uneg, r: 1e9 });
+        }
+    }
+
+    if (branches.length === 0) {
+        updateMeterReadings();
+        return;
+    }
+
+    // Lập danh sách các nút điện duy nhất
+    const nodeIndexMap = new Map();
+    const nodesList = [];
+    function getOrAddNode(pt) {
+        const k = nodeKey(pt.gx, pt.gy);
+        if (!nodeIndexMap.has(k)) {
+            nodeIndexMap.set(k, nodesList.length);
+            nodesList.push(k);
+        }
+        return nodeIndexMap.get(k);
+    }
+
+    const vSources = [];
+    for (const b of branches) {
+        b.i1 = getOrAddNode(b.n1);
+        b.i2 = getOrAddNode(b.n2);
+        if (b.kind === 'vsource') {
+            vSources.push(b);
+        }
+    }
+
+    const numNodes = nodesList.length;
+    const numVS = vSources.length;
+
+    // Chọn nút tham chiếu (Ground = 0V): ưu tiên cực âm của nguồn đầu tiên
+    let groundIdx = 0;
+    if (vSources.length > 0) {
+        groundIdx = vSources[0].i2;
+    }
+
+    // Kích thước hệ phương trình tuyến tính A * x = z
+    // Ẩn số: [V_0, V_1, ..., V_{N-1}, I_vs0, I_vs1, ...]
+    const dim = numNodes + numVS;
+    const A = Array.from({ length: dim }, () => new Float64Array(dim));
+    const z = new Float64Array(dim);
+
+    // Điện dẫn rò rất nhỏ (Gmin) nối mỗi nút xuống đất để tránh ma trận suy biến cho các cụm nút cô lập
+    const GMIN = 1e-12;
+    for (let i = 0; i < numNodes; i++) {
+        A[i][i] += GMIN;
+    }
+
+    // Đổ dữ liệu phần tử điện trở vào ma trận G
+    for (const b of branches) {
+        if (b.kind === 'resistor') {
+            const g = 1.0 / b.r;
+            const u = b.i1;
+            const v = b.i2;
+            A[u][u] += g;
+            A[v][v] += g;
+            A[u][v] -= g;
+            A[v][u] -= g;
+        }
+    }
+
+    // Đổ dữ liệu nguồn áp (với điện trở trong rInt để hỗ trợ cả nguồn mắc song song)
+    // Quy ước: n1 là cực dương (+), n2 là cực âm (-), V(n1) - V(n2) + I_vs * rInt = E
+    // Dòng I_vs đi từ n2 qua nguồn tới n1 (tức đi ra khỏi n1 vào mạch ngoài)
+    for (let k = 0; k < numVS; k++) {
+        const vs = vSources[k];
+        const row = numNodes + k;
+        const p = vs.i1; // cực dương (+)
+        const n = vs.i2; // cực âm (-)
+
+        A[p][row] -= 1.0;
+        A[n][row] += 1.0;
+        A[row][p] += 1.0;
+        A[row][n] -= 1.0;
+        A[row][row] += vs.rInt;
+        z[row] = vs.v;
+    }
+
+    // Áp đặt điều kiện nút đất V[groundIdx] = 0
+    for (let j = 0; j < dim; j++) {
+        A[groundIdx][j] = 0;
+        A[j][groundIdx] = 0;
+    }
+    A[groundIdx][groundIdx] = 1.0;
+    z[groundIdx] = 0.0;
+
+    // Giải hệ phương trình tuyến tính bằng khử Gauss có chọn phần tử trụ từng phần (Partial Pivoting)
+    const x = gaussianElimination(A, z, dim);
+    if (!x) {
+        updateMeterReadings();
+        return;
+    }
+
+    // Lưu điện thế các nút
+    for (let i = 0; i < numNodes; i++) {
+        solution.nodeVoltages.set(nodesList[i], x[i]);
+    }
+
+    // Tính dòng điện, hiệu điện thế và công suất trên từng nhánh
+    let vsCounter = 0;
+    for (const b of branches) {
+        const v1 = x[b.i1];
+        const v2 = x[b.i2];
+        const uDrop = v1 - v2; // V(n1) - V(n2)
+        let current = 0;
+
+        if (b.kind === 'resistor') {
+            current = uDrop / b.r; // Dòng quy ước đi từ n1 -> n2
+        } else if (b.kind === 'vsource') {
+            // Dòng quy ước đi từ cực dương n1 ra mạch ngoài (cùng chiều I_vs)
+            current = x[numNodes + vsCounter];
+            vsCounter++;
+        }
+
+        solution.compVoltages.set(b.id, uDrop);
+        solution.compCurrents.set(b.id, current);
+        solution.compPowers.set(b.id, Math.abs(uDrop * current));
+
+        // Kiểm tra ngắn mạch nguồn (dòng qua nguồn vượt quá 45A)
+        if (b.kind === 'vsource' && Math.abs(current) > 45) {
+            state.shortCircuit = true;
+            state.shortCircuitReason = `CẢNH BÁO NGẮN MẠCH NGUỒN ${b.comp.label}! (I = ${Math.abs(current).toFixed(1)}A)`;
+        }
+    }
+
+    // Kiểm tra quá tải Ampe kế (nếu người dùng mắc song song trực tiếp với nguồn điện)
+    if (solution.compCurrents.has('__am__')) {
+        const iAm = Math.abs(solution.compCurrents.get('__am__'));
+        if (iAm > 35) {
+            meters.am.blown = true;
+            state.shortCircuit = true;
+            state.shortCircuitReason = 'CHÁY CẦU CHÌ AMPE KẾ DO MẮC SONG SONG VỚI NGUỒN!';
+            // Giải lại mạch sau khi cầu chì Ampe kế đứt
+            solveCircuit();
+            return;
+        }
+    }
+
+    updateMeterReadings();
+}
+
+function gaussianElimination(A, b, n) {
+    const M = A.map(row => Float64Array.from(row));
+    const rhs = Float64Array.from(b);
+
+    for (let k = 0; k < n; k++) {
+        // Tìm hàng có phần tử trụ lớn nhất
+        let maxRow = k;
+        let maxVal = Math.abs(M[k][k]);
+        for (let i = k + 1; i < n; i++) {
+            const absVal = Math.abs(M[i][k]);
+            if (absVal > maxVal) {
+                maxVal = absVal;
+                maxRow = i;
+            }
+        }
+        if (maxVal < 1e-15) continue;
+
+        if (maxRow !== k) {
+            const tmp = M[k]; M[k] = M[maxRow]; M[maxRow] = tmp;
+            const tmpZ = rhs[k]; rhs[k] = rhs[maxRow]; rhs[maxRow] = tmpZ;
+        }
+
+        const pivot = M[k][k];
+        for (let i = k + 1; i < n; i++) {
+            const factor = M[i][k] / pivot;
+            if (factor === 0) continue;
+            for (let j = k; j < n; j++) {
+                M[i][j] -= factor * M[k][j];
+            }
+            rhs[i] -= factor * rhs[k];
+        }
+    }
+
+    const x = new Float64Array(n);
+    for (let i = n - 1; i >= 0; i--) {
+        let sum = rhs[i];
+        for (let j = i + 1; j < n; j++) {
+            sum -= M[i][j] * x[j];
+        }
+        x[i] = Math.abs(M[i][i]) > 1e-15 ? sum / M[i][i] : 0;
+    }
+    return x;
+}
+
+// ============================================================================
+// CẬP NHẬT GIAO DIỆN ĐỒNG HỒ ĐO & BẢNG THUỘC TÍNH
+// ============================================================================
+function formatNumber(val, decimals = 2) {
+    if (val === null || val === undefined || Number.isNaN(val)) return '---';
+    if (Math.abs(val) < 1e-4) val = 0;
+    return val.toFixed(decimals);
+}
+
+function updateMeterReadings() {
+    // 1. VÔN KẾ
+    const vmReadingEl = document.getElementById('vm-reading');
+    const vmStatusEl = document.getElementById('vm-status');
+    document.getElementById('vm-pos-node').textContent = meters.vm.pos ? `(${meters.vm.pos.gx},${meters.vm.pos.gy})` : 'Rời';
+    document.getElementById('vm-neg-node').textContent = meters.vm.neg ? `(${meters.vm.neg.gx},${meters.vm.neg.gy})` : 'Rời';
+
+    if (meters.vm.pos && meters.vm.neg) {
+        if (sameNode(meters.vm.pos, meters.vm.neg)) {
+            meters.vm.voltage = 0;
+        } else {
+            const vPos = solution.nodeVoltages.get(nodeKey(meters.vm.pos.gx, meters.vm.pos.gy)) ?? 0;
+            const vNeg = solution.nodeVoltages.get(nodeKey(meters.vm.neg.gx, meters.vm.neg.gy)) ?? 0;
+            meters.vm.voltage = vPos - vNeg;
+        }
+        vmReadingEl.textContent = formatNumber(meters.vm.voltage, 2);
+        vmStatusEl.textContent = 'Đang đo';
+        vmStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40';
+    } else {
+        meters.vm.voltage = null;
+        vmReadingEl.textContent = '---';
+        vmStatusEl.textContent = 'Chưa nối';
+        vmStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400';
+    }
+
+    // 2. AMPE KẾ
+    const amReadingEl = document.getElementById('am-reading');
+    const amStatusEl = document.getElementById('am-status');
+    const amFuseEl = document.getElementById('am-fuse-blown');
+    const amCardEl = document.getElementById('ammeter-card');
+
+    document.getElementById('am-pos-node').textContent = meters.am.pos ? `(${meters.am.pos.gx},${meters.am.pos.gy})` : 'Rời';
+    document.getElementById('am-neg-node').textContent = meters.am.neg ? `(${meters.am.neg.gx},${meters.am.neg.gy})` : 'Rời';
+
+    if (meters.am.blown) {
+        amFuseEl.classList.remove('hidden');
+        amReadingEl.textContent = 'ERR';
+        amReadingEl.className = 'font-mono-lcd text-2xl font-bold lcd-text-red';
+        amStatusEl.textContent = 'Đứt cầu chì';
+        amStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold';
+        amCardEl.classList.add('border-rose-500');
+    } else {
+        amFuseEl.classList.add('hidden');
+        amReadingEl.className = 'font-mono-lcd text-2xl font-bold lcd-text-green';
+        amCardEl.classList.remove('border-rose-500');
+
+        if (meters.am.pos && meters.am.neg && !sameNode(meters.am.pos, meters.am.neg)) {
+            meters.am.current = solution.compCurrents.get('__am__') ?? 0;
+            amReadingEl.textContent = formatNumber(meters.am.current, 2);
+            amStatusEl.textContent = 'Đang đo';
+            amStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        } else {
+            meters.am.current = null;
+            amReadingEl.textContent = '---';
+            amStatusEl.textContent = 'Chưa nối';
+            amStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400';
+        }
+    }
+
+    // 3. OÁT KẾ
+    const wmReadingEl = document.getElementById('wm-reading');
+    const wmUValEl = document.getElementById('wm-u-val');
+    const wmIValEl = document.getElementById('wm-i-val');
+    const wmStatusEl = document.getElementById('wm-status');
+
+    document.getElementById('wm-ipos-node').textContent = meters.wm.ipos ? `(${meters.wm.ipos.gx},${meters.wm.ipos.gy})` : 'Rời';
+    document.getElementById('wm-ineg-node').textContent = meters.wm.ineg ? `(${meters.wm.ineg.gx},${meters.wm.ineg.gy})` : 'Rời';
+    document.getElementById('wm-upos-node').textContent = meters.wm.upos ? `(${meters.wm.upos.gx},${meters.wm.upos.gy})` : 'Rời';
+    document.getElementById('wm-uneg-node').textContent = meters.wm.uneg ? `(${meters.wm.uneg.gx},${meters.wm.uneg.gy})` : 'Rời';
+
+    if (meters.wm.clampedCompId) {
+        const comp = state.components.find(c => c.id === meters.wm.clampedCompId);
+        if (comp) {
+            const u = Math.abs(solution.compVoltages.get(comp.id) ?? 0);
+            const i = Math.abs(solution.compCurrents.get(comp.id) ?? 0);
+            const p = u * i;
+            wmReadingEl.textContent = formatNumber(p, 2);
+            wmUValEl.textContent = formatNumber(u, 2);
+            wmIValEl.textContent = formatNumber(i, 2);
+            wmStatusEl.textContent = `Kẹp ${comp.label}`;
+            wmStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        } else {
+            meters.wm.clampedCompId = null;
+        }
+    } else if (meters.wm.ipos && meters.wm.ineg && meters.wm.upos && meters.wm.uneg) {
+        const iVal = solution.compCurrents.get('__wm_i__') ?? 0;
+        const vUp = solution.nodeVoltages.get(nodeKey(meters.wm.upos.gx, meters.wm.upos.gy)) ?? 0;
+        const vUn = solution.nodeVoltages.get(nodeKey(meters.wm.uneg.gx, meters.wm.uneg.gy)) ?? 0;
+        const uVal = vUp - vUn;
+        const pVal = uVal * iVal;
+
+        wmReadingEl.textContent = formatNumber(pVal, 2);
+        wmUValEl.textContent = formatNumber(uVal, 2);
+        wmIValEl.textContent = formatNumber(iVal, 2);
+        wmStatusEl.textContent = 'Đang đo 4 dây';
+        wmStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40';
+    } else {
+        wmReadingEl.textContent = '---';
+        wmUValEl.textContent = '---';
+        wmIValEl.textContent = '---';
+        wmStatusEl.textContent = 'Chưa nối';
+        wmStatusEl.className = 'text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400';
+    }
+
+    // Cập nhật banner cảnh báo ngắn mạch
+    const alertEl = document.getElementById('short-circuit-alert');
+    const statusPill = document.getElementById('circuit-status-pill');
+    if (state.shortCircuit) {
+        alertEl.classList.remove('hidden');
+        document.getElementById('short-circuit-msg').textContent = state.shortCircuitReason;
+        statusPill.textContent = 'NGẮN MẠCH!';
+        statusPill.className = 'bg-rose-950 px-2.5 py-1 rounded-lg border border-rose-500 font-mono-lcd text-rose-300 font-bold';
+    } else {
+        alertEl.classList.add('hidden');
+        statusPill.textContent = `Linh kiện: ${state.components.length}`;
+        statusPill.className = 'bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800/80 backdrop-blur font-mono-lcd text-emerald-400';
+    }
+
+    updateInspectorPanel();
+}
+
+function updateInspectorPanel() {
+    const emptyEl = document.getElementById('inspector-empty');
+    const ctrlEl = document.getElementById('inspector-controls');
+    const badgeEl = document.getElementById('selected-badge');
+
+    const comp = state.components.find(c => c.id === state.selectedId);
+    if (!comp) {
+        emptyEl.classList.remove('hidden');
+        ctrlEl.classList.add('hidden');
+        badgeEl.textContent = 'Chưa chọn';
+        badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300';
+        return;
+    }
+
+    emptyEl.classList.add('hidden');
+    ctrlEl.classList.remove('hidden');
+
+    const typeNames = {
+        battery: 'Nguồn DC',
+        resistor: 'Điện trở',
+        bulb: 'Bóng đèn',
+        switch: 'Công tắc',
+        wire: 'Dây dẫn'
+    };
+
+    badgeEl.textContent = typeNames[comp.type] || comp.type;
+    badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40';
+    document.getElementById('prop-label').textContent = comp.label;
+
+    const valGroup = document.getElementById('prop-value-group');
+    const swGroup = document.getElementById('prop-switch-group');
+    const slider = document.getElementById('prop-slider');
+
+    if (comp.type === 'battery') {
+        valGroup.classList.remove('hidden');
+        swGroup.classList.add('hidden');
+        document.getElementById('prop-value-name').textContent = 'Suất điện động E:';
+        slider.min = 1;
+        slider.max = 24;
+        slider.step = 0.5;
+        slider.value = comp.value;
+        document.getElementById('prop-min').textContent = '1V';
+        document.getElementById('prop-max').textContent = '24V';
+        document.getElementById('prop-value-display').textContent = `${comp.value} V`;
+    } else if (comp.type === 'resistor' || comp.type === 'bulb') {
+        valGroup.classList.remove('hidden');
+        swGroup.classList.add('hidden');
+        document.getElementById('prop-value-name').textContent = comp.type === 'bulb' ? 'Điện trở đèn:' : 'Điện trở R:';
+        slider.min = 1;
+        slider.max = 100;
+        slider.step = 1;
+        slider.value = comp.value;
+        document.getElementById('prop-min').textContent = '1Ω';
+        document.getElementById('prop-max').textContent = '100Ω';
+        document.getElementById('prop-value-display').textContent = `${comp.value} Ω`;
+    } else if (comp.type === 'switch') {
+        valGroup.classList.add('hidden');
+        swGroup.classList.remove('hidden');
+        const swBtn = document.getElementById('prop-switch-btn');
+        swBtn.textContent = comp.closed ? 'Trạng thái: ĐANG ĐÓNG (Nhấn để Mở)' : 'Trạng thái: ĐANG MỞ (Nhấn để Đóng)';
+        swBtn.className = comp.closed
+            ? 'w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition'
+            : 'w-full py-1.5 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition';
+    } else {
+        valGroup.classList.add('hidden');
+        swGroup.classList.add('hidden');
+    }
+
+    // Hiển thị thông số tức thời của linh kiện được chọn
+    const u = Math.abs(solution.compVoltages.get(comp.id) ?? 0);
+    const i = Math.abs(solution.compCurrents.get(comp.id) ?? 0);
+    const p = u * i;
+    document.getElementById('live-u').textContent = `${formatNumber(u, 2)} V`;
+    document.getElementById('live-i').textContent = `${formatNumber(i, 2)} A`;
+    document.getElementById('live-p').textContent = `${formatNumber(p, 2)} W`;
+}
+
+// ============================================================================
+// CÁC THAO TÁC CHỈNH SỬA LINH KIỆN & CÔNG CỤ
+// ============================================================================
+function setTool(toolName) {
+    state.tool = toolName;
+    state.dragWireStart = null;
+
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+        const isTarget = btn.getAttribute('data-tool') === toolName;
+        btn.className = isTarget
+            ? 'tool-btn active flex flex-col items-center justify-center p-2 rounded-xl border border-amber-500 bg-amber-500/15 text-amber-300 transition shadow-sm'
+            : 'tool-btn flex flex-col items-center justify-center p-2 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-800 text-slate-200 transition';
+    });
+
+    const messages = {
+        select: 'Chế độ Chọn: Nhấn công tắc K để đóng/mở, chọn linh kiện để chỉnh thông số, hoặc kéo que đo.',
+        wire: 'Chế độ Dây dẫn: Nhấn vào 1 điểm nút lưới và kéo sang điểm nút khác để nối dây.',
+        battery: 'Đặt Nguồn DC (12V): Nhấn vào vị trí giữa 2 nút lưới để đặt pin một chiều.',
+        resistor: 'Đặt Điện trở (10Ω): Nhấn vào vị trí giữa 2 nút lưới để đặt điện trở.',
+        bulb: 'Đặt Bóng đèn (10Ω): Nhấn vào vị trí giữa 2 nút lưới để đặt bóng đèn.',
+        switch: 'Đặt Công tắc K: Nhấn vào vị trí giữa 2 nút lưới để đặt khóa K.',
+        insert_ammeter: 'CHÈN AMPE KẾ: Nhấn chọn một đoạn dây dẫn trên mạch để tự động mắc nối tiếp Ampe kế vào đó!',
+        clamp_wattmeter: 'KẸP OÁT KẾ: Nhấn chọn một linh kiện (Điện trở, Bóng đèn, Nguồn) để đo công suất P = U × I!'
+    };
+    document.getElementById('mode-text').textContent = messages[toolName] || '';
+}
+
+function addComponent(type, n1, n2, customOpts = {}) {
+    if (sameNode(n1, n2)) return null;
+    const id = `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const prefixMap = { battery: 'E', resistor: 'R', bulb: 'Đ', switch: 'K', wire: 'D' };
+    const count = state.nextCounters[type]++;
+    const defaultVals = { battery: 12, resistor: 10, bulb: 10, switch: 0, wire: 0 };
+
+    const comp = {
+        id,
+        type,
+        n1: { gx: n1.gx, gy: n1.gy },
+        n2: { gx: n2.gx, gy: n2.gy },
+        value: customOpts.value !== undefined ? customOpts.value : defaultVals[type],
+        closed: customOpts.closed !== undefined ? customOpts.closed : false,
+        label: customOpts.label || `${prefixMap[type]}${count}`
+    };
+
+    state.components.push(comp);
+    state.selectedId = comp.id;
+    solveCircuit();
+    return comp;
+}
+
+function updateSelectedValue(val) {
+    const comp = state.components.find(c => c.id === state.selectedId);
+    if (!comp) return;
+    comp.value = parseFloat(val);
+    solveCircuit();
+}
+
+function toggleSelectedSwitch() {
+    const comp = state.components.find(c => c.id === state.selectedId);
+    if (comp && comp.type === 'switch') {
+        comp.closed = !comp.closed;
+        solveCircuit();
+    }
+}
+
+function rotateSelected() {
+    const comp = state.components.find(c => c.id === state.selectedId);
+    if (!comp) return;
+    // Xoay 90 độ quanh tâm hoặc đảo cực nếu thẳng hàng
+    const dx = comp.n2.gx - comp.n1.gx;
+    const dy = comp.n2.gy - comp.n1.gy;
+    // Xoay vector (dx, dy) thành (-dy, dx) quanh điểm n1
+    let newGx = comp.n1.gx - dy;
+    let newGy = comp.n1.gy + dx;
+    if (newGx < 0 || newGx >= gridCols || newGy < 0 || newGy >= gridRows) {
+        // Nếu chạm biên thì đảo cực n1 <-> n2
+        const tmp = comp.n1;
+        comp.n1 = comp.n2;
+        comp.n2 = tmp;
+    } else {
+        comp.n2 = { gx: newGx, gy: newGy };
+    }
+    solveCircuit();
+}
+
+function deleteSelected() {
+    if (!state.selectedId) return;
+    if (meters.wm.clampedCompId === state.selectedId) {
+        meters.wm.clampedCompId = null;
+    }
+    state.components = state.components.filter(c => c.id !== state.selectedId);
+    state.selectedId = null;
+    solveCircuit();
+}
+
+// ============================================================================
+// ĐIỀU KHIỂN THIẾT BỊ ĐO TÁCH RỜI (VÔN KẾ, AMPE KẾ, OÁT KẾ)
+// ============================================================================
+function startProbeDrag(meter, pin, event) {
+    event.preventDefault();
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+    const rect = canvas.getBoundingClientRect();
+
+    // Nếu Ampe kế từng dùng chế độ chèn dây thì khôi phục đoạn dây cũ trước khi rút que
+    if (meter === 'am' && meters.am.insertedFromWire) {
+        restoreAmmeterInsertedWire();
+    }
+
+    state.draggingProbe = {
+        meter,
+        pin,
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+function restoreAmmeterInsertedWire() {
+    if (meters.am.insertedFromWire) {
+        const w = meters.am.insertedFromWire;
+        state.components.push(w);
+        meters.am.insertedFromWire = null;
+    }
+}
+
+function disconnectAllMeters() {
+    restoreAmmeterInsertedWire();
+    meters.vm.pos = null;
+    meters.vm.neg = null;
+    meters.am.pos = null;
+    meters.am.neg = null;
+    meters.am.blown = false;
+    meters.wm.clampedCompId = null;
+    meters.wm.ipos = null;
+    meters.wm.ineg = null;
+    meters.wm.upos = null;
+    meters.wm.uneg = null;
+    solveCircuit();
+}
+
+function resetAmmeterFuse() {
+    meters.am.blown = false;
+    restoreAmmeterInsertedWire();
+    meters.am.pos = null;
+    meters.am.neg = null;
+    solveCircuit();
+}
+
+function toggleInsertAmmeterMode() {
+    if (state.tool === 'insert_ammeter') {
+        setTool('select');
+    } else {
+        setTool('insert_ammeter');
+    }
+}
+
+function toggleClampWattmeterMode() {
+    if (state.tool === 'clamp_wattmeter') {
+        setTool('select');
+    } else {
+        setTool('clamp_wattmeter');
+    }
+}
+
+// ============================================================================
+// XỬ LÝ TƯƠNG TÁC CHUỘT & CẢM ỨNG TRÊN CANVAS
+// ============================================================================
+function getPointerPos(evt) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+function distToSegment(px, py, x1, y1, x2, y2) {
+    const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+    if (l2 === 0) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+}
+
+function findComponentAt(x, y) {
+    let best = null;
+    let bestDist = 18;
+    for (let i = state.components.length - 1; i >= 0; i--) {
+        const c = state.components[i];
+        const p1 = gridToScreen(c.n1.gx, c.n1.gy);
+        const p2 = gridToScreen(c.n2.gx, c.n2.gy);
+        const d = distToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+        if (d < bestDist) {
+            bestDist = d;
+            best = c;
+        }
+    }
+    return best;
+}
+
+function findProbeAt(x, y) {
+    const probes = [
+        { meter: 'vm', pin: 'pos', node: meters.vm.pos },
+        { meter: 'vm', pin: 'neg', node: meters.vm.neg },
+        { meter: 'am', pin: 'pos', node: meters.am.pos },
+        { meter: 'am', pin: 'neg', node: meters.am.neg },
+        { meter: 'wm', pin: 'ipos', node: meters.wm.ipos },
+        { meter: 'wm', pin: 'ineg', node: meters.wm.ineg },
+        { meter: 'wm', pin: 'upos', node: meters.wm.upos },
+        { meter: 'wm', pin: 'uneg', node: meters.wm.uneg }
+    ];
+    for (const p of probes) {
+        if (p.node) {
+            const pt = gridToScreen(p.node.gx, p.node.gy);
+            if (Math.hypot(pt.x - x, pt.y - y) <= 16) {
+                return p;
+            }
+        }
+    }
+    return null;
+}
+
+function handlePointerDown(evt) {
+    const pos = getPointerPos(evt);
+    const gridNode = screenToGrid(pos.x, pos.y);
+
+    // 1. Kiểm tra nếu người dùng bấm vào đầu que đo đang cắm trên mạch để kéo di chuyển
+    const hitProbe = findProbeAt(pos.x, pos.y);
+    if (hitProbe && state.tool === 'select') {
+        if (hitProbe.meter === 'am' && meters.am.insertedFromWire) {
+            restoreAmmeterInsertedWire();
+        }
+        state.draggingProbe = {
+            meter: hitProbe.meter,
+            pin: hitProbe.pin,
+            x: pos.x,
+            y: pos.y
+        };
+        return;
+    }
+
+    // 2. Chế độ chèn nhanh Ampe kế nối tiếp vào đoạn dây
+    if (state.tool === 'insert_ammeter') {
+        const comp = findComponentAt(pos.x, pos.y);
+        if (comp && comp.type === 'wire') {
+            restoreAmmeterInsertedWire();
+            // Tháo đoạn dây dẫn và mắc nối tiếp Ampe kế vào đúng 2 đầu của đoạn dây đó
+            state.components = state.components.filter(c => c.id !== comp.id);
+            meters.am.insertedFromWire = comp;
+            meters.am.pos = { ...comp.n1 };
+            meters.am.neg = { ...comp.n2 };
+            meters.am.blown = false;
+            setTool('select');
+            solveCircuit();
+        }
+        return;
+    }
+
+    // 3. Chế độ kẹp Oát kế trực tiếp vào linh kiện
+    if (state.tool === 'clamp_wattmeter') {
+        const comp = findComponentAt(pos.x, pos.y);
+        if (comp && comp.type !== 'wire') {
+            meters.wm.clampedCompId = comp.id;
+            meters.wm.ipos = null;
+            meters.wm.ineg = null;
+            meters.wm.upos = null;
+            meters.wm.uneg = null;
+            setTool('select');
+            solveCircuit();
+        }
+        return;
+    }
+
+    // 4. Chế độ vẽ dây dẫn
+    if (state.tool === 'wire') {
+        if (gridNode) {
+            state.dragWireStart = gridNode;
+            state.dragWireCurrent = pos;
+        }
+        return;
+    }
+
+    // 5. Chế độ đặt linh kiện mới (Nguồn, Điện trở, Bóng đèn, Công tắc)
+    if (['battery', 'resistor', 'bulb', 'switch'].includes(state.tool)) {
+        // Tìm cặp nút lưới gần nhất (ngang hoặc dọc) bao quanh điểm click
+        const gxFloat = (pos.x - offsetX) / GRID_SIZE;
+        const gyFloat = (pos.y - offsetY) / GRID_SIZE;
+        const dx = Math.abs(gxFloat - Math.round(gxFloat));
+        const dy = Math.abs(gyFloat - Math.round(gyFloat));
+
+        let n1, n2;
+        if (dx >= dy) {
+            // Đặt nằm ngang
+            const gx1 = Math.max(0, Math.min(gridCols - 2, Math.floor(gxFloat)));
+            const gy = Math.max(0, Math.min(gridRows - 1, Math.round(gyFloat)));
+            n1 = { gx: gx1, gy };
+            n2 = { gx: gx1 + 1, gy };
+        } else {
+            // Đặt nằm dọc
+            const gx = Math.max(0, Math.min(gridCols - 1, Math.round(gxFloat)));
+            const gy1 = Math.max(0, Math.min(gridRows - 2, Math.floor(gyFloat)));
+            n1 = { gx, gy: gy1 };
+            n2 = { gx, gy: gy1 + 1 };
+        }
+
+        addComponent(state.tool, n1, n2);
+        return;
+    }
+
+    // 6. Chế độ Chọn / Bật công tắc K
+    if (state.tool === 'select') {
+        const comp = findComponentAt(pos.x, pos.y);
+        if (comp) {
+            state.selectedId = comp.id;
+            if (comp.type === 'switch') {
+                comp.closed = !comp.closed;
+            }
+            solveCircuit();
+        } else {
+            state.selectedId = null;
+            updateInspectorPanel();
+        }
+    }
+}
+
+function handlePointerMove(evt) {
+    const pos = getPointerPos(evt);
+    state.hoveredNode = screenToGrid(pos.x, pos.y);
+
+    if (state.draggingProbe) {
+        state.draggingProbe.x = pos.x;
+        state.draggingProbe.y = pos.y;
+        return;
+    }
+
+    if (state.dragWireStart) {
+        state.dragWireCurrent = pos;
+        return;
+    }
+
+    const comp = findComponentAt(pos.x, pos.y);
+    state.hoveredCompId = comp ? comp.id : null;
+}
+
+function handlePointerUp(evt) {
+    // Kết thúc kéo que đo
+    if (state.draggingProbe) {
+        const { meter, pin, x, y } = state.draggingProbe;
+        const dropNode = screenToGrid(x, y);
+        if (meter === 'wm') {
+            meters.wm.clampedCompId = null;
+        }
+        meters[meter][pin] = dropNode ? { ...dropNode } : null;
+        state.draggingProbe = null;
+        solveCircuit();
+        return;
+    }
+
+    // Kết thúc kéo dây dẫn
+    if (state.dragWireStart) {
+        const endNode = state.hoveredNode;
+        if (endNode && !sameNode(state.dragWireStart, endNode)) {
+            // Nếu kéo dây dài nhiều ô thẳng hàng, tự động chia thành các đoạn dây 1 ô để dễ gắn nút
+            const dx = endNode.gx - state.dragWireStart.gx;
+            const dy = endNode.gy - state.dragWireStart.gy;
+            if (dx === 0 && Math.abs(dy) > 1) {
+                const step = Math.sign(dy);
+                for (let y = state.dragWireStart.gy; y !== endNode.gy; y += step) {
+                    addComponent('wire', { gx: endNode.gx, gy: y }, { gx: endNode.gx, gy: y + step });
+                }
+            } else if (dy === 0 && Math.abs(dx) > 1) {
+                const step = Math.sign(dx);
+                for (let x = state.dragWireStart.gx; x !== endNode.gx; x += step) {
+                    addComponent('wire', { gx: x, gy: endNode.gy }, { gx: x + step, gy: endNode.gy });
+                }
+            } else {
+                addComponent('wire', state.dragWireStart, endNode);
+            }
+        }
+        state.dragWireStart = null;
+        state.dragWireCurrent = null;
+    }
+}
+
+canvas.addEventListener('mousedown', handlePointerDown);
+window.addEventListener('mousemove', handlePointerMove);
+window.addEventListener('mouseup', handlePointerUp);
+
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, { passive: false });
+window.addEventListener('touchmove', (e) => { if (state.draggingProbe || state.dragWireStart) { e.preventDefault(); handlePointerMove(e); } }, { passive: false });
+window.addEventListener('touchend', handlePointerUp);
+
+// Phím tắt Delete/Backspace để xóa linh kiện đang chọn
+window.addEventListener('keydown', (e) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') {
+        deleteSelected();
+    } else if (e.key.toLowerCase() === 'r' && document.activeElement.tagName !== 'INPUT') {
+        rotateSelected();
+    }
+});
+
+// ============================================================================
+// VẼ ĐỒ HỌA PHÒNG THÍ NGHIỆM TRÊN CANVAS
+// ============================================================================
+function drawGrid() {
+    const showNodeVolt = document.getElementById('toggle-node-volt')?.checked;
+
+    for (let gx = 0; gx < gridCols; gx++) {
+        for (let gy = 0; gy < gridRows; gy++) {
+            const pt = gridToScreen(gx, gy);
+            const isHovered = state.hoveredNode && state.hoveredNode.gx === gx && state.hoveredNode.gy === gy;
+
+            // Vẽ điểm nút lưới
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, isHovered ? 6.5 : 3.2, 0, Math.PI * 2);
+            ctx.fillStyle = isHovered ? '#fbbf24' : '#334155';
+            ctx.fill();
+
+            if (isHovered) {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 11, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Hiển thị điện thế nút nếu bật tùy chọn
+            if (showNodeVolt) {
+                const k = nodeKey(gx, gy);
+                if (solution.nodeVoltages.has(k)) {
+                    const v = solution.nodeVoltages.get(k);
+                    ctx.font = '10px "JetBrains Mono", monospace';
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${v.toFixed(1)}V`, pt.x, pt.y - 9);
+                }
+            }
+        }
+    }
+}
+
+function drawComponent(comp) {
+    const p1 = gridToScreen(comp.n1.gx, comp.n1.gy);
+    const p2 = gridToScreen(comp.n2.gx, comp.n2.gy);
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+
+    const isSelected = state.selectedId === comp.id;
+    const isHovered = state.hoveredCompId === comp.id;
+    const current = solution.compCurrents.get(comp.id) ?? 0;
+    const power = solution.compPowers.get(comp.id) ?? 0;
+
+    // Vùng hào quang khi chọn hoặc hover
+    if (isSelected || isHovered) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = isSelected ? 'rgba(251, 191, 36, 0.35)' : 'rgba(148, 163, 184, 0.25)';
+        ctx.lineWidth = 18;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    ctx.save();
+    ctx.translate(midX, midY);
+    ctx.rotate(angle);
+
+    const half = len / 2;
+
+    if (comp.type === 'wire') {
+        ctx.beginPath();
+        ctx.moveTo(-half, 0);
+        ctx.lineTo(half, 0);
+        ctx.strokeStyle = isSelected ? '#fbbf24' : (state.tool === 'insert_ammeter' && isHovered ? '#34d399' : '#64748b');
+        ctx.lineWidth = state.tool === 'insert_ammeter' && isHovered ? 5 : 3.5;
+        ctx.stroke();
+    } else if (comp.type === 'battery') {
+        // Dây nối 2 đầu (n1 là cực dương +, n2 là cực âm -)
+        ctx.beginPath();
+        ctx.moveTo(-half, 0);
+        ctx.lineTo(-7, 0);
+        ctx.moveTo(7, 0);
+        ctx.lineTo(half, 0);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Bản cực dương (+) dài, màu đỏ
+        ctx.beginPath();
+        ctx.moveTo(-7, -16);
+        ctx.lineTo(-7, 16);
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        // Bản cực âm (-) ngắn, dày, màu xanh/trắng
+        ctx.beginPath();
+        ctx.moveTo(7, -9);
+        ctx.lineTo(7, 9);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        // Ký hiệu dấu + và -
+        ctx.fillStyle = '#f87171';
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('+', -15, -8);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('-', 15, -8);
+
+    } else if (comp.type === 'resistor') {
+        const bodyW = Math.min(34, len * 0.55);
+        const bodyH = 13;
+
+        ctx.beginPath();
+        ctx.moveTo(-half, 0);
+        ctx.lineTo(-bodyW / 2, 0);
+        ctx.moveTo(bodyW / 2, 0);
+        ctx.lineTo(half, 0);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Thân điện trở chuẩn IEC hình chữ nhật với vạch màu
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.roundRect(-bodyW / 2, -bodyH / 2, bodyW, bodyH, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Vạch màu trang trí trên điện trở
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(-bodyW / 2 + 6, -bodyH / 2 + 1, 3, bodyH - 2);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-bodyW / 2 + 12, -bodyH / 2 + 1, 3, bodyH - 2);
+
+    } else if (comp.type === 'bulb') {
+        const r = 14;
+        ctx.beginPath();
+        ctx.moveTo(-half, 0);
+        ctx.lineTo(-r, 0);
+        ctx.moveTo(r, 0);
+        ctx.lineTo(half, 0);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Hiệu ứng phát sáng tỷ lệ với công suất P = I^2 * R
+        const brightness = Math.min(1, power / 15);
+        if (brightness > 0.01) {
+            const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, r + 26 * brightness);
+            glow.addColorStop(0, `rgba(254, 240, 138, ${0.85 * brightness})`);
+            glow.addColorStop(0.5, `rgba(250, 204, 21, ${0.4 * brightness})`);
+            glow.addColorStop(1, 'rgba(250, 204, 21, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(0, 0, r + 26 * brightness, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Bóng thủy tinh
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = brightness > 0.01 ? `rgba(253, 224, 71, ${0.2 + 0.7 * brightness})` : '#1e293b';
+        ctx.fill();
+        ctx.strokeStyle = brightness > 0.05 ? '#fde047' : '#94a3b8';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+
+        // Dây tóc hình chữ X
+        ctx.beginPath();
+        ctx.moveTo(-7, -7);
+        ctx.lineTo(7, 7);
+        ctx.moveTo(7, -7);
+        ctx.lineTo(-7, 7);
+        ctx.strokeStyle = brightness > 0.05 ? '#ffffff' : '#64748b';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+    } else if (comp.type === 'switch') {
+        const gap = 14;
+        ctx.beginPath();
+        ctx.moveTo(-half, 0);
+        ctx.lineTo(-gap, 0);
+        ctx.moveTo(gap, 0);
+        ctx.lineTo(half, 0);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Lưỡi dao công tắc
+        ctx.beginPath();
+        ctx.moveTo(-gap, 0);
+        if (comp.closed) {
+            ctx.lineTo(gap, 0);
+            ctx.strokeStyle = '#34d399';
+        } else {
+            ctx.lineTo(gap - 2, -13);
+            ctx.strokeStyle = '#c084fc';
+        }
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // 2 chốt tiếp điểm
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.arc(-gap, 0, 3, 0, Math.PI * 2);
+        ctx.arc(gap, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+
+    // Vẽ nhãn thông số linh kiện (không bị xoay ngược chữ)
+    if (comp.type !== 'wire') {
+        ctx.save();
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        const isHorizontal = Math.abs(p2.x - p1.x) >= Math.abs(p2.y - p1.y);
+        const labelX = isHorizontal ? midX : midX + 28;
+        const labelY = isHorizontal ? midY - 19 : midY + 4;
+
+        let text = comp.label;
+        if (comp.type === 'battery') text = `${comp.label} (${comp.value}V)`;
+        else if (comp.type === 'resistor') text = `${comp.label} (${comp.value}Ω)`;
+        else if (comp.type === 'bulb') text = `${comp.label} (${comp.value}Ω)`;
+        else if (comp.type === 'switch') text = `${comp.label} (${comp.closed ? 'Đóng' : 'Mở'})`;
+
+        ctx.fillStyle = isSelected ? '#fbbf24' : '#cbd5e1';
+        ctx.fillText(text, labelX, labelY);
+        ctx.restore();
+    }
+
+    // Vẽ các hạt chuyển động biểu diễn chiều dòng điện quy ước
+    const showAnim = document.getElementById('toggle-current-anim')?.checked;
+    if (showAnim && Math.abs(current) > 0.005) {
+        drawCurrentParticles(p1, p2, current);
+    }
+
+    // Vẽ biểu tượng kẹp Oát kế nếu Oát kế đang kẹp linh kiện này
+    if (meters.wm.clampedCompId === comp.id) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(midX, midY, 20, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillText('W', midX + 18, midY - 14);
+        ctx.restore();
+    }
+}
+
+function drawCurrentParticles(p1, p2, current) {
+    const dir = Math.sign(current);
+    const speed = Math.min(4.5, Math.max(0.4, Math.abs(current) * 1.4));
+    const spacing = 22;
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const count = Math.max(1, Math.floor(len / spacing));
+    const offset = ((state.animPhase * speed * dir) % spacing + spacing) % spacing;
+
+    ctx.save();
+    ctx.fillStyle = '#fbbf24';
+    for (let i = 0; i < count; i++) {
+        const dist = (i * spacing + offset) % len;
+        const t = dist / len;
+        const x = p1.x + (p2.x - p1.x) * t;
+        const y = p1.y + (p2.y - p1.y) * t;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.7, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+function drawProbes() {
+    // Vẽ các đầu que đo đang cắm trên mạch và dây đo nối sang bàn thiết bị bên phải
+    const rightEdgeX = canvas.getBoundingClientRect().width;
+    const probeConfigs = [
+        { meter: 'vm', pin: 'pos', node: meters.vm.pos, color: '#ef4444', label: 'V+', anchorY: 95 },
+        { meter: 'vm', pin: 'neg', node: meters.vm.neg, color: '#94a3b8', label: 'V-', anchorY: 115 },
+        { meter: 'am', pin: 'pos', node: meters.am.pos, color: '#ef4444', label: 'A+', anchorY: 235 },
+        { meter: 'am', pin: 'neg', node: meters.am.neg, color: '#94a3b8', label: 'A-', anchorY: 255 },
+        { meter: 'wm', pin: 'ipos', node: meters.wm.ipos, color: '#10b981', label: 'I+', anchorY: 380 },
+        { meter: 'wm', pin: 'ineg', node: meters.wm.ineg, color: '#059669', label: 'I-', anchorY: 395 },
+        { meter: 'wm', pin: 'upos', node: meters.wm.upos, color: '#38bdf8', label: 'U+', anchorY: 410 },
+        { meter: 'wm', pin: 'uneg', node: meters.wm.uneg, color: '#0284c7', label: 'U-', anchorY: 425 }
+    ];
+
+    for (const cfg of probeConfigs) {
+        let targetPt = null;
+        if (state.draggingProbe && state.draggingProbe.meter === cfg.meter && state.draggingProbe.pin === cfg.pin) {
+            targetPt = { x: state.draggingProbe.x, y: state.draggingProbe.y };
+        } else if (cfg.node) {
+            targetPt = gridToScreen(cfg.node.gx, cfg.node.gy);
+        }
+
+        if (targetPt) {
+            // Vẽ dây dẫn cong mềm mại từ cạnh phải bàn đồng hồ tới điểm đo
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(rightEdgeX, cfg.anchorY);
+            const cp1x = rightEdgeX - 70;
+            const cp1y = cfg.anchorY;
+            const cp2x = targetPt.x + 40;
+            const cp2y = targetPt.y - 40;
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, targetPt.x, targetPt.y);
+            ctx.strokeStyle = cfg.color;
+            ctx.lineWidth = 2.2;
+            ctx.globalAlpha = 0.75;
+            ctx.stroke();
+            ctx.restore();
+
+            // Vẽ đầu kim que đo tại nút
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(targetPt.x, targetPt.y, 7.5, 0, Math.PI * 2);
+            ctx.fillStyle = cfg.color;
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Nhãn que đo
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(targetPt.x - 11, targetPt.y - 23, 22, 13);
+            ctx.strokeStyle = cfg.color;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(targetPt.x - 11, targetPt.y - 23, 22, 13);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(cfg.label, targetPt.x, targetPt.y - 13);
+            ctx.restore();
+        }
+    }
+}
+
+function renderLoop() {
+    const rect = container.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    // 1. Vẽ lưới điểm nút
+    drawGrid();
+
+    // 2. Vẽ các linh kiện & dây dẫn
+    for (const comp of state.components) {
+        drawComponent(comp);
+    }
+
+    // 3. Vẽ dây đang kéo tạm thời
+    if (state.dragWireStart && state.dragWireCurrent) {
+        const p1 = gridToScreen(state.dragWireStart.gx, state.dragWireStart.gy);
+        const p2 = state.hoveredNode ? gridToScreen(state.hoveredNode.gx, state.hoveredNode.gy) : state.dragWireCurrent;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // 4. Vẽ các que đo rời đang nối vào mạch
+    drawProbes();
+
+    state.animPhase += 0.35;
+    requestAnimationFrame(renderLoop);
+}
+
+// ============================================================================
+// CÁC MẠCH ĐIỆN MẪU (NỐI TIẾP, SONG SONG, HỖN HỢP)
+// ============================================================================
+function clearCircuit() {
+    disconnectAllMeters();
+    state.components = [];
+    state.selectedId = null;
+    state.nextCounters = { battery: 1, resistor: 1, bulb: 1, switch: 1, wire: 1 };
+    solveCircuit();
+}
+
+function loadPreset(type) {
+    clearCircuit();
+    const cx = Math.max(2, Math.floor(gridCols / 2) - 2);
+    const cy = Math.max(1, Math.floor(gridRows / 2) - 1);
+
+    if (type === 'series') {
+        // Mạch nối tiếp mẫu: Nguồn E = 12V, Công tắc K1 (đóng), R1 = 10Ω, R2 = 20Ω
+        // Vòng chữ nhật từ (cx, cy) đến (cx+4, cy+2)
+        addComponent('battery', { gx: cx, gy: cy }, { gx: cx, gy: cy + 2 }, { value: 12, label: 'E' });
+        addComponent('switch', { gx: cx, gy: cy }, { gx: cx + 1, gy: cy }, { closed: true, label: 'K' });
+        addComponent('wire', { gx: cx + 1, gy: cy }, { gx: cx + 2, gy: cy });
+        addComponent('resistor', { gx: cx + 2, gy: cy }, { gx: cx + 3, gy: cy }, { value: 10, label: 'R1' });
+        addComponent('resistor', { gx: cx + 3, gy: cy }, { gx: cx + 4, gy: cy }, { value: 20, label: 'R2' });
+        addComponent('wire', { gx: cx + 4, gy: cy }, { gx: cx + 4, gy: cy + 1 });
+        addComponent('wire', { gx: cx + 4, gy: cy + 1 }, { gx: cx + 4, gy: cy + 2 });
+        addComponent('wire', { gx: cx + 4, gy: cy + 2 }, { gx: cx + 3, gy: cy + 2 });
+        addComponent('wire', { gx: cx + 3, gy: cy + 2 }, { gx: cx + 2, gy: cy + 2 });
+        addComponent('wire', { gx: cx + 2, gy: cy + 2 }, { gx: cx + 1, gy: cy + 2 });
+        addComponent('wire', { gx: cx + 1, gy: cy + 2 }, { gx: cx, gy: cy + 2 });
+    } else if (type === 'parallel') {
+        // Mạch song song mẫu: Nguồn 12V cấp cho 2 nhánh song song R1 (12Ω) và R2 (24Ω) có công tắc tổng & công tắc nhánh
+        addComponent('battery', { gx: cx, gy: cy }, { gx: cx, gy: cy + 3 }, { value: 12, label: 'E' });
+        addComponent('switch', { gx: cx, gy: cy }, { gx: cx + 1, gy: cy }, { closed: true, label: 'K0' });
+        addComponent('wire', { gx: cx + 1, gy: cy }, { gx: cx + 2, gy: cy });
+        addComponent('wire', { gx: cx + 2, gy: cy }, { gx: cx + 4, gy: cy });
+
+        // Nhánh song song 1 (cột cx + 2)
+        addComponent('switch', { gx: cx + 2, gy: cy }, { gx: cx + 2, gy: cy + 1 }, { closed: true, label: 'K1' });
+        addComponent('resistor', { gx: cx + 2, gy: cy + 1 }, { gx: cx + 2, gy: cy + 2 }, { value: 12, label: 'R1' });
+        addComponent('wire', { gx: cx + 2, gy: cy + 2 }, { gx: cx + 2, gy: cy + 3 });
+
+        // Nhánh song song 2 (cột cx + 4)
+        addComponent('switch', { gx: cx + 4, gy: cy }, { gx: cx + 4, gy: cy + 1 }, { closed: true, label: 'K2' });
+        addComponent('resistor', { gx: cx + 4, gy: cy + 1 }, { gx: cx + 4, gy: cy + 2 }, { value: 24, label: 'R2' });
+        addComponent('wire', { gx: cx + 4, gy: cy + 2 }, { gx: cx + 4, gy: cy + 3 });
+
+        // Dây về cực âm
+        addComponent('wire', { gx: cx + 4, gy: cy + 3 }, { gx: cx + 2, gy: cy + 3 });
+        addComponent('wire', { gx: cx + 2, gy: cy + 3 }, { gx: cx + 1, gy: cy + 3 });
+        addComponent('wire', { gx: cx + 1, gy: cy + 3 }, { gx: cx, gy: cy + 3 });
+    } else if (type === 'mixed') {
+        // Mạch hỗn hợp: R1 nối tiếp với cụm song song (Đèn Đ1 // R2)
+        addComponent('battery', { gx: cx, gy: cy }, { gx: cx, gy: cy + 3 }, { value: 12, label: 'E' });
+        addComponent('switch', { gx: cx, gy: cy }, { gx: cx + 1, gy: cy }, { closed: true, label: 'K' });
+        addComponent('resistor', { gx: cx + 1, gy: cy }, { gx: cx + 2, gy: cy }, { value: 6, label: 'R1' });
+        addComponent('wire', { gx: cx + 2, gy: cy }, { gx: cx + 4, gy: cy });
+
+        // Nhánh bóng đèn Đ1
+        addComponent('bulb', { gx: cx + 2, gy: cy }, { gx: cx + 2, gy: cy + 3 }, { value: 12, label: 'Đ1' });
+        // Nhánh điện trở R2
+        addComponent('resistor', { gx: cx + 4, gy: cy }, { gx: cx + 4, gy: cy + 3 }, { value: 12, label: 'R2' });
+
+        // Dây về cực âm
+        addComponent('wire', { gx: cx + 4, gy: cy + 3 }, { gx: cx + 2, gy: cy + 3 });
+        addComponent('wire', { gx: cx + 2, gy: cy + 3 }, { gx: cx, gy: cy + 3 });
+    }
+
+    state.selectedId = null;
+    solveCircuit();
+}
+
+function toggleHelpModal(show) {
+    const el = document.getElementById('help-modal');
+    if (show) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+}
+
+function downloadHTML() {
+    const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mo_phong_mach_dien_mot_chieu.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// KHỞI TẠO ỨNG DỤNG
+// ============================================================================
+window.onload = function () {
+    resizeCanvas();
+    loadPreset('series');
+    renderLoop();
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Hoạt Động Nhà Máy Điện Hạt Nhân (PWR)</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải Font Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Tải FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Tùy chỉnh thanh trượt (Range Slider) sáng rõ, trực quan */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #0284c7;
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35);
+            transition: transform 0.1s ease, background-color 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.18);
+            background: #0369a1;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+        canvas {
+            touch-action: none;
+        }
+
+        /* =====================================================================
+           CHẾ ĐỘ TRÌNH CHIẾU TOÀN MÀN HÌNH (FIT-TO-SCREEN 100VH - KHÔNG CUỘN)
+           ===================================================================== */
+        body.is-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+            box-sizing: border-box;
+            background-color: #f1f5f9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.is-fullscreen #app-header {
+            padding: 6px 16px;
+            flex-shrink: 0;
+        }
+        body.is-fullscreen #app-header .header-subtitle {
+            display: none;
+        }
+
+        body.is-fullscreen #app-main {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-width: 100% !important;
+            width: 100%;
+            padding: 8px 12px;
+            gap: 10px;
+            display: grid;
+            grid-template-columns: minmax(0, 2.5fr) minmax(320px, 1fr);
+            overflow: hidden;
+        }
+
+        body.is-fullscreen #left-col {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        body.is-fullscreen #canvas-card {
+            flex: 1 1 auto;
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        body.is-fullscreen #canvas-legend {
+            padding: 4px 12px;
+            flex-shrink: 0;
+        }
+        body.is-fullscreen #canvas-wrapper {
+            flex: 1 1 auto;
+            height: auto !important;
+            min-height: 200px;
+        }
+
+        body.is-fullscreen #right-col {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+        body.is-fullscreen #controls-card {
+            flex-shrink: 0;
+            padding: 8px 12px;
+            gap: 6px;
+        }
+        body.is-fullscreen #controls-card .card-title {
+            margin-bottom: 2px;
+        }
+        body.is-fullscreen #controls-card .slider-hints {
+            display: none;
+        }
+        body.is-fullscreen #btn-scram {
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+        body.is-fullscreen #telemetry-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+        body.is-fullscreen #telemetry-list {
+            gap: 5px;
+        }
+        body.is-fullscreen #telemetry-list > div {
+            padding: 5px 10px;
+        }
+
+        body.is-fullscreen #bottom-bar {
+            flex-shrink: 0;
+            padding: 6px 16px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col select-none">
+
+    <!-- Thông báo nhanh (Toast) khi bật chế độ trình chiếu toàn màn hình -->
+    <div id="fs-toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none opacity-0 transition-all duration-300 -translate-y-2">
+        <div class="bg-slate-900/95 text-white border border-sky-400/50 px-4 py-2 rounded-full shadow-xl backdrop-blur-md flex items-center gap-2 text-xs font-medium">
+            <i class="fa-solid fa-display text-sky-400"></i>
+            <span>Chế độ trình chiếu 1 màn hình — Nhấn <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-[11px] font-mono text-amber-300">ESC</kbd> hoặc <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-[11px] font-mono text-amber-300">F</kbd> để thoát</span>
+        </div>
+    </div>
+
+    <!-- HEADER: Tên ứng dụng & Chọn nhanh 3 kịch bản vận hành -->
+    <header id="app-header" class="bg-white border-b border-slate-200 px-4 py-2.5 shadow-sm sticky top-0 z-20">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            <!-- Tiêu đề -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                    <i class="fa-solid fa-radiation text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                        Mô Phỏng Hoạt Động Nhà Máy Điện Hạt Nhân (PWR)
+                    </h1>
+                    <p class="header-subtitle text-xs text-slate-500">Phản ứng phân hạch dây chuyền U-235 • Thanh điều khiển rút/hạ trực tiếp • 3 vòng tuần hoàn nhiệt</p>
+                </div>
+            </div>
+
+            <!-- Nút chọn nhanh 3 kịch bản vận hành mẫu -->
+            <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button type="button" data-scenario="startup" class="scenario-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-700 hover:bg-white cursor-pointer">
+                    <i class="fa-solid fa-arrow-up-right-dots text-sky-600"></i>
+                    <span>Khởi động lò (25%)</span>
+                </button>
+                <button type="button" data-scenario="nominal" class="scenario-btn active px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Vận hành chuẩn (65%)</span>
+                </button>
+                <button type="button" data-scenario="high" class="scenario-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-amber-800 hover:bg-amber-50 cursor-pointer">
+                    <i class="fa-solid fa-bolt text-amber-600"></i>
+                    <span>Công suất cao (90%)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE: Trái (Sơ đồ mặt cắt PWR) | Phải (Bảng điều khiển & Đồng hồ đo) -->
+    <main id="app-main" class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- KHU VỰC TRÁI (9/12 cột): SƠ ĐỒ MẶT CẮT ĐỘNG NHÀ MÁY ĐIỆN HẠT NHÂN PWR -->
+        <div id="left-col" class="lg:col-span-9 flex flex-col">
+            <div id="canvas-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1">
+                
+                <!-- Thanh chú thích màu sắc 3 vòng tuần hoàn nhiệt -->
+                <div id="canvas-legend" class="bg-slate-50 border-b border-slate-200 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex flex-wrap items-center gap-3.5 font-semibold text-slate-700">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-3 rounded-sm bg-orange-500 inline-block"></span>
+                            <span>Vòng 1: Nước áp lực sơ cấp (Kín)</span>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-3 rounded-sm bg-sky-500 inline-block"></span>
+                            <span>Vòng 2: Hơi nước & Nước ngưng</span>
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-3 rounded-sm bg-teal-500 inline-block"></span>
+                            <span>Vòng 3: Nước làm mát tháp giải nhiệt</span>
+                        </span>
+                    </div>
+                    <span class="text-sky-700 font-semibold hidden sm:inline">
+                        <i class="fa-solid fa-hand-pointer mr-1"></i>Kéo trực tiếp cụm truyền động phía trên nắp lò để rút lên / hạ xuống thanh điều khiển
+                    </span>
+                </div>
+
+                <!-- Vùng vẽ Canvas sơ đồ mặt cắt nhà máy PWR -->
+                <div id="canvas-wrapper" class="relative w-full h-[470px] sm:h-[540px] bg-slate-50">
+                    <canvas id="plantCanvas" class="w-full h-full block"></canvas>
+
+                    <!-- Cảnh báo quá nhiệt lõi lò nổi bật ngay trên khung hình khi T > 350°C -->
+                    <div id="overheat-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-rose-600 text-white px-4 py-2 rounded-xl shadow-lg border-2 border-rose-200 flex items-center gap-2.5 text-xs sm:text-sm font-bold animate-bounce">
+                        <i class="fa-solid fa-fire-flame-curved text-amber-300 text-base"></i>
+                        <span>CẢNH BÁO QUÁ NHIỆT LÕI LÒ (&gt;350°C)! Hãy hạ thanh điều khiển, tăng bơm hoặc nhấn SCRAM.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KHU VỰC PHẢI (3/12 cột): BẢNG ĐIỀU KHIỂN & ĐỒNG HỒ ĐO THÔNG SỐ -->
+        <div id="right-col" class="lg:col-span-3 flex flex-col gap-3">
+            
+            <!-- 1. BẢNG ĐIỀU KHIỂN VẬN HÀNH -->
+            <div id="controls-card" class="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-sm flex flex-col gap-3">
+                <h2 class="card-title text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders text-sky-600"></i>
+                    Điều Khiển Vận Hành Lò
+                </h2>
+
+                <!-- Điều khiển Thanh điều khiển (Control Rods) -->
+                <div class="bg-slate-50 border border-slate-200/90 rounded-xl p-2.5">
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="slider-rods" class="text-xs font-bold text-slate-800">Rút thanh điều khiển</label>
+                        <div class="flex items-center gap-1.5">
+                            <span id="rod-motion-badge" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">Giữ vị trí</span>
+                            <span id="badge-rods" class="px-2 py-0.5 rounded-md bg-sky-600 text-white font-mono text-xs font-extrabold">
+                                65%
+                            </span>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-rods" min="0" max="100" step="1" value="65" class="w-full">
+                    <div class="slider-hints flex justify-between text-[10px] text-slate-500 font-medium mt-0.5 mb-2">
+                        <span>0% (Hạ hết - Tắt lò)</span>
+                        <span>100% (Rút hết)</span>
+                    </div>
+
+                    <!-- Nút tinh chỉnh bước rút lên / hạ xuống & Phím mũi tên -->
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button type="button" id="btn-rod-down" class="py-1.5 px-2 rounded-lg bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 font-bold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer" title="Hạ thanh điều khiển xuống 5% (Phím mũi tên ↓)">
+                            <i class="fa-solid fa-arrow-down text-sky-700"></i>
+                            <span>Hạ (-5%)</span>
+                        </button>
+                        <button type="button" id="btn-rod-up" class="py-1.5 px-2 rounded-lg bg-sky-100 hover:bg-sky-200 active:scale-95 text-sky-900 font-bold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer" title="Rút thanh điều khiển lên 5% (Phím mũi tên ↑)">
+                            <i class="fa-solid fa-arrow-up text-sky-700"></i>
+                            <span>Rút (+5%)</span>
+                        </button>
+                        <button type="button" id="btn-rod-zero" class="py-1.5 px-2 rounded-lg bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-900 font-bold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer" title="Hạ hết thanh điều khiển xuống 0%">
+                            <i class="fa-solid fa-angles-down text-amber-700"></i>
+                            <span>Hạ hết</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Thanh trượt 2: Lưu lượng bơm làm mát -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="slider-pump" class="text-xs font-bold text-slate-700">Lưu lượng bơm làm mát</label>
+                        <span id="badge-pump" class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-mono text-xs font-extrabold">
+                            85%
+                        </span>
+                    </div>
+                    <input type="range" id="slider-pump" min="0" max="100" step="1" value="85" class="w-full">
+                    <div class="slider-hints flex justify-between text-[10px] text-slate-500 font-medium mt-0.5">
+                        <span>0% (Tắt bơm)</span>
+                        <span>100% (Tối đa)</span>
+                    </div>
+                </div>
+
+                <!-- Thanh trượt 3: Tải tiêu thụ điện (MW) -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="slider-load" class="text-xs font-bold text-slate-700">Tải tiêu thụ điện lưới</label>
+                        <span id="badge-load" class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-mono text-xs font-extrabold">
+                            1000 MW
+                        </span>
+                    </div>
+                    <input type="range" id="slider-load" min="200" max="1250" step="25" value="1000" class="w-full">
+                    <div class="slider-hints flex justify-between text-[10px] text-slate-500 font-medium mt-0.5">
+                        <span>200 MW</span>
+                        <span>1250 MW</span>
+                    </div>
+                </div>
+
+                <!-- Nút khẩn cấp đỏ SCRAM -->
+                <button type="button" id="btn-scram" class="w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-rose-200 border-2 border-rose-400 transition flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-octagon-exclamation text-base"></i>
+                    <span>SCRAM (Dừng lò khẩn cấp)</span>
+                </button>
+            </div>
+
+            <!-- 2. BẢNG ĐỒNG HỒ ĐO THÔNG SỐ THỜI GIAN THỰC -->
+            <div id="telemetry-card" class="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-sm flex-1 flex flex-col justify-between">
+                <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-gauge-high text-emerald-600"></i>
+                    Đồng Hồ & Chỉ Số Thời Gian Thực
+                </h2>
+
+                <div id="telemetry-list" class="flex flex-col gap-2">
+                    <!-- 1. Nhiệt độ vùng hoạt (°C) + Thanh báo mức an toàn -->
+                    <div id="card-temp" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 transition-colors">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-semibold text-slate-600">Nhiệt độ vùng hoạt:</span>
+                            <span class="text-sm font-extrabold font-mono text-orange-600">
+                                <span id="val-temp">315</span> °C
+                            </span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div id="bar-temp" class="h-full bg-orange-500 rounded-full transition-all duration-150" style="width: 60%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
+                            <span>Chuẩn: 280–330°C</span>
+                            <span class="text-rose-600 font-semibold">Cảnh báo: &gt;350°C</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. Áp suất vòng 1 (bar) -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Áp suất vòng 1 (PWR):</span>
+                        <span class="text-sm font-extrabold font-mono text-orange-700">
+                            <span id="val-pressure">155.0</span> <span class="text-xs font-semibold text-slate-500">bar</span>
+                        </span>
+                    </div>
+
+                    <!-- 3. Số lượng neutron tự do -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-semibold text-slate-600 block">Neutron tự do trong lõi:</span>
+                            <span id="status-k" class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Phản ứng ổn định (k ≈ 1)</span>
+                        </div>
+                        <span class="text-sm font-extrabold font-mono text-rose-600">
+                            <span id="val-neutrons">24</span> <span class="text-xs font-semibold text-slate-500">hạt</span>
+                        </span>
+                    </div>
+
+                    <!-- 4. Công suất điện phát (MW) -->
+                    <div class="bg-amber-50/80 border border-amber-200 rounded-xl px-3 py-2">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-amber-900">Công suất điện phát:</span>
+                            <span class="text-base font-extrabold font-mono text-amber-700">
+                                <span id="val-power">1000</span> <span class="text-xs font-bold">MW</span>
+                            </span>
+                        </div>
+                        <div class="w-full h-2 bg-amber-200/70 rounded-full overflow-hidden">
+                            <div id="bar-power" class="h-full bg-amber-500 rounded-full transition-all duration-150" style="width: 80%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- THANH ĐIỀU KHIỂN DƯỚI ĐÁY (BOTTOM CONTROL BAR) -->
+    <footer id="bottom-bar" class="bg-slate-900 text-white border-t border-slate-800 px-4 py-2.5 shadow-lg">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Bên trái: Tạm dừng / Tiếp tục & Đặt lại -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" id="btn-play-pause" class="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 text-slate-950 font-extrabold text-xs sm:text-sm shadow transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-pause" id="icon-play-pause"></i>
+                    <span id="text-play-pause">Tạm dừng</span>
+                </button>
+
+                <button type="button" id="btn-reset" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-200 font-bold text-xs sm:text-sm transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-rotate-right text-sky-400"></i>
+                    <span>Đặt lại chuẩn</span>
+                </button>
+            </div>
+
+            <!-- Ở giữa: Checkbox bật/tắt nhãn chú thích -->
+            <div class="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-200">
+                <label class="inline-flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input type="checkbox" id="chk-labels" checked class="w-4 h-4 rounded accent-sky-400 cursor-pointer">
+                    <span>Hiển thị nhãn chú thích bộ phận</span>
+                </label>
+            </div>
+
+            <!-- Bên phải: Nút Toàn màn hình (F) -->
+            <div>
+                <button type="button" id="btn-fullscreen" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-100 font-bold text-xs sm:text-sm transition flex items-center gap-1.5 cursor-pointer" title="Trình chiếu toàn màn hình 100% vừa khít (Phím tắt: F)">
+                    <i class="fa-solid fa-expand text-sky-400" id="icon-fullscreen"></i>
+                    <span id="text-fullscreen">Toàn màn hình</span>
+                    <kbd class="hidden md:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-950 text-slate-400 rounded border border-slate-700">F</kbd>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * MÔ PHỎNG HOẠT ĐỘNG NHÀ MÁY ĐIỆN HẠT NHÂN (PWR - PRESSURIZED WATER REACTOR)
+         * Tác giả: Gemini
+         * Mô tả:
+         * - Tương tác kéo thả trực tiếp cụm truyền động thanh điều khiển phía trên nắp lò (0% -> 100%)
+         * - Phản ứng phân hạch dây chuyền của hạt nhân Uranium-235 giải phóng nhiệt và 2-3 neutron mới
+         * - Hấp thụ neutron trực tiếp khi va chạm vào phần thanh điều khiển Bo/Cadimi đang ngập trong vùng hoạt
+         * - Đồng bộ 3 vòng tuần hoàn nhiệt, tua-bin, máy phát điện, lưới điện tòa nhà và tháp giải nhiệt
+         */
+
+        // --- 1. TRẠNG THÁI VẬT LÝ & CẤU HÌNH ---
+        const state = {
+            // Điều khiển thanh điều khiển (0% = hạ hết xuống đáy vùng hoạt, 100% = rút hết lên khoang trên)
+            targetRodWithdraw: 65,      // Vị trí mục tiêu (%)
+            currentRodWithdraw: 65,     // Vị trí cơ học thực tế đang dịch chuyển (%)
+            isScramActive: false,       // Trạng thái rơi tự do khẩn cấp SCRAM
+            isDraggingRods: false,      // Đang kéo chuột/cảm ứng trực tiếp trên cụm truyền động
+
+            // Thông số vận hành khác
+            pumpFlow: 85,               // Lưu lượng bơm làm mát (0% - 100%)
+            gridLoadMW: 1000,           // Tải tiêu thụ điện lưới (200 - 1250 MW)
+
+            // Đại lượng đo lường thời gian thực
+            kEff: 1.00,                 // Hệ số nhân neutron hiệu dụng k
+            coreTemp: 315,              // Nhiệt độ vùng hoạt (°C)
+            primaryPressureBar: 155.0,  // Áp suất vòng 1 (bar) - chuẩn PWR ~155 bar
+            turbineRpm: 3000,           // Tốc độ tua-bin (vòng/phút)
+            electricPowerMW: 1000,      // Công suất điện phát (MW)
+
+            // Hoạt ảnh & hiển thị
+            turbineAngle: 0,
+            pumpAngle: 0,
+            flowOffset: 0,
+            isPlaying: true,
+            showLabels: true,
+
+            // Các hạt & hiệu ứng vật lý trong lõi lò
+            uraniumNodes: [],           // Hạt nhân U-235 [{ fx, fy, state: 'intact'|'split', cooldown }]
+            daughterFragments: [],      // Mảnh vỡ hạt nhân con tách đôi [{ fx, fy, vx, vy, alpha }]
+            neutrons: [],               // Neutron tự do [{ fx, fy, vx, vy }]
+            fissionFlashes: [],         // Lóe sáng tỏa nhiệt khi phân hạch [{ fx, fy, alpha }]
+            absorbRings: [],            // Vòng hấp thụ khi neutron đập vào thanh điều khiển [{ fx, fy, alpha }]
+            steamPlumes: [],            // Khói hơi nước trắng từ tháp giải nhiệt [{ x, y, r, alpha, vx, vy }]
+
+            // Lưu vùng tọa độ cụm truyền động thanh điều khiển để bắt sự kiện kéo thả
+            rodHandleBounds: { x: 0, y: 0, w: 0, h: 0, topY: 0, botY: 0 }
+        };
+
+        // --- 2. THAM CHIẾU DOM ---
+        const canvas = document.getElementById('plantCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        const scenarioBtns = document.querySelectorAll('.scenario-btn');
+        const sliderRods = document.getElementById('slider-rods');
+        const badgeRods = document.getElementById('badge-rods');
+        const rodMotionBadge = document.getElementById('rod-motion-badge');
+        const btnRodDown = document.getElementById('btn-rod-down');
+        const btnRodUp = document.getElementById('btn-rod-up');
+        const btnRodZero = document.getElementById('btn-rod-zero');
+
+        const sliderPump = document.getElementById('slider-pump');
+        const badgePump = document.getElementById('badge-pump');
+        const sliderLoad = document.getElementById('slider-load');
+        const badgeLoad = document.getElementById('badge-load');
+        const btnScram = document.getElementById('btn-scram');
+
+        const overheatBanner = document.getElementById('overheat-banner');
+        const cardTemp = document.getElementById('card-temp');
+
+        const valTemp = document.getElementById('val-temp');
+        const barTemp = document.getElementById('bar-temp');
+        const valPressure = document.getElementById('val-pressure');
+        const valNeutrons = document.getElementById('val-neutrons');
+        const statusK = document.getElementById('status-k');
+        const valPower = document.getElementById('val-power');
+        const barPower = document.getElementById('bar-power');
+
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const iconPlayPause = document.getElementById('icon-play-pause');
+        const textPlayPause = document.getElementById('text-play-pause');
+        const btnReset = document.getElementById('btn-reset');
+        const chkLabels = document.getElementById('chk-labels');
+
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const iconFullscreen = document.getElementById('icon-fullscreen');
+        const textFullscreen = document.getElementById('text-fullscreen');
+        const fsToast = document.getElementById('fs-toast');
+
+        // --- 3. KHỞI TẠO VÙNG HOẠT LÒ PHẢN ỨNG (URANIUM-235 & NEUTRON) ---
+        function initReactorCore() {
+            state.uraniumNodes = [];
+            state.daughterFragments = [];
+            state.neutrons = [];
+            state.fissionFlashes = [];
+            state.absorbRings = [];
+            state.steamPlumes = [];
+
+            // 4 bó thanh nhiên liệu dọc (fx: 0.16, 0.39, 0.61, 0.84), mỗi bó 5 hạt nhân U-235
+            const fuelCols = [0.16, 0.39, 0.61, 0.84];
+            const fuelRows = [0.15, 0.32, 0.50, 0.68, 0.85];
+            fuelCols.forEach(fx => {
+                fuelRows.forEach(fy => {
+                    state.uraniumNodes.push({ fx, fy, cooldown: 0 });
+                });
+            });
+
+            // Khởi tạo 24 neutron tự do ban đầu
+            for (let i = 0; i < 24; i++) {
+                spawnNeutron(0.15 + Math.random() * 0.7, 0.15 + Math.random() * 0.7);
+            }
+        }
+
+        function spawnNeutron(fx, fy) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.44 + Math.random() * 0.24;
+            state.neutrons.push({
+                fx,
+                fy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed
+            });
+        }
+
+        // --- 4. CẬP NHẬT CHUYỂN ĐỘNG THANH ĐIỀU KHIỂN & VẬT LÝ LÒ PHẢN ỨNG ---
+        function stepPhysics(dt) {
+            // 1. Chuyển động tịnh tiến của thanh điều khiển (Rút lên / Hạ xuống / SCRAM rơi tự do)
+            const diff = state.targetRodWithdraw - state.currentRodWithdraw;
+            if (Math.abs(diff) > 0.05) {
+                if (state.isDraggingRods) {
+                    state.currentRodWithdraw = state.targetRodWithdraw;
+                } else if (state.isScramActive) {
+                    // Rơi tự do nhanh theo trọng lực xuống 0%
+                    state.currentRodWithdraw = Math.max(0, state.currentRodWithdraw - 140 * dt);
+                    if (state.currentRodWithdraw <= 0.1) {
+                        state.currentRodWithdraw = 0;
+                        state.isScramActive = false;
+                    }
+                } else {
+                    // Động cơ nâng/hạ thanh điều khiển mượt mà (tốc độ 36%/giây)
+                    const step = Math.sign(diff) * Math.min(Math.abs(diff), 36 * dt);
+                    state.currentRodWithdraw += step;
+                }
+            } else {
+                state.currentRodWithdraw = state.targetRodWithdraw;
+                state.isScramActive = false;
+            }
+
+            // 2. Tính hệ số nhân neutron k dựa trên độ rút thanh điều khiển hiện tại
+            const rodPct = state.currentRodWithdraw;
+            const rodFactor = 0.30 + (rodPct / 100) * 0.88;
+            const tempFeedback = (state.coreTemp - 315) * 0.0004;
+            state.kEff = Math.max(0.20, Math.min(1.35, rodFactor - tempFeedback));
+
+            // 3. Cập nhật tương tác neutron & phản ứng phân hạch U-235
+            updateNeutronsAndFission(dt);
+
+            // 4. Nhiệt độ vùng hoạt (°C): tỉ lệ với số lượng neutron tự do hoạt động & lưu lượng bơm làm mát
+            const neutronActivity = state.neutrons.length / 24.0; // Ở 24 hạt -> activity = 1.0
+            const heatGenerated = neutronActivity * 285;
+            const coolingEfficiency = 0.16 + (state.pumpFlow / 100) * 0.84;
+            const targetTemp = 30 + heatGenerated / coolingEfficiency;
+            state.coreTemp += (targetTemp - state.coreTemp) * Math.min(1, dt * 0.9);
+            state.coreTemp = Math.max(30, Math.min(540, state.coreTemp));
+
+            // 5. Áp suất vòng 1 (bar): chuẩn PWR ~155 bar ở 315°C, tăng khi quá nhiệt
+            const targetPressureBar = 1.0 + Math.max(0, state.coreTemp - 30) * 0.54;
+            state.primaryPressureBar += (targetPressureBar - state.primaryPressureBar) * Math.min(1, dt * 1.2);
+
+            // 6. Tốc độ tua-bin & Công suất điện phát (MW)
+            const thermalOutputRatio = Math.max(0, (state.coreTemp - 110) / 205) * (0.25 + 0.75 * (state.pumpFlow / 100));
+            const targetRpm = Math.min(3600, thermalOutputRatio * 3000);
+            state.turbineRpm += (targetRpm - state.turbineRpm) * Math.min(1, dt * 1.3);
+
+            const availableMW = Math.min(1250, thermalOutputRatio * 1050);
+            const targetPowerMW = Math.min(availableMW, state.gridLoadMW * Math.min(1.1, thermalOutputRatio));
+            state.electricPowerMW += (targetPowerMW - state.electricPowerMW) * Math.min(1, dt * 1.6);
+
+            // 7. Góc quay thiết bị & dòng chảy tuần hoàn
+            state.turbineAngle += (state.turbineRpm / 3000) * 14 * dt;
+            state.pumpAngle += (state.pumpFlow / 100) * 12 * dt;
+            state.flowOffset = (state.flowOffset + dt * 45) % 1000;
+
+            // 8. Hơi nước trắng bốc lên từ tháp giải nhiệt
+            if (Math.random() < (0.15 + thermalOutputRatio * 0.65)) {
+                state.steamPlumes.push({
+                    x: (Math.random() - 0.5) * 26,
+                    y: 0,
+                    r: 8 + Math.random() * 6,
+                    alpha: 0.78,
+                    vx: 10 + Math.random() * 14,
+                    vy: -22 - Math.random() * 16
+                });
+            }
+            for (let i = state.steamPlumes.length - 1; i >= 0; i--) {
+                const p = state.steamPlumes[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.r += 11 * dt;
+                p.alpha -= 0.38 * dt;
+                if (p.alpha <= 0) state.steamPlumes.splice(i, 1);
+            }
+        }
+
+        function updateNeutronsAndFission(dt) {
+            // Độ ngập của cụm thanh điều khiển trong vùng hoạt:
+            // currentRodWithdraw = 0% -> ngập sâu 0.94 (đến đáy vùng hoạt)
+            // currentRodWithdraw = 100% -> rút hoàn toàn lên trên (ngập 0.02)
+            const rodInsertion = 0.02 + (1 - state.currentRodWithdraw / 100) * 0.92;
+            const rodCols = [0.275, 0.50, 0.725]; // 3 thanh điều khiển nằm xen kẽ giữa 4 bó nhiên liệu
+
+            // Số neutron mục tiêu duy trì ổn định tương ứng mức rút thanh điều khiển
+            const minNeutrons = state.currentRodWithdraw <= 1 ? 0 : Math.max(2, Math.round((state.currentRodWithdraw / 100) * 34));
+            const maxNeutrons = state.currentRodWithdraw <= 1 ? 2 : Math.max(4, Math.round(4 + (state.currentRodWithdraw / 100) * 38));
+
+            for (const u of state.uraniumNodes) {
+                if (u.cooldown > 0) u.cooldown = Math.max(0, u.cooldown - dt);
+            }
+
+            for (let i = state.neutrons.length - 1; i >= 0; i--) {
+                const n = state.neutrons[i];
+                n.fx += n.vx * dt;
+                n.fy += n.vy * dt;
+
+                // Phản xạ tại thành bình áp lực
+                if (n.fx < 0.05) { n.fx = 0.05; n.vx = Math.abs(n.vx); }
+                if (n.fx > 0.95) { n.fx = 0.95; n.vx = -Math.abs(n.vx); }
+                if (n.fy < 0.05) { n.fy = 0.05; n.vy = Math.abs(n.vy); }
+                if (n.fy > 0.95) { n.fy = 0.95; n.vy = -Math.abs(n.vy); }
+
+                // 1. Kiểm tra hấp thụ trực tiếp khi neutron chạm vào phần thanh điều khiển đang ngập trong lõi
+                let absorbed = false;
+                if (n.fy <= rodInsertion) {
+                    for (const rx of rodCols) {
+                        if (Math.abs(n.fx - rx) < 0.032) {
+                            state.absorbRings.push({ fx: rx, fy: n.fy, alpha: 1.0 });
+                            if (state.absorbRings.length > 25) state.absorbRings.shift();
+                            state.neutrons.splice(i, 1);
+                            absorbed = true;
+                            break;
+                        }
+                    }
+                }
+                if (absorbed) continue;
+
+                // 2. Kiểm tra va chạm phân hạch với hạt nhân Uranium-235
+                for (const u of state.uraniumNodes) {
+                    if (u.cooldown <= 0 && Math.hypot(n.fx - u.fx, n.fy - u.fy) < 0.055) {
+                        u.cooldown = 0.42;
+
+                        // Tách đôi hạt nhân U-235 thành 2 mảnh vỡ hạt nhân con (Ba + Kr)
+                        const splitAng = Math.random() * Math.PI;
+                        state.daughterFragments.push(
+                            { fx: u.fx, fy: u.fy, vx: Math.cos(splitAng) * 0.16, vy: Math.sin(splitAng) * 0.16, alpha: 1.0 },
+                            { fx: u.fx, fy: u.fy, vx: -Math.cos(splitAng) * 0.16, vy: -Math.sin(splitAng) * 0.16, alpha: 1.0 }
+                        );
+
+                        // Lóe sáng tỏa nhiệt
+                        state.fissionFlashes.push({ fx: u.fx, fy: u.fy, alpha: 1.0 });
+                        if (state.fissionFlashes.length > 25) state.fissionFlashes.shift();
+
+                        // Đổi hướng neutron hiện tại và giải phóng thêm 1-2 neutron mới nếu chưa vượt ngưỡng
+                        const ang1 = Math.random() * Math.PI * 2;
+                        const spd1 = 0.45 + Math.random() * 0.22;
+                        n.vx = Math.cos(ang1) * spd1;
+                        n.vy = Math.sin(ang1) * spd1;
+
+                        if (state.neutrons.length < maxNeutrons) {
+                            spawnNeutron(u.fx, u.fy);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Bổ sung neutron mồi tự nhiên nếu thanh điều khiển đang rút lên nhưng số neutron thấp hơn mức duy trì
+            if (state.neutrons.length < minNeutrons && Math.random() < 0.25) {
+                spawnNeutron(0.16 + Math.random() * 0.68, 0.55 + Math.random() * 0.35);
+            }
+
+            // Cập nhật mảnh vỡ hạt nhân con & vòng sáng
+            for (let i = state.daughterFragments.length - 1; i >= 0; i--) {
+                const df = state.daughterFragments[i];
+                df.fx += df.vx * dt;
+                df.fy += df.vy * dt;
+                df.alpha -= dt * 1.8;
+                if (df.alpha <= 0) state.daughterFragments.splice(i, 1);
+            }
+            for (let i = state.fissionFlashes.length - 1; i >= 0; i--) {
+                state.fissionFlashes[i].alpha -= dt * 2.8;
+                if (state.fissionFlashes[i].alpha <= 0) state.fissionFlashes.splice(i, 1);
+            }
+            for (let i = state.absorbRings.length - 1; i >= 0; i--) {
+                state.absorbRings[i].alpha -= dt * 2.5;
+                if (state.absorbRings[i].alpha <= 0) state.absorbRings.splice(i, 1);
+            }
+        }
+
+        // --- 5. CẬP NHẬT GIAO DIỆN SỐ LIỆU & TRẠNG THÁI ---
+        function updateUI() {
+            const curPct = Math.round(state.currentRodWithdraw);
+            const tgtPct = Math.round(state.targetRodWithdraw);
+            badgeRods.textContent = `${curPct}%`;
+
+            // Nhãn trạng thái chuyển động thanh điều khiển
+            if (state.isScramActive) {
+                rodMotionBadge.textContent = 'SCRAM rơi tự do!';
+                rodMotionBadge.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-600 text-white animate-pulse';
+            } else if (tgtPct - curPct > 0.5) {
+                rodMotionBadge.textContent = 'Đang rút lên ↑';
+                rodMotionBadge.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800';
+            } else if (curPct - tgtPct > 0.5) {
+                rodMotionBadge.textContent = 'Đang hạ xuống ↓';
+                rodMotionBadge.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800';
+            } else {
+                rodMotionBadge.textContent = 'Giữ vị trí';
+                rodMotionBadge.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700';
+            }
+
+            badgePump.textContent = `${state.pumpFlow}%`;
+            badgeLoad.textContent = `${state.gridLoadMW} MW`;
+
+            // Nhiệt độ vùng hoạt & Cảnh báo quá nhiệt (> 350°C)
+            valTemp.textContent = Math.round(state.coreTemp);
+            const tempPct = Math.min(100, Math.max(0, ((state.coreTemp - 30) / 480) * 100));
+            barTemp.style.width = `${tempPct}%`;
+
+            if (state.coreTemp > 350) {
+                overheatBanner.classList.remove('hidden');
+                cardTemp.className = 'bg-rose-50 border-2 border-rose-500 rounded-xl px-3 py-2 transition-colors';
+                valTemp.parentElement.className = 'text-sm font-extrabold font-mono text-rose-600 animate-pulse';
+                barTemp.className = 'h-full bg-rose-600 rounded-full transition-all duration-150';
+            } else {
+                overheatBanner.classList.add('hidden');
+                cardTemp.className = 'bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 transition-colors';
+                valTemp.parentElement.className = 'text-sm font-extrabold font-mono text-orange-600';
+                barTemp.className = 'h-full bg-orange-500 rounded-full transition-all duration-150';
+            }
+
+            // Áp suất vòng 1, số lượng neutron, công suất điện phát
+            valPressure.textContent = state.primaryPressureBar.toFixed(1);
+            valNeutrons.textContent = state.neutrons.length;
+
+            if (state.neutrons.length <= 2) {
+                statusK.textContent = 'Đã tắt phản ứng (k < 1)';
+                statusK.className = 'text-[10px] font-bold text-slate-600 bg-slate-200 px-1.5 py-0.5 rounded';
+            } else if (state.kEff <= 1.06) {
+                statusK.textContent = `Phản ứng ổn định (k = ${state.kEff.toFixed(2)})`;
+                statusK.className = 'text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded';
+            } else {
+                statusK.textContent = `Phản ứng mạnh (k = ${state.kEff.toFixed(2)})`;
+                statusK.className = 'text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded';
+            }
+
+            valPower.textContent = Math.round(state.electricPowerMW);
+            barPower.style.width = `${Math.min(100, (state.electricPowerMW / 1250) * 100)}%`;
+        }
+
+        // --- 6. HỆ THỐNG RENDER CANVAS SƠ ĐỒ MẶT CẮT NHÀ MÁY PWR ---
+        function resizeCanvas() {
+            const rect = canvasWrapper.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawScene();
+        }
+
+        const canvasResizeObserver = new ResizeObserver(() => resizeCanvas());
+        canvasResizeObserver.observe(canvasWrapper);
+
+        function drawFlowDots(points, color, speedRatio, count = 8, radius = 3.4) {
+            if (speedRatio <= 0.02) return;
+            let totalLen = 0;
+            const segLens = [];
+            for (let i = 0; i < points.length - 1; i++) {
+                const l = Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+                segLens.push(l);
+                totalLen += l;
+            }
+            if (totalLen <= 0) return;
+
+            ctx.save();
+            ctx.fillStyle = color;
+            for (let k = 0; k < count; k++) {
+                const d = ((k / count) * totalLen + state.flowOffset * speedRatio * 2.2) % totalLen;
+                let acc = 0;
+                for (let s = 0; s < segLens.length; s++) {
+                    if (acc + segLens[s] >= d) {
+                        const t = (d - acc) / segLens[s];
+                        const px = points[s].x + (points[s + 1].x - points[s].x) * t;
+                        const py = points[s].y + (points[s + 1].y - points[s].y) * t;
+                        ctx.beginPath();
+                        ctx.arc(px, py, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                    }
+                    acc += segLens[s];
+                }
+            }
+            ctx.restore();
+        }
+
+        function drawPipe(points, outerColor, innerColor, width = 12) {
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.strokeStyle = outerColor;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+
+            ctx.strokeStyle = innerColor;
+            ctx.lineWidth = width - 4;
+            ctx.beginPath();
+            points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawLabelTag(text, x, y, bg = '#0f172a', fg = '#ffffff') {
+            if (!state.showLabels) return;
+            ctx.save();
+            ctx.font = 'bold 11px "Inter", sans-serif';
+            const w = ctx.measureText(text).width + 12;
+            const h = 19;
+            ctx.fillStyle = bg;
+            ctx.beginPath();
+            ctx.roundRect(x - w / 2, y - h / 2, w, h, 5);
+            ctx.fill();
+
+            ctx.fillStyle = fg;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y + 0.5);
+            ctx.restore();
+        }
+
+        function drawScene() {
+            const W = canvasWrapper.clientWidth;
+            const H = canvasWrapper.clientHeight;
+            ctx.clearRect(0, 0, W, H);
+
+            // Nền sáng sạch
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.88);
+            skyGrad.addColorStop(0, '#f8fafc');
+            skyGrad.addColorStop(1, '#eef2f6');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            const groundY = H - 24;
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(0, groundY, W, 24);
+
+            // Tọa độ các cụm thiết bị chính
+            // 1. Nhà lò phản ứng (Containment Building)
+            const contX = W * 0.025;
+            const contW = W * 0.36;
+            const contTop = H * 0.06;
+            const contH = groundY - contTop;
+
+            // Bình áp lực lõi lò (Core Vessel)
+            const coreX = contX + contW * 0.11;
+            const coreW = contW * 0.44;
+            const coreY = contTop + contH * 0.42; // Chừa khoảng không rộng phía trên nắp lò cho khoang rút thanh điều khiển
+            const coreH = contH * 0.48;
+
+            // Bộ sinh hơi (Steam Generator)
+            const sgX = contX + contW * 0.64;
+            const sgW = contW * 0.27;
+            const sgY = contTop + contH * 0.28;
+            const sgH = contH * 0.62;
+
+            // 2. Tua-bin, Máy phát điện & Bình ngưng
+            const turbX = W * 0.49;
+            const turbY = H * 0.34;
+            const genX = W * 0.63;
+            const genY = turbY;
+
+            const condX = W * 0.43;
+            const condW = W * 0.22;
+            const condY = H * 0.64;
+            const condH = H * 0.22;
+
+            // 3. Tháp giải nhiệt & Hệ thống đèn / tòa nhà lưới điện
+            const towerCenterX = W * 0.85;
+            const towerTopY = H * 0.38;
+            const towerBotY = groundY;
+
+            // =================================================================
+            // A. NHÀ LÒ PHẢN ỨNG & VÒNG TUẦN HOÀN SƠ CẤP (VÒNG 1)
+            // =================================================================
+            ctx.save();
+            ctx.fillStyle = '#e2e8f0';
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(contX, groundY);
+            ctx.lineTo(contX, contTop + 42);
+            ctx.quadraticCurveTo(contX + contW * 0.5, contTop - 12, contX + contW, contTop + 42);
+            ctx.lineTo(contX + contW, groundY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Ống nhánh nóng (Hot Leg) & Ống chữ U trong Bộ sinh hơi & Nhánh lạnh (Cold Leg)
+            const hotLeg = [
+                { x: coreX + coreW, y: coreY + coreH * 0.22 },
+                { x: sgX, y: coreY + coreH * 0.22 }
+            ];
+            const uTube = [
+                { x: sgX + sgW * 0.25, y: coreY + coreH * 0.22 },
+                { x: sgX + sgW * 0.25, y: sgY + sgH * 0.32 },
+                { x: sgX + sgW * 0.75, y: sgY + sgH * 0.32 },
+                { x: sgX + sgW * 0.75, y: sgY + sgH }
+            ];
+            const coldLeg = [
+                { x: sgX + sgW * 0.5, y: sgY + sgH },
+                { x: sgX + sgW * 0.5, y: coreY + coreH * 0.85 },
+                { x: coreX + coreW, y: coreY + coreH * 0.85 }
+            ];
+
+            drawPipe(hotLeg, '#9a3412', '#f97316', 12);
+            drawPipe(uTube, '#9a3412', '#fb923c', 9);
+            drawPipe(coldLeg, '#1d4ed8', '#3b82f6', 12);
+
+            const pumpSpeed = state.pumpFlow / 100;
+            drawFlowDots(hotLeg, '#fef08a', pumpSpeed, 4, 3.5);
+            drawFlowDots(uTube, '#fde047', pumpSpeed, 6, 3);
+            drawFlowDots(coldLeg, '#bae6fd', pumpSpeed, 6, 3.5);
+
+            // Bơm tuần hoàn sơ cấp
+            drawPumpWheel((sgX + sgW * 0.5 + coreX + coreW) * 0.5, coreY + coreH * 0.85, 11, '#2563eb');
+
+            // =================================================================
+            // B. LÕI LÒ PHẢN ỨNG U-235 & HỆ THỐNG THANH ĐIỀU KHIỂN RÚT / HẠ
+            // =================================================================
+            drawReactorAndControlRods(coreX, coreY, coreW, coreH);
+
+            // =================================================================
+            // C. BỘ SINH HƠI & VÒNG TUẦN HOÀN THỨ CẤP (VÒNG 2)
+            // =================================================================
+            ctx.fillStyle = '#e0f2fe';
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.roundRect(sgX, sgY, sgW, sgH, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.32)';
+            ctx.fillRect(sgX + 2, sgY + sgH * 0.45, sgW - 4, sgH * 0.54);
+
+            const steamPipe = [
+                { x: sgX + sgW * 0.5, y: sgY },
+                { x: sgX + sgW * 0.5, y: turbY - 34 },
+                { x: turbX, y: turbY - 34 },
+                { x: turbX, y: turbY - 18 }
+            ];
+            const exhaustPipe = [
+                { x: turbX, y: turbY + 22 },
+                { x: turbX, y: condY }
+            ];
+            const feedwaterPipe = [
+                { x: condX, y: condY + condH * 0.65 },
+                { x: sgX + sgW * 0.85, y: condY + condH * 0.65 },
+                { x: sgX + sgW * 0.85, y: sgY + sgH * 0.72 }
+            ];
+
+            const steamFlow = state.turbineRpm / 3000;
+            drawPipe(steamPipe, '#0369a1', '#e0f2fe', 11);
+            drawPipe(exhaustPipe, '#0284c7', '#bae6fd', 12);
+            drawPipe(feedwaterPipe, '#0369a1', '#38bdf8', 10);
+
+            drawFlowDots(steamPipe, '#ffffff', steamFlow, 10, 3.2);
+            drawFlowDots(exhaustPipe, '#e0f2fe', steamFlow, 4, 3.2);
+            drawFlowDots(feedwaterPipe, '#e0f2fe', steamFlow, 8, 3);
+
+            // =================================================================
+            // D. TUA-BIN HƠI NƯỚC, MÁY PHÁT ĐIỆN & HỆ THỐNG ĐÈN / TÒA NHÀ
+            // =================================================================
+            drawTurbineGeneratorAndGrid(turbX, turbY, genX, genY, W);
+
+            // =================================================================
+            // E. BÌNH NGƯNG & VÒNG NƯỚC LÀM MÁT THÁP GIẢI NHIỆT (VÒNG 3)
+            // =================================================================
+            ctx.fillStyle = '#f1f5f9';
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.roundRect(condX, condY, condW, condH, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            const warmCoolingPipe = [
+                { x: condX + condW * 0.85, y: condY + condH * 0.35 },
+                { x: towerCenterX - 24, y: condY + condH * 0.35 },
+                { x: towerCenterX - 24, y: towerBotY - 26 }
+            ];
+            const coldCoolingPipe = [
+                { x: towerCenterX + 24, y: towerBotY - 12 },
+                { x: towerCenterX + 24, y: condY + condH * 0.78 },
+                { x: condX + condW * 0.85, y: condY + condH * 0.78 }
+            ];
+
+            drawPipe(warmCoolingPipe, '#0f766e', '#2dd4bf', 10);
+            drawPipe(coldCoolingPipe, '#115e59', '#14b8a6', 10);
+
+            const coolSpeed = 0.25 + (state.pumpFlow / 100) * 0.75;
+            drawFlowDots(warmCoolingPipe, '#fef08a', coolSpeed, 7, 3);
+            drawFlowDots(coldCoolingPipe, '#ccfbf1', coolSpeed, 7, 3);
+
+            drawPumpWheel((condX + condW + towerCenterX) * 0.5, condY + condH * 0.78, 11, '#0d9488');
+            drawCoolingTower(towerCenterX, towerTopY, towerBotY);
+
+            // =================================================================
+            // F. NHÃN CHÚ THÍCH CÁC BỘ PHẬN
+            // =================================================================
+            drawLabelTag('Vùng hoạt (U-235)', coreX + coreW * 0.5, coreY + coreH + 12, '#9a3412');
+            drawLabelTag('Bộ sinh hơi', sgX + sgW * 0.5, sgY - 13, '#0369a1');
+            drawLabelTag('Tua-bin hơi', turbX, turbY - 46, '#4338ca');
+            drawLabelTag('Máy phát điện', genX, genY - 46, '#b45309');
+            drawLabelTag('Bình ngưng', condX + condW * 0.5, condY + condH + 13, '#334155');
+            drawLabelTag('Tháp giải nhiệt', towerCenterX, towerBotY + 12, '#0f766e');
+
+            ctx.restore();
+        }
+
+        function drawReactorAndControlRods(x, y, w, h) {
+            ctx.save();
+
+            // 1. Khoang dẫn hướng & thước đo 0% - 100% phía trên nắp lò
+            const guideH = Math.max(66, h * 0.44);
+            const guideTop = y - guideH;
+            const guideW = w * 0.64;
+            const guideX = x + (w - guideW) * 0.5;
+
+            ctx.fillStyle = 'rgba(241, 245, 249, 0.92)';
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(guideX, guideTop, guideW, guideH + 4, [10, 10, 0, 0]);
+            ctx.fill();
+            ctx.stroke();
+
+            // Vẽ thước chia vạch 0%, 50%, 100% dọc cạnh phải khoang dẫn hướng
+            const trackTop = guideTop + 12;
+            const trackBot = y - 8;
+            const trackSpan = trackBot - trackTop;
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.2;
+            ctx.font = 'bold 9px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#334155';
+
+            [0, 50, 100].forEach(pct => {
+                const tickY = trackBot - (pct / 100) * trackSpan;
+                ctx.beginPath();
+                ctx.moveTo(guideX + guideW - 6, tickY);
+                ctx.lineTo(guideX + guideW, tickY);
+                ctx.stroke();
+                ctx.fillText(`${pct}%`, guideX + guideW + 4, tickY + 3);
+            });
+
+            // 2. Thân bình áp lực vùng hoạt (Reactor Vessel)
+            const heatRatio = Math.min(1, Math.max(0, (state.coreTemp - 80) / 310));
+            const rCol = Math.round(59 + heatRatio * 185);
+            const gCol = Math.round(130 - heatRatio * 65);
+            const bCol = Math.round(246 - heatRatio * 210);
+
+            ctx.fillStyle = `rgba(${rCol}, ${gCol}, ${bCol}, 0.28)`;
+            ctx.strokeStyle = state.coreTemp > 350 ? '#e11d48' : '#475569';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 20);
+            ctx.fill();
+            ctx.stroke();
+
+            // 3. Vẽ 4 bó thanh nhiên liệu Uranium-235 cố định
+            const fuelCols = [0.16, 0.39, 0.61, 0.84];
+            fuelCols.forEach(fx => {
+                const rx = x + fx * w;
+                ctx.fillStyle = '#cbd5e1';
+                ctx.fillRect(rx - 3.5, y + h * 0.08, 7, h * 0.84);
+            });
+
+            // Hạt nhân U-235
+            for (const u of state.uraniumNodes) {
+                const ux = x + u.fx * w;
+                const uy = y + u.fy * h;
+                ctx.fillStyle = u.cooldown > 0 ? '#facc15' : '#0284c7';
+                ctx.beginPath();
+                ctx.arc(ux, uy, 4.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // Mảnh vỡ hạt nhân con tách đôi
+            for (const df of state.daughterFragments) {
+                ctx.fillStyle = `rgba(16, 185, 129, ${df.alpha})`;
+                ctx.beginPath();
+                ctx.arc(x + df.fx * w, y + df.fy * h, 3.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Lóe sáng phân hạch
+            for (const f of state.fissionFlashes) {
+                ctx.fillStyle = `rgba(250, 204, 21, ${f.alpha * 0.75})`;
+                ctx.beginPath();
+                ctx.arc(x + f.fx * w, y + f.fy * h, 11 * (1.2 - f.alpha * 0.4), 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 4. Vẽ Cụm Thanh Điều Khiển (Bo/Cadimi) chuyển động tịnh tiến RÚT LÊN / HẠ XUỐNG
+            // Khi currentRodWithdraw = 0% -> đầu dưới thanh chạm đáy vùng hoạt (y + h * 0.92)
+            // Khi currentRodWithdraw = 100% -> đầu dưới thanh rút lên sát nắp lò (y + h * 0.03)
+            const rodTipY = (y + h * 0.92) - (state.currentRodWithdraw / 100) * (h * 0.89);
+            const handleY = trackBot - (state.currentRodWithdraw / 100) * trackSpan;
+            const rodCols = [0.275, 0.50, 0.725];
+
+            // 3 thanh điều khiển thẳng đứng nối từ tay cầm truyền động xuống tới rodTipY
+            rodCols.forEach(fx => {
+                const rx = x + fx * w;
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1;
+                ctx.fillRect(rx - 3.5, handleY, 7, rodTipY - handleY);
+                ctx.strokeRect(rx - 3.5, handleY, 7, rodTipY - handleY);
+
+                // Đầu mũi thanh hấp thụ neutron màu cam cảnh báo
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(rx - 3.5, rodTipY - 4, 7, 4);
+            });
+
+            // Tay cầm cụm truyền động cơ học (Drag Handle - Kéo lên/xuống trực tiếp)
+            const handleW = guideW - 8;
+            const handleH = 14;
+            const handleX = guideX + 4;
+
+            ctx.fillStyle = state.isDraggingRods ? '#0284c7' : (state.isScramActive ? '#e11d48' : '#0f172a');
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.roundRect(handleX, handleY - handleH / 2, handleW, handleH, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            // Mũi tên chỉ hướng chuyển động & ký hiệu kéo thả trên tay cầm
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const diff = state.targetRodWithdraw - state.currentRodWithdraw;
+            const arrowText = diff > 0.5 ? '▲ RÚT LÊN' : (diff < -0.5 ? '▼ HẠ XUỐNG' : `↕ ${Math.round(state.currentRodWithdraw)}%`);
+            ctx.fillText(arrowText, handleX + handleW / 2, handleY + 0.5);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+
+            // Lưu tọa độ vùng tương tác kéo thả
+            state.rodHandleBounds = {
+                x: guideX - 10,
+                y: guideTop - 10,
+                w: guideW + 20,
+                h: guideH + 20,
+                topY: trackTop,
+                botY: trackBot
+            };
+
+            // 5. Hiệu ứng vòng hấp thụ neutron tại thanh điều khiển
+            for (const ar of state.absorbRings) {
+                ctx.strokeStyle = `rgba(15, 23, 42, ${ar.alpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x + ar.fx * w, y + ar.fy * h, 7 * (1.3 - ar.alpha * 0.5), 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // 6. Các hạt Neutron tự do màu đỏ tươi di chuyển trong vùng hoạt
+            ctx.fillStyle = '#dc2626';
+            for (const n of state.neutrons) {
+                ctx.beginPath();
+                ctx.arc(x + n.fx * w, y + n.fy * h, 3.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawTurbineGeneratorAndGrid(turbX, turbY, genX, genY, W) {
+            ctx.save();
+            // Trục truyền động
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(turbX, turbY - 4, genX - turbX, 8);
+
+            // Tua-bin hơi nước
+            ctx.fillStyle = '#e0e7ff';
+            ctx.strokeStyle = '#4338ca';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(turbX - 24, turbY - 20);
+            ctx.lineTo(turbX + 24, turbY - 30);
+            ctx.lineTo(turbX + 24, turbY + 30);
+            ctx.lineTo(turbX - 24, turbY + 20);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(turbX, turbY);
+            ctx.rotate(state.turbineAngle);
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 2.5;
+            for (let i = 0; i < 4; i++) {
+                ctx.rotate(Math.PI / 4);
+                ctx.beginPath();
+                ctx.moveTo(-16, 0);
+                ctx.lineTo(16, 0);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // Máy phát điện xoay chiều
+            ctx.fillStyle = '#fef3c7';
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.roundRect(genX - 26, genY - 24, 52, 48, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(genX, genY);
+            ctx.rotate(state.turbineAngle);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-13, -5, 26, 10);
+            ctx.restore();
+
+            // Đường dây tải điện tới Hệ thống đèn / Tòa nhà thành phố
+            const cityX = W * 0.86;
+            const cityY = turbY - 46;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(genX + 26, genY - 8);
+            ctx.lineTo(cityX - 30, genY - 8);
+            ctx.lineTo(cityX - 30, cityY);
+            ctx.stroke();
+
+            if (state.electricPowerMW > 15) {
+                drawFlowDots(
+                    [
+                        { x: genX + 26, y: genY - 8 },
+                        { x: cityX - 30, y: genY - 8 },
+                        { x: cityX - 30, y: cityY }
+                    ],
+                    '#fde047',
+                    state.electricPowerMW / 1000,
+                    5,
+                    3.5
+                );
+            }
+
+            // Hệ thống tòa nhà & đèn chiếu sáng theo công suất phát
+            const brightness = Math.min(1, state.electricPowerMW / 1000);
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(cityX - 50, cityY - 42, 100, 44, 10);
+            ctx.fill();
+
+            // Các ô cửa sổ tòa nhà sáng vàng khi có điện
+            const winColor = brightness > 0.08 ? `rgba(253, 224, 71, ${0.25 + brightness * 0.75})` : '#334155';
+            ctx.fillStyle = winColor;
+            for (let bx = cityX - 42; bx <= cityX - 18; bx += 12) {
+                for (let by = cityY - 34; by <= cityY - 14; by += 10) {
+                    ctx.fillRect(bx, by, 7, 6);
+                }
+            }
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.fillText(`${Math.round(state.electricPowerMW)}MW`, cityX - 4, cityY - 17);
+
+            ctx.restore();
+        }
+
+        function drawPumpWheel(x, y, r, color) {
+            ctx.save();
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.translate(x, y);
+            ctx.rotate(state.pumpAngle);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-r + 3, 0);
+            ctx.lineTo(r - 3, 0);
+            ctx.moveTo(0, -r + 3);
+            ctx.lineTo(0, r - 3);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawCoolingTower(cx, topY, botY) {
+            ctx.save();
+            const topW = 34;
+            const botW = 52;
+            const waistY = topY + (botY - topY) * 0.42;
+            const waistW = 28;
+
+            for (const p of state.steamPlumes) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+                ctx.beginPath();
+                ctx.arc(cx + p.x, topY + p.y - 6, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            const towerGrad = ctx.createLinearGradient(cx - botW, topY, cx + botW, botY);
+            towerGrad.addColorStop(0, '#cbd5e1');
+            towerGrad.addColorStop(0.5, '#f1f5f9');
+            towerGrad.addColorStop(1, '#94a3b8');
+
+            ctx.fillStyle = towerGrad;
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(cx - topW, topY);
+            ctx.quadraticCurveTo(cx - waistW, waistY, cx - botW, botY);
+            ctx.lineTo(cx + botW, botY);
+            ctx.quadraticCurveTo(cx + waistW, waistY, cx + topW, topY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = '#0d9488';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(cx - topW + 1, topY + 6);
+            ctx.lineTo(cx + topW - 1, topY + 6);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // --- 7. TƯƠNG TÁC KÉO THẢ TRỰC TIẾP THANH ĐIỀU KHIỂN TRÊN CANVAS ---
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function setTargetRodWithdrawal(pct) {
+            const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+            state.targetRodWithdraw = clamped;
+            state.isScramActive = false;
+            sliderRods.value = clamped;
+            updateUI();
+        }
+
+        function onPointerDown(e) {
+            const pos = getPointerPos(e);
+            const b = state.rodHandleBounds;
+            if (pos.x >= b.x && pos.x <= b.x + b.w && pos.y >= b.y && pos.y <= b.y + b.h) {
+                state.isDraggingRods = true;
+                canvas.style.cursor = 'ns-resize';
+                updateRodFromPointerY(pos.y);
+            }
+        }
+
+        function updateRodFromPointerY(py) {
+            const b = state.rodHandleBounds;
+            const span = Math.max(10, b.botY - b.topY);
+            const ratio = (b.botY - py) / span;
+            const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+            state.targetRodWithdraw = pct;
+            state.currentRodWithdraw = pct;
+            state.isScramActive = false;
+            sliderRods.value = pct;
+            updateUI();
+            drawScene();
+        }
+
+        function onPointerMove(e) {
+            const pos = getPointerPos(e);
+            const b = state.rodHandleBounds;
+
+            if (state.isDraggingRods) {
+                e.preventDefault();
+                updateRodFromPointerY(pos.y);
+                return;
+            }
+
+            if (pos.x >= b.x && pos.x <= b.x + b.w && pos.y >= b.y && pos.y <= b.y + b.h) {
+                canvas.style.cursor = 'ns-resize';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        function onPointerUp() {
+            if (state.isDraggingRods) {
+                state.isDraggingRods = false;
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        canvas.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
+
+        // --- 8. VÒNG LẶP ANIMATION THỜI GIAN THỰC ---
+        let lastTimestamp = null;
+
+        function animate(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const rawDt = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+            const dt = Math.min(rawDt, 0.05);
+
+            if (state.isPlaying) {
+                stepPhysics(dt);
+                updateUI();
+            }
+
+            drawScene();
+            requestAnimationFrame(animate);
+        }
+
+        // --- 9. SỰ KIỆN BẢNG ĐIỀU KHIỂN, PHÍM TẮT & TOÀN MÀN HÌNH ---
+        function applyScenario(key) {
+            scenarioBtns.forEach(btn => {
+                if (btn.dataset.scenario === key) {
+                    btn.className = 'scenario-btn active px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm cursor-pointer';
+                } else {
+                    btn.className = 'scenario-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-700 hover:bg-white cursor-pointer';
+                }
+            });
+
+            if (key === 'startup') {
+                setTargetRodWithdrawal(25);
+                state.pumpFlow = 60;
+                state.gridLoadMW = 450;
+            } else if (key === 'nominal') {
+                setTargetRodWithdrawal(65);
+                state.pumpFlow = 85;
+                state.gridLoadMW = 1000;
+            } else if (key === 'high') {
+                setTargetRodWithdrawal(90);
+                state.pumpFlow = 95;
+                state.gridLoadMW = 1200;
+            }
+
+            sliderPump.value = state.pumpFlow;
+            sliderLoad.value = state.gridLoadMW;
+            updateUI();
+        }
+
+        scenarioBtns.forEach(btn => btn.addEventListener('click', () => applyScenario(btn.dataset.scenario)));
+
+        sliderRods.addEventListener('input', e => setTargetRodWithdrawal(parseInt(e.target.value, 10)));
+        btnRodDown.addEventListener('click', () => setTargetRodWithdrawal(state.targetRodWithdraw - 5));
+        btnRodUp.addEventListener('click', () => setTargetRodWithdrawal(state.targetRodWithdraw + 5));
+        btnRodZero.addEventListener('click', () => setTargetRodWithdrawal(0));
+
+        sliderPump.addEventListener('input', e => {
+            state.pumpFlow = parseInt(e.target.value, 10);
+            updateUI();
+        });
+
+        sliderLoad.addEventListener('input', e => {
+            state.gridLoadMW = parseInt(e.target.value, 10);
+            updateUI();
+        });
+
+        btnScram.addEventListener('click', () => {
+            state.targetRodWithdraw = 0;
+            state.isScramActive = true;
+            state.pumpFlow = 100;
+            sliderRods.value = 0;
+            sliderPump.value = 100;
+            scenarioBtns.forEach(b => {
+                b.className = 'scenario-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-700 hover:bg-white cursor-pointer';
+            });
+            updateUI();
+        });
+
+        btnPlayPause.addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            if (state.isPlaying) {
+                iconPlayPause.className = 'fa-solid fa-pause';
+                textPlayPause.textContent = 'Tạm dừng';
+            } else {
+                iconPlayPause.className = 'fa-solid fa-play';
+                textPlayPause.textContent = 'Tiếp tục';
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            state.coreTemp = 315;
+            state.primaryPressureBar = 155.0;
+            state.turbineRpm = 3000;
+            state.electricPowerMW = 1000;
+            state.currentRodWithdraw = 65;
+            state.targetRodWithdraw = 65;
+            state.isScramActive = false;
+            initReactorCore();
+            applyScenario('nominal');
+        });
+
+        chkLabels.addEventListener('change', e => { state.showLabels = e.target.checked; drawScene(); });
+
+        // Phím mũi tên Lên (↑) / Xuống (↓) điều khiển rút/hạ thanh điều khiển
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setTargetRodWithdrawal(state.targetRodWithdraw + 5);
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setTargetRodWithdrawal(state.targetRodWithdraw - 5);
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullScreen();
+            } else if (e.key === 'Escape' && isFullscreenActive()) {
+                applyFullscreenState(false);
+            }
+        });
+
+        // --- 10. CHỨC NĂNG TOÀN MÀN HÌNH (FIT-TO-SCREEN 100VH TRÌNH CHIẾU) ---
+        let toastTimeout = null;
+
+        function showFullscreenToast() {
+            fsToast.classList.remove('opacity-0', '-translate-y-2');
+            fsToast.classList.add('opacity-100', 'translate-y-0');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                fsToast.classList.remove('opacity-100', 'translate-y-0');
+                fsToast.classList.add('opacity-0', '-translate-y-2');
+            }, 3200);
+        }
+
+        function isFullscreenActive() {
+            return document.body.classList.contains('is-fullscreen');
+        }
+
+        function applyFullscreenState(active) {
+            if (active) {
+                document.body.classList.add('is-fullscreen');
+                iconFullscreen.className = 'fa-solid fa-compress text-amber-300';
+                textFullscreen.textContent = 'Thoát toàn màn hình';
+                btnFullscreen.className = 'px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 active:scale-95 text-amber-200 font-bold text-xs sm:text-sm transition flex items-center gap-1.5 cursor-pointer';
+            } else {
+                document.body.classList.remove('is-fullscreen');
+                iconFullscreen.className = 'fa-solid fa-expand text-sky-400';
+                textFullscreen.textContent = 'Toàn màn hình';
+                btnFullscreen.className = 'px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-100 font-bold text-xs sm:text-sm transition flex items-center gap-1.5 cursor-pointer';
+            }
+            resizeCanvas();
+            requestAnimationFrame(() => resizeCanvas());
+            setTimeout(resizeCanvas, 100);
+        }
+
+        async function toggleFullScreen() {
+            const elem = document.documentElement;
+            const willEnter = !isFullscreenActive();
+
+            if (willEnter) {
+                applyFullscreenState(true);
+                showFullscreenToast();
+                try {
+                    if (elem.requestFullscreen) await elem.requestFullscreen();
+                    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+                } catch (err) {}
+            } else {
+                applyFullscreenState(false);
+                try {
+                    if (document.exitFullscreen && document.fullscreenElement) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen && document.webkitFullscreenElement) await document.webkitExitFullscreen();
+                } catch (err) {}
+            }
+        }
+
+        btnFullscreen.addEventListener('click', toggleFullScreen);
+
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+            document.addEventListener(evt, () => {
+                const nativeFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+                if (!nativeFs && isFullscreenActive()) {
+                    applyFullscreenState(false);
+                } else {
+                    resizeCanvas();
+                }
+            });
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        window.onload = function() {
+            resizeCanvas();
+            initReactorCore();
+            applyScenario('nominal');
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>
